@@ -7,6 +7,22 @@ let apiUrl = null;
 
 const OFFSCREEN_DOCUMENT_PATH = 'offscreen.html';
 
+async function logDebug(message) {
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+    const logEntry = `[BG ${timestamp}] ${message}`;
+    console.log(logEntry);
+
+    // Get existing logs
+    const data = await chrome.storage.local.get(['debugLogs']);
+    let logs = data.debugLogs || [];
+    logs.push(logEntry);
+
+    // Keep last 50 logs
+    if (logs.length > 50) logs = logs.slice(-50);
+
+    await chrome.storage.local.set({ debugLogs: logs });
+}
+
 // Check if offscreen document exists
 async function hasOffscreenDocument() {
     const contexts = await chrome.runtime.getContexts({
@@ -81,22 +97,36 @@ async function startScreenshotCapture(attendanceId, userId, url) {
 
     // Request screen capture permission
     return new Promise((resolve, reject) => {
+        logDebug('Requesting desktop media...');
         chrome.desktopCapture.chooseDesktopMedia(
             ['screen', 'window'],
             tabs[0],
             async (streamId) => {
                 if (!streamId) {
-                    console.error('User cancelled screen capture');
+                    logDebug('User cancelled capture');
                     await chrome.storage.local.set({ captureActive: false });
                     reject(new Error('User cancelled screen capture'));
                     return;
                 }
 
+                logDebug('Got streamId: ' + streamId);
+
                 try {
                     // Create offscreen document
-                    await setupOffscreenDocument();
+                    logDebug('Setting up offscreen doc...');
+                    const existingcontexts = await chrome.runtime.getContexts({
+                        contextTypes: ['OFFSCREEN_DOCUMENT'],
+                        documentUrls: [chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH)]
+                    });
+
+                    if (existingcontexts.length === 0) {
+                        await setupOffscreenDocument();
+                        // Wait a bit for the script to load and be ready to receive messages
+                        await new Promise(r => setTimeout(r, 500));
+                    }
 
                     // Send streamId to offscreen document to start capture
+                    logDebug('Sending START_OFFSCREEN_CAPTURE');
                     chrome.runtime.sendMessage({
                         type: 'START_OFFSCREEN_CAPTURE',
                         streamId: streamId,
@@ -105,8 +135,10 @@ async function startScreenshotCapture(attendanceId, userId, url) {
                         apiUrl: apiUrl
                     });
 
+                    logDebug('Message sent to offscreen');
                     resolve();
                 } catch (err) {
+                    logDebug('Error setting up offscreen: ' + err.message);
                     console.error('Failed to setup offscreen document:', err);
                     reject(err);
                 }

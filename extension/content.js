@@ -43,14 +43,5 @@
         }
     });
 
-    // Inject script to detect if extension is available
-    const script = document.createElement('script');
-    script.textContent = `
-        (function() {
-            window.screenshotExtensionAvailable = true;
-            window.dispatchEvent(new Event('screenshotExtensionReady'));
-        })();
-    `;
-    (document.head || document.documentElement).appendChild(script);
-    script.remove();
+
 })();

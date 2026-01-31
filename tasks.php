@@ -72,8 +72,21 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             <?php if (!empty($tasks)) { ?>
                 <?php foreach ($tasks as $task) { 
                     $badgeClass = "badge-pending";
+                    $statusDisplay = str_replace('_',' ',$task['status']);
+                    
                     if ($task['status'] == 'in_progress') $badgeClass = "badge-in_progress";
                     if ($task['status'] == 'completed') $badgeClass = "badge-completed";
+                    
+                    // Logic for "Submitted for Review" visual
+                    // If completed, check if it has been rated. If NOT rated, show "submitted for review" (purple)
+                    // If rated, show "completed" (green) + stars.
+                    
+                    $isSubmittedForReview = false;
+                    if ($task['status'] == 'completed' && ($task['rating'] == 0 || $task['rating'] == NULL)) {
+                         $statusDisplay = "submitted for review"; // Lowercase per screenshot
+                         $badgeClass = "badge-purple"; // We will add a style or just inline it
+                         $isSubmittedForReview = true;
+                    }
                 ?>
                 <div class="task-card" style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #E5E7EB; position: relative;">
                     
@@ -85,14 +98,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                     <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
                         <i class="fa fa-chevron-right" style="color: #6B7280; font-size: 12px;"></i>
                         <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #111827;"><?= htmlspecialchars($task['title']) ?></h3>
-                        <span class="badge <?= $badgeClass ?>"><?= str_replace('_',' ',$task['status']) ?></span>
+                        
+                        <?php if($isSubmittedForReview) { ?>
+                            <span style="background: #F3E8FF; color: #7E22CE; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: lowercase;">submitted_for_review</span>
+                        <?php } else { ?>
+                            <span class="badge <?= $badgeClass ?>"><?= $statusDisplay ?></span>
+                        <?php } ?>
                     </div>
 
                     <div style="color: #4B5563; font-size: 14px; margin-bottom: 16px; padding-left: 20px;">
                         <?= htmlspecialchars($task['description']) ?>
                     </div>
 
-                    <div style="padding-left: 20px; margin-bottom: 16px;">
+                    <div style="padding-left: 20px; margin-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 8px; color: #6B7280; font-size: 13px;">
                             <i class="fa fa-users"></i> Team: 
                             <?php
@@ -107,30 +125,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                             ?>
                         </div>
                         <div style="margin-top: 5px; color: #6B7280; font-size: 13px;">
-                            Due: <?= empty($task['due_date']) ? 'No Date' : date("F j, Y", strtotime($task['due_date'])) ?>
+                            Due: <?= empty($task['due_date']) ? 'No Date' : date("n/j/Y", strtotime($task['due_date'])) ?>
                         </div>
-                    </div>
-
-                    <!-- Actions -->
-                    <div style="padding-left: 20px; display: flex; gap: 10px;">
-                        <?php if($task['status'] == 'pending') { ?>
-                            <a href="app/update-task-status.php?id=<?=$task['id']?>&status=in_progress" 
-                               style="background: #EFF6FF; color: #3B82F6; border: 1px solid #BFDBFE; padding: 6px 12px; border-radius: 6px; font-size: 13px; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 5px;">
-                                <i class="fa fa-play"></i> Start
-                            </a>
-                        <?php } elseif($task['status'] == 'in_progress') { ?>
-                            <a href="app/update-task-status.php?id=<?=$task['id']?>&status=completed" 
-                               style="background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; padding: 6px 12px; border-radius: 6px; font-size: 13px; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 5px;">
-                                <i class="fa fa-check"></i> Complete
-                            </a>
-                            <a href="app/update-task-status.php?id=<?=$task['id']?>&status=pending" 
-                               style="background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A; padding: 6px 12px; border-radius: 6px; font-size: 13px; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 5px;">
-                                <i class="fa fa-pause"></i> Pause
-                            </a>
-                        <?php } elseif($task['status'] == 'completed') { ?>
-                             <!-- No actions for completed tasks, maybe reopen? -->
-                        <?php } ?>
                         
+                        <!-- Rating & Feedback Display -->
+                        <?php if ($task['status'] == 'completed' && $task['rating'] > 0) { ?>
+                            <div style="margin-top: 8px; font-size: 13px; color: #4B5563;">
+                                <span style="color: #F59E0B; font-weight: 600;"><i class="fa fa-star"></i> <?= $task['rating'] ?>/5</span> 
+                                <?php if(!empty($task['review_comment'])) { ?>
+                                    - <?= htmlspecialchars($task['review_comment']) ?>
+                                <?php } ?>
+                            </div>
+                        <?php } ?>
+
                     </div>
 
                 </div>

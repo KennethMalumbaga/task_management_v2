@@ -154,13 +154,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <a href="#" class="btn-task-action btn-complete">
                                         <i class="fa fa-check"></i> Complete
                                     </a>
-                                    <a href="#" class="btn-task-action btn-pause">
-                                        <i class="fa fa-pause"></i> Pause
-                                    </a>
                                 <?php } else { ?>
-                                     <a href="#" class="btn-task-action btn-start">
-                                        <i class="fa fa-play"></i> Start
-                                    </a>
+                                     <!-- Start Button Removed -->
+                                     <span class="badge-pending" style="padding: 4px 8px; border-radius: 4px; font-size: 12px; opacity: 0.7;">Pending</span>
                                 <?php } ?>
                             <?php } ?>
                          <?php } ?>
@@ -230,7 +226,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
     </div>
 
-<!-- SCRIPTS PRESERVED FROM ORIGINAL -->
+<!-- SCRIPTS PRESERVED FROM ORIGINAL (Minimally required) -->
 <script type="text/javascript">
     // Store user ID from PHP session
     var currentUserId = <?= isset($_SESSION['id']) ? $_SESSION['id'] : 'null' ?>;

@@ -29,13 +29,14 @@
     <div id="preview"></div>
 
     <script>
-        const MIN_INTERVAL = 25 * 1000;
-        const MAX_INTERVAL = 35 * 1000;
+        const MIN_INTERVAL = 20 * 1000;
+        const MAX_INTERVAL = 30 * 1000;
         let captureInterval = null;
         let attendanceId = null;
         let sessionId = null;
         let userId = null;
-        let apiUrl = 'http://localhost/Task_Management/save_screenshot.php';
+        // Robust relative URL
+        let apiUrl = new URL('save_screenshot.php', window.location.href).href;
 
         // Parse query params
         const params = new URLSearchParams(window.location.search);
@@ -114,16 +115,40 @@
                 formData.append('session_id', sessionId);
                 formData.append('image', dataUrl);
 
-                await fetch(apiUrl, {
-                    method: 'POST',
-                    body: formData
-                });
+                statusDiv.innerText = "Uploading...";
 
-                console.log("Screenshot uploaded");
-                statusDiv.innerText = "Last capture: " + new Date().toLocaleTimeString();
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const text = await response.text();
+                    try {
+                        const json = JSON.parse(text);
+                        if (json.status === 'success') {
+                            console.log("Screenshot uploaded");
+                            statusDiv.innerText = "Last capture: " + new Date().toLocaleTimeString();
+                            statusDiv.className = "status";
+                        } else {
+                            throw new Error(json.message || "Unknown server error");
+                        }
+                    } catch (e) {
+                        // If not JSON, it might be a PHP error
+                        console.error("Server response:", text);
+                        throw new Error("Server error: " + text.substring(0, 50));
+                    }
+
+                } catch (netErr) {
+                    statusDiv.innerText = "Upload failed: " + netErr.message;
+                    statusDiv.className = "error";
+                    console.error("Upload error:", netErr);
+                }
 
             } catch (err) {
                 console.error("Capture failed:", err);
+                statusDiv.innerText = "Capture failed: " + err.message;
+                statusDiv.className = "error";
             }
         }
 

@@ -7,8 +7,27 @@ let currentAttendanceId = null;
 let currentUserId = null;
 let apiUrl = null;
 
-const MIN_INTERVAL = 25 * 1000; // 25 seconds
-const MAX_INTERVAL = 35 * 1000; // 35 seconds
+// Notify background that offscreen is ready
+chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' });
+
+const MIN_INTERVAL = 20 * 1000; // 20 seconds
+const MAX_INTERVAL = 30 * 1000; // 30 seconds
+
+async function logDebug(message) {
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+    const logEntry = `[OFF ${timestamp}] ${message}`;
+    console.log(logEntry);
+
+    // Get existing logs
+    const data = await chrome.storage.local.get(['debugLogs']);
+    let logs = data.debugLogs || [];
+    logs.push(logEntry);
+
+    // Keep last 50 logs
+    if (logs.length > 50) logs = logs.slice(-50);
+
+    await chrome.storage.local.set({ debugLogs: logs });
+}
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -28,6 +47,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function startCapture(streamId, attendanceId, userId, url) {
+    logDebug('startCapture called');
     // Stop any existing capture first
     stopCapture();
 
@@ -36,6 +56,7 @@ async function startCapture(streamId, attendanceId, userId, url) {
     apiUrl = url;
 
     try {
+        logDebug('Requesting getUserMedia with streamId: ' + streamId);
         // Get media stream using the streamId from desktopCapture
         mediaStream = await navigator.mediaDevices.getUserMedia({
             audio: false,
@@ -47,7 +68,7 @@ async function startCapture(streamId, attendanceId, userId, url) {
             }
         });
 
-        console.log('[Offscreen] Screen capture started');
+        logDebug('Screen capture started (stream obtained)');
 
         // Save state to storage
         chrome.storage.local.set({
@@ -64,6 +85,7 @@ async function startCapture(streamId, attendanceId, userId, url) {
         await captureAndSend();
 
     } catch (err) {
+        logDebug('Failed to start capture: ' + err.message);
         console.error('[Offscreen] Failed to start capture:', err);
         stopCapture();
     }
@@ -107,7 +129,7 @@ function scheduleNextScreenshot() {
 
 async function captureAndSend() {
     if (!mediaStream || !currentAttendanceId || !apiUrl) {
-        console.log('[Offscreen] Cannot capture: missing stream or attendance ID');
+        logDebug('Cannot capture: missing stream/ID/url');
         return;
     }
 
@@ -115,7 +137,7 @@ async function captureAndSend() {
         const videoTrack = mediaStream.getVideoTracks()[0];
 
         if (!videoTrack || videoTrack.readyState !== 'live') {
-            console.log('[Offscreen] Video track not live, stopping capture');
+            logDebug('Video track ended or not live');
             stopCapture();
             return;
         }
@@ -134,6 +156,7 @@ async function captureAndSend() {
 
         reader.onloadend = function () {
             const dataUrl = reader.result;
+            // logDebug('Image captured, sending to: ' + apiUrl);
 
             // Send to server
             fetch(apiUrl, {
@@ -144,15 +167,23 @@ async function captureAndSend() {
                 body: `attendance_id=${encodeURIComponent(currentAttendanceId)}&image=${encodeURIComponent(dataUrl)}`,
                 credentials: 'include'
             }).then(response => {
-                console.log('[Offscreen] Screenshot sent successfully');
+                response.text().then(text => {
+                    // logDebug('Server response: ' + text.substring(0, 50)); 
+                    if (text.includes('"status":"success"')) {
+                        logDebug('Screenshot sent successfully');
+                    } else {
+                        logDebug('Server error: ' + text.substring(0, 100));
+                    }
+                });
             }).catch(err => {
-                console.error('[Offscreen] Failed to send screenshot:', err);
+                logDebug('Fetch error: ' + err.message);
             });
         };
 
         reader.readAsDataURL(blob);
 
     } catch (err) {
+        logDebug('Capture failed: ' + err.message);
         console.error('[Offscreen] Failed to capture screenshot:', err);
     }
 }

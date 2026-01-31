@@ -66,8 +66,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     
                     // Status Badge Class
                     $statusClass = "pending";
+                    $statusText = str_replace('_', ' ', $task['status']);
+                    
                     if ($task['status'] == 'in_progress') $statusClass = "in_progress";
                     if ($task['status'] == 'completed') $statusClass = "completed";
+                    
+                    // Check Revision Status
+                    if ($task['status'] == 'in_progress' && !empty($task['review_comment'])) {
+                        $statusClass = "revision_needed"; // Reuse subtask badge class (Orange)
+                        $statusText = "revision requested";
+                    }
             ?>
             <div class="task-card-v2" id="task-<?=$task['id']?>">
                 <!-- Header -->
@@ -75,7 +83,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div class="task-header-left">
                         <i class="fa fa-chevron-right task-toggle-icon" id="icon-<?=$task['id']?>"></i>
                         <span class="task-title-v2"><?= htmlspecialchars($task['title']) ?></span>
-                        <span class="badge-v2 <?=$statusClass?>"><?= str_replace('_', ' ', $task['status']) ?></span>
+                        <span class="badge-v2 <?=$statusClass?>"><?= $statusText ?></span>
                     </div>
                     <?php if($_SESSION['role'] == 'admin') { ?>
                         <a href="edit-task.php?id=<?=$task['id']?>" style="color: #9CA3AF;"><i class="fa fa-pencil"></i></a>
@@ -269,24 +277,79 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             }
                         }
 
-                        // Show if User is Leader, Task is NOT completed, and All Subtasks ARE done
-                        if ($isLeader && $task['status'] != 'completed' && $allSubtasksDone && !empty($subtasks)) {
+                        // Check if revision requested
+                        $isRevisionRequested = ($task['status'] == 'in_progress' && !empty($task['review_comment']));
+                        
+                        // Check if Solo Leader (User is leader, and is the only assignee OR valid logic)
+                        // User said: "if he is the only one assigned to the task or do not have a member"
+                        // $assignees is array of users.
+                        $assigneeCount = ($assignees != 0) ? count($assignees) : 0;
+                        //$isLeader defined above checks if *current user* is leader.
+                        
+                        // Condition: Leader + (Revision Requested OR Ready for Submission)
+                        
+                        if ($isLeader) {
+                            if ($isRevisionRequested) {
                     ?>
-                        <div class="completion-banner">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div style="background: #D1FAE5; color: #059669; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fa fa-check" style="font-size: 12px;"></i>
+                                <!-- Revision Requested UI -->
+                                <div style="margin-top: 24px; border: 1px solid #FDBA74; background: #FFF7ED; border-radius: 8px; overflow: hidden;">
+                                    <div style="padding: 16px; border-bottom: 1px solid #FFEDD5; display: flex; align-items: center; gap: 8px;">
+                                        <i class="fa fa-exclamation-circle" style="color: #EA580C;"></i>
+                                        <span style="color: #9A3412; font-weight: 600; font-size: 14px;">Revision Requested by Admin</span>
+                                    </div>
+                                    
+                                    <div style="padding: 16px;">
+                                        <div style="margin-bottom: 16px;">
+                                            <div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px;">Admin Feedback:</div>
+                                            <div style="color: #4B5563; font-size: 14px; line-height: 1.6;">
+                                                <?= nl2br(htmlspecialchars($task['review_comment'])) ?>
+                                            </div>
+                                        </div>
+
+                                        <?php if (!empty($task['submission_note'])) { ?>
+                                            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 6px; padding: 12px;">
+                                                <div style="font-size: 12px; color: #6B7280; margin-bottom: 4px;">Original Submission Notes:</div>
+                                                <div style="font-size: 13px; color: #4B5563; font-style: italic;">
+                                                    <?= htmlspecialchars($task['submission_note']) ?>
+                                                </div>
+                                            </div>
+                                        <?php } ?>
+                                        
+                                        <div style="margin-top: 16px; text-align: right;">
+                                             <div style="font-size: 13px; color: #EA580C; margin-bottom: 10px; display: inline-block; text-align: left; float: left; padding-top: 8px;">
+                                                Please address the feedback and resubmit when ready.
+                                             </div>
+                                             <button class="btn-v2 btn-red" style="background: #EA580C;" onclick="openResubmitModal(<?=$task['id']?>, `<?= htmlspecialchars($task['review_comment']) ?>`)">
+                                                <i class="fa fa-paper-plane"></i> Resubmit Task
+                                             </button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div style="font-weight: 600; color: #065F46; font-size: 14px;">All Subtasks Completed!</div>
-                                    <div style="font-size: 13px; color: #047857;">You can now submit this task for admin review and rating.</div>
+
+                    <?php   
+                            } else if ($task['status'] != 'completed' && $allSubtasksDone && !empty($subtasks)) {
+                    ?>
+                            <!-- Standard Submission Banner -->
+                            <div class="completion-banner">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="background: #D1FAE5; color: #059669; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fa fa-check" style="font-size: 12px;"></i>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600; color: #065F46; font-size: 14px;">All Subtasks Completed!</div>
+                                        <div style="font-size: 13px; color: #047857;">You can now submit this task for admin review and rating.</div>
+                                    </div>
                                 </div>
+                                <button class="btn-v2 btn-green" onclick="openTaskSubmissionModal(<?=$task['id']?>)">
+                                    <i class="fa fa-paper-plane"></i> Submit Task
+                                </button>
                             </div>
-                            <button class="btn-v2 btn-green" onclick="openTaskSubmissionModal(<?=$task['id']?>)">
-                                <i class="fa fa-paper-plane"></i> Submit Task
-                            </button>
-                        </div>
-                    <?php } else if ($task['status'] == 'completed') { ?>
+                    <?php 
+                            } 
+                        } // End isLeader check
+
+                        if ($task['status'] == 'completed') { 
+                    ?>
                          <!-- Display Completed State if needed, or already handled by badge -->
                          <div style="margin-top: 20px; padding: 15px; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; color: #166534; font-size: 14px;">
                             <i class="fa fa-check-circle"></i> This task has been submitted and completed.
@@ -329,6 +392,36 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         </div>
     </div>
 
+    <!-- Resubmit Task Modal -->
+    <div id="resubmitModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+             <h3 style="margin-top: 0; font-size: 18px; color: #111827;">Resubmit Task for Review</h3>
+             
+             <div style="background: #FFF7ED; border: 1px solid #FFEDD5; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 14px;">
+                 <div style="font-weight: 600; color: #9A3412; margin-bottom: 4px;">Admin Feedback:</div>
+                 <div id="resubmitFeedback" style="color: #4B5563;"></div>
+             </div>
+
+             <form action="app/resubmit-task.php" method="POST">
+                <input type="hidden" name="task_id" id="resubmit_task_id">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 5px;">Revision Notes <span style="color: red;">*</span></label>
+                    <textarea name="revision_note" class="form-input-v2" rows="4" placeholder="Explain what changes you made..." required></textarea>
+                </div>
+                
+                <div style="font-size: 12px; color: #6B7280; margin-bottom: 15px;">
+                    Describe the revisions you've made to address the feedback.
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-v2 btn-white" onclick="closeResubmitModal()">Cancel</button>
+                    <button type="submit" class="btn-v2 btn-red" style="background: #EA580C;">Resubmit for Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         function toggleTask(id) {
             $("#task-" + id).toggleClass("expanded");
@@ -345,6 +438,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
         function closeTaskSubmissionModal() {
             $("#taskSubmissionModal").fadeOut(200);
+        }
+
+        function openResubmitModal(taskId, feedback) {
+            $("#resubmit_task_id").val(taskId);
+            $("#resubmitFeedback").text(feedback);
+            $("#resubmitModal").fadeIn(200);
+        }
+
+        function closeResubmitModal() {
+            $("#resubmitModal").fadeOut(200);
         }
     </script>
 </body>

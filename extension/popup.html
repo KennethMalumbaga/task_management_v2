@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <style>
@@ -8,23 +9,28 @@
             padding: 15px;
             font-family: Arial, sans-serif;
         }
+
         h3 {
             margin-top: 0;
             color: #333;
         }
+
         .status {
             padding: 10px;
             border-radius: 4px;
             margin: 10px 0;
         }
+
         .status.active {
             background: #d4edda;
             color: #155724;
         }
+
         .status.inactive {
             background: #f8d7da;
             color: #721c24;
         }
+
         button {
             width: 100%;
             padding: 8px;
@@ -35,16 +41,31 @@
             background: #007bff;
             color: white;
         }
+
         button:hover {
             background: #0056b3;
         }
     </style>
 </head>
+
 <body>
     <h3>Employee Screenshot Monitor</h3>
     <div id="status" class="status inactive">Inactive</div>
     <p>This extension automatically captures screenshots when you're timed in.</p>
-    <p><small>Make sure you're logged into the task management system.</small></p>
+    <div style="margin-top: 15px; border-top: 1px solid #ccc; padding-top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong>Debug Logs</strong>
+            <div>
+                <button id="refreshLogs" style="width: auto; padding: 2px 5px; font-size: 10px;">Refresh</button>
+                <button id="clearLogs"
+                    style="width: auto; padding: 2px 5px; font-size: 10px; background: #dc3545;">Clear</button>
+            </div>
+        </div>
+        <div id="logs"
+            style="height: 150px; overflow-y: auto; background: #f8f9fa; border: 1px solid #ddd; font-size: 10px; font-family: monospace; padding: 5px; margin-top: 5px; white-space: pre-wrap;">
+        </div>
+    </div>
+    <script src="popup.js"></script>
 </body>
-</html>
 
+</html>
