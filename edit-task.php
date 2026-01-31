@@ -93,7 +93,37 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
                 <div style="margin-bottom: 20px;">
 					<label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Team Members (Optional)</label>
-                    <p style="font-size: 12px; color: #666; margin-top: 0;">(Editing team members via this form is not yet implemented, please manage via task assignment for now)</p>
+                    <div style="border: 1px solid #d1d5db; border-radius: 6px; padding: 10px; max-height: 150px; overflow-y: auto; background: white;">
+                        <?php 
+                        // Prepare array of currently assigned member IDs
+                        $current_member_ids = [];
+                        $assignees = get_task_assignees($pdo, $task['id']);
+                        if ($assignees != 0) {
+                            foreach ($assignees as $a) {
+                                if ($a['role'] == 'member') {
+                                    $current_member_ids[] = $a['user_id'];
+                                }
+                            }
+                        }
+                        
+                        if ($users != 0) { 
+                            foreach ($users as $user) { 
+                                // Optional: Don't show the currently selected leader in this list to avoid confusion? 
+                                // Or show them disabled? For simplicity, show all, backend handles duplication removal.
+                                // Actually, simpler UI:
+                        ?>
+                        <label style="display: flex; align-items: center; margin-bottom: 8px; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" name="team_members[]" value="<?=$user['id']?>" 
+                                <?php if(in_array($user['id'], $current_member_ids)) echo 'checked'; ?>
+                                style="margin-right: 8px;">
+                            <?=$user['full_name']?>
+                        </label>
+                        <?php 
+                            } 
+                        } 
+                        ?>
+                    </div>
+                    <p style="font-size: 12px; color: #6B7280; margin-top: 5px;">Select additional members to work on this task.</p>
                 </div>
 
                  <!-- File -->

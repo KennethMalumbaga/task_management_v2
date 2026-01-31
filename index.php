@@ -53,65 +53,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 <body>
     
     <!-- Sidebar -->
-    <div class="dash-sidebar">
-        <div class="dash-brand">
-            <h2>TaskFlow</h2>
-            <span>Management System</span>
-        </div>
-        
-        <nav class="dash-nav">
-            <?php if($_SESSION['role'] == "employee"){ ?>
-                <!-- Employee Nav -->
-                <a href="index.php" class="dash-nav-item active">
-                    <i class="fa fa-th-large"></i> Dashboard
-                </a>
-                <a href="my_task.php" class="dash-nav-item">
-                    <i class="fa fa-check-square-o"></i> Tasks
-                </a>
-                <a href="my_subtasks.php" class="dash-nav-item">
-                     <i class="fa fa-list-alt"></i> Subtasks
-                </a>
-                <a href="dtr.php" class="dash-nav-item">
-                    <i class="fa fa-calendar"></i> Calendar
-                </a>
-                <a href="notifications.php" class="dash-nav-item">
-                    <i class="fa fa-comment-o"></i> Messages
-                </a>
-                <a href="profile.php" class="dash-nav-item">
-                    <i class="fa fa-user-o"></i> Profile
-                </a>
-            <?php } else { ?>
-                <!-- Admin Nav -->
-                <a href="index.php" class="dash-nav-item active">
-                    <i class="fa fa-th-large"></i> Dashboard
-                </a>
-                <a href="tasks.php" class="dash-nav-item">
-                    <i class="fa fa-check-square-o"></i> Tasks
-                </a>
-                <a href="create_task.php" class="dash-nav-item">
-                    <i class="fa fa-plus-square-o"></i> Create Task
-                </a>
-                <a href="dtr.php" class="dash-nav-item">
-                    <i class="fa fa-calendar"></i> Calendar
-                </a>
-                <a href="notifications.php" class="dash-nav-item">
-                    <i class="fa fa-comment-o"></i> Messages
-                </a>
-                <a href="user.php" class="dash-nav-item">
-                    <i class="fa fa-users"></i> Users
-                </a>
-                <a href="screenshots.php" class="dash-nav-item">
-                    <i class="fa fa-camera"></i> Captures
-                </a>
-            <?php } ?>
-        </nav>
-
-        <div class="dash-sidebar-footer">
-            <a href="logout.php" class="dash-logout">
-                <i class="fa fa-sign-out"></i> Logout
-            </a>
-        </div>
-    </div>
+    <?php include "inc/new_sidebar.php"; ?>
 
     <!-- Main Content -->
     <div class="dash-main">
@@ -298,27 +240,37 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     const btnOut = document.getElementById('btnTimeOut');
     const statusSpan = document.getElementById('attendanceStatus');
     let attendanceId = null;
-    let screenshotTimerId = null;
-    let mediaStream = null;
-    let isTimingOut = false; // Flag to prevent multiple simultaneous time out calls
+    let extensionAvailable = false;
+
+    // Listen for extension ready event
+    window.addEventListener('screenshotExtensionReady', function() {
+        extensionAvailable = true;
+        console.log('Screenshot extension detected');
+    });
+
+    // Check for extension after page load
+    setTimeout(function() {
+        if (window.screenshotExtensionAvailable) {
+            extensionAvailable = true;
+        }
+    }, 1000);
 
     // Toggle button visibility based on state
-    function updateButtonState(isTimeIn) {
+    function updateButtonState(isTimedIn) {
         if (!btnIn || !btnOut) return;
-        if (isTimeIn) {
+        if (isTimedIn) {
             btnIn.style.display = 'none';
             btnOut.style.display = 'flex';
             btnOut.disabled = false;
-            // Also enable time in button as resume button if needed?
-            // For now just swap them.
         } else {
             btnIn.style.display = 'flex';
-            btnIn.innerHTML = '<i class="fa fa-play"></i> Clock In'; // Reset text just in case
+            btnIn.innerHTML = '<i class="fa fa-play"></i> Clock In';
             btnOut.style.display = 'none';
             btnIn.disabled = false;
         }
     }
 
+    // Simple AJAX helper
     function ajax(url, data, cb, method) {
         var xhr = new XMLHttpRequest();
         var useMethod = method || 'POST';
@@ -332,7 +284,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         cb({status: 'error', message: 'Invalid JSON response', raw: xhr.responseText});
                     }
                 } else {
-                    cb({status: 'error', message: 'Network error', status: xhr.status, raw: xhr.responseText});
+                    cb({status: 'error', message: 'Network error', statusCode: xhr.status, raw: xhr.responseText});
                 }
             }
         };
@@ -344,286 +296,107 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
     }
 
-    // Check if extension is available
-    var extensionAvailable = false;
-    window.addEventListener('screenshotExtensionReady', function() {
-        extensionAvailable = true;
-        console.log('Screenshot extension detected');
+    // Listen for extension responses
+    window.addEventListener('message', function(event) {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'SCREENSHOT_RESPONSE') {
+            if (event.data.status === 'started') {
+                statusSpan.textContent = 'Screen capture active. Taking screenshots...';
+            } else {
+                statusSpan.textContent = 'Screen capture failed. Please try again.';
+            }
+        } else if (event.data.type === 'CAPTURE_STATUS') {
+            // Handle capture status check response
+            if (event.data.isCapturing) {
+                attendanceId = event.data.attendanceId;
+                statusSpan.textContent = 'Screen capture active (restored).';
+                updateButtonState(true);
+            }
+        }
     });
 
-    // Check for extension after page load
-    setTimeout(function() {
-        if (window.screenshotExtensionAvailable) {
-            extensionAvailable = true;
-        }
-    }, 1000);
-
+    // Clock In Handler
     if (btnIn) {
         btnIn.addEventListener('click', async function () {
-            // Check if already timed in (restored from page load)
-            var isAlreadyTimedIn = attendanceId !== null;
+            btnIn.disabled = true;
+            statusSpan.textContent = 'Requesting screen share...';
             
-            // Check if extension is available
             if (extensionAvailable || window.screenshotExtensionAvailable) {
-                // If not already timed in, do time in first
-                if (!isAlreadyTimedIn) {
-                    ajax('time_in.php', '', function (res) {
-                        if (res.status === 'success') {
-                            attendanceId = res.attendance_id || null;
-                            statusSpan.textContent = 'Timed in. Extension will handle screenshots automatically.';
-                            updateButtonState(true);
-                            
-                            // Tell extension to start capturing
-                            window.postMessage({
-                                type: 'REQUEST_SCREENSHOT',
-                                attendanceId: attendanceId,
-                                userId: currentUserId,
-                                apiUrl: window.location.origin + window.location.pathname.replace('index.php', 'save_screenshot.php')
-                            }, window.location.origin);
-                        } else {
-                            statusSpan.textContent = res.message || 'Error during time in';
-                        }
-                    });
-                } else {
-                    // Already timed in, just start extension
-                    statusSpan.textContent = 'Starting screen capture...';
-                    window.postMessage({
-                        type: 'REQUEST_SCREENSHOT',
-                        attendanceId: attendanceId,
-                        userId: currentUserId,
-                        apiUrl: window.location.origin + window.location.pathname.replace('index.php', 'save_screenshot.php')
-                    }, window.location.origin);
-                    updateButtonState(true);
-                }
+                // Extension flow: Request screen share first (extension handles the prompt)
+                // Then time_in is called
+                ajax('time_in.php', '', function (res) {
+                    if (res.status === 'success') {
+                        attendanceId = res.attendance_id || null;
+                        
+                        // Now start screen capture via extension
+                        window.postMessage({
+                            type: 'REQUEST_SCREENSHOT',
+                            attendanceId: attendanceId,
+                            userId: currentUserId,
+                            apiUrl: window.location.origin + window.location.pathname.replace('index.php', 'save_screenshot.php')
+                        }, window.location.origin);
+                        
+                        statusSpan.textContent = 'Timed in. Starting screen capture...';
+                        updateButtonState(true);
+                    } else {
+                        statusSpan.textContent = res.message || 'Error during time in';
+                        btnIn.disabled = false;
+                    }
+                });
             } else {
-                // Fallback to browser screen share - request permission when Time In is pressed
-                statusSpan.textContent = 'Requesting screen access...';
-                var stream = await requestScreenShare();
-                
-                if (!stream) {
-                    statusSpan.textContent = 'Screen access denied. Please allow to continue.';
-                    return;
-                }
-                
-                // IMPORTANT: Stream is now stored in mediaStream variable globally
-                // It will be reused for ALL subsequent screenshots without asking again
-                console.log('Screen share granted. Stream stored. Will reuse for all screenshots.');
-                
-                // If not already timed in, do time in first
-                if (!isAlreadyTimedIn) {
-                    ajax('time_in.php', '', function (res) {
-                        if (res.status === 'success') {
-                            attendanceId = res.attendance_id || null;
-                            statusSpan.textContent = 'Timed in. Screenshots will be taken automatically.';
-                            updateButtonState(true);
-                            // Start screenshot loop - mediaStream is already stored globally, will be reused
-                            startScreenshotLoop();
-                        } else {
-                            statusSpan.textContent = res.message || 'Error during time in';
-                            // Stop stream if time in failed
-                            if (mediaStream) {
-                                mediaStream.getTracks().forEach(function (t) { t.stop(); });
-                                mediaStream = null;
-                            }
-                        }
-                    });
-                } else {
-                    // Already timed in, just start screenshot loop
-                    statusSpan.textContent = 'Timed in. Screenshots will be taken automatically.';
-                    updateButtonState(true);
-                    startScreenshotLoop();
-                }
+                // No extension - show warning
+                statusSpan.textContent = 'Extension not installed. Please install the Employee Screenshot Monitor extension.';
+                btnIn.disabled = false;
             }
         });
     }
 
-    // Helper function to handle time out (used by both manual and automatic time out)
-    function performTimeOut() {
-        if (!attendanceId || isTimingOut) return; // Already timed out, not timed in, or already timing out
-        
-        isTimingOut = true; // Set flag to prevent multiple simultaneous calls
-        
-        ajax('time_out.php', '', function (res) {
-            isTimingOut = false; // Reset flag
-            
-            if (res.status === 'success') {
-                statusSpan.textContent = 'Timed out.';
-                updateButtonState(false);
-                attendanceId = null; // Clear attendance ID
-                
-                // Stop extension if it's running
-                if (extensionAvailable || window.screenshotExtensionAvailable) {
-                    window.postMessage({
-                        type: 'STOP_SCREENSHOT'
-                    }, window.location.origin);
-                }
-                
-                stopScreenshotLoop();
-            } else {
-                statusSpan.textContent = res.message || 'Error during time out';
-            }
-        });
-    }
-
+    // Clock Out Handler
     if (btnOut) {
         btnOut.addEventListener('click', function () {
-            performTimeOut();
+            btnOut.disabled = true;
+            statusSpan.textContent = 'Clocking out...';
+            
+            // Stop screen capture first
+            if (extensionAvailable || window.screenshotExtensionAvailable) {
+                window.postMessage({
+                    type: 'STOP_SCREENSHOT'
+                }, window.location.origin);
+            }
+            
+            // Then record time out
+            ajax('time_out.php', '', function (res) {
+                if (res.status === 'success') {
+                    statusSpan.textContent = 'Timed out. Screen capture stopped.';
+                    attendanceId = null;
+                    updateButtonState(false);
+                } else {
+                    statusSpan.textContent = res.message || 'Error during time out';
+                    btnOut.disabled = false;
+                }
+            });
         });
     }
 
-    // Check for active attendance on page load - only restore UI state, don't request screen share
+    // On page load, check for active attendance
     if (btnIn && btnOut) {
         ajax('check_attendance.php', '', function (res) {
             if (res.status === 'success' && res.has_active_attendance) {
                 attendanceId = res.attendance_id || null;
-                statusSpan.textContent = 'Timed in (restored). Please press Time In again to start screen sharing.';
+                updateButtonState(true);
                 
-                // UI Restoration:
-                // Enable resume state
-                btnIn.style.display = 'flex'; 
-                btnIn.innerHTML = '<i class="fa fa-play"></i> Resume Tracking';
-                btnOut.style.display = 'flex'; 
-                btnOut.disabled = false;
-                
+                // Check if extension is still capturing
+                if (extensionAvailable || window.screenshotExtensionAvailable) {
+                    window.postMessage({
+                        type: 'CHECK_CAPTURE_STATUS'
+                    }, window.location.origin);
+                    statusSpan.textContent = 'Timed in. Checking screen capture status...';
+                } else {
+                    statusSpan.textContent = 'Timed in (restored). Install extension to resume screen capture.';
+                }
             }
         }, 'GET');
-    }
-
-    const MIN_INTERVAL_SEC = 25; // minimum seconds between screenshots (random around 30 seconds)
-    const MAX_INTERVAL_SEC = 35; // maximum seconds between screenshots (random around 30 seconds)
-
-    async function requestScreenShare() {
-        // If stream already exists and is active, return it immediately
-        if (mediaStream) {
-            var videoTrack = mediaStream.getVideoTracks()[0];
-            if (videoTrack && videoTrack.readyState === 'live') {
-                return mediaStream; // Stream is still active, reuse it
-            } else {
-                // Stream ended, clear it
-                console.log('Stream ended, clearing...');
-                mediaStream = null;
-            }
-        }
-
-        // Only request new stream if we don't have one
-        try {
-            console.log('Requesting new screen share...');
-            mediaStream = await navigator.mediaDevices.getDisplayMedia({
-                video: { cursor: "always" },
-                audio: false
-            });
-            
-            // Listen for when user stops sharing manually
-            var videoTrack = mediaStream.getVideoTracks()[0];
-            videoTrack.addEventListener('ended', function() {
-                console.log('User stopped screen sharing');
-                mediaStream = null;
-                stopScreenshotLoop();
-                if (statusSpan) {
-                     statusSpan.textContent = 'Screen sharing stopped. You are still timed in.';
-                }
-                // Do NOT automatically time out. Allow user to re-enable or time out manually.
-            });
-            
-            console.log('Screen share granted, stream active');
-            return mediaStream;
-        } catch (e) {
-            console.error('Screen share denied', e);
-            if (statusSpan) {
-                statusSpan.textContent = 'Screen share denied. Please allow to continue.';
-            }
-            return null;
-        }
-    }
-
-    function getRandomDelayMs() {
-        var minMs = MIN_INTERVAL_SEC * 1000; // convert seconds to milliseconds
-        var maxMs = MAX_INTERVAL_SEC * 1000; // convert seconds to milliseconds
-        return minMs + Math.random() * (maxMs - minMs);
-    }
-
-    async function takeScreenshotOnce() {
-        // Don't take screenshots if not timed in (no attendanceId)
-        if (!attendanceId) {
-            stopScreenshotLoop();
-            return;
-        }
-
-        // Use existing stream - don't request new one unless it's actually ended
-        if (!mediaStream) {
-            console.log('No active stream, cannot take screenshot');
-            stopScreenshotLoop();
-            if (statusSpan) {
-                 statusSpan.textContent = 'Screen sharing stopped. You are still timed in.';
-            }
-            return;
-        }
-
-        // Check if stream is still active
-        var videoTrack = mediaStream.getVideoTracks()[0];
-        if (!videoTrack || videoTrack.readyState !== 'live') {
-            console.log('Stream is not live, stopping...');
-            mediaStream = null;
-            stopScreenshotLoop();
-            if (statusSpan) {
-                 statusSpan.textContent = 'Screen sharing stopped. You are still timed in.';
-            }
-            return;
-        }
-
-        // Stream is active, use it for screenshot (reusing the same stream - no new permission needed)
-        console.log('Taking screenshot using existing stream (no permission prompt)');
-        var stream = mediaStream;
-        var videoTrack = stream.getVideoTracks()[0];
-        if (!window.ImageCapture) {
-            console.error('ImageCapture API not supported in this browser.');
-            return;
-        }
-        var imageCapture = new ImageCapture(videoTrack);
-
-        try {
-            var bitmap = await imageCapture.grabFrame();
-            var canvas = document.createElement('canvas');
-            canvas.width = bitmap.width;
-            canvas.height = bitmap.height;
-            var ctx = canvas.getContext('2d');
-            ctx.drawImage(bitmap, 0, 0);
-            var dataUrl = canvas.toDataURL('image/png');
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', 'save_screenshot.php', true);
-            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-            xhr.send(
-                'attendance_id=' + encodeURIComponent(attendanceId || '') +
-                '&image=' + encodeURIComponent(dataUrl)
-            );
-        } catch (e) {
-            console.error('Screenshot failed', e);
-        }
-    }
-
-    function scheduleNextScreenshot() {
-        var delay = getRandomDelayMs();
-        screenshotTimerId = setTimeout(async function () {
-            await takeScreenshotOnce();
-            scheduleNextScreenshot();
-        }, delay);
-    }
-
-    function startScreenshotLoop() {
-        if (screenshotTimerId) return;
-        scheduleNextScreenshot();
-    }
-
-    function stopScreenshotLoop() {
-        if (screenshotTimerId) {
-            clearTimeout(screenshotTimerId);
-            screenshotTimerId = null;
-        }
-        if (mediaStream) {
-            mediaStream.getTracks().forEach(function (t) { t.stop(); });
-            mediaStream = null;
-        }
     }
 </script>
 </body>

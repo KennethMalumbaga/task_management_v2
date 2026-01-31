@@ -116,6 +116,26 @@ function insert_task_assignees($pdo, $task_id, $leader_id, $members=[]){
     }
 }
 
+function update_task_assignees($pdo, $task_id, $leader_id, $members=[]){
+    // 1. Delete all existing assignees for this task
+    $stmt = $pdo->prepare("DELETE FROM task_assignees WHERE task_id=?");
+    $stmt->execute([$task_id]);
+
+    // 2. Re-insert Leader
+    $stmt = $pdo->prepare("INSERT INTO task_assignees (task_id, user_id, role) VALUES (?, ?, 'leader')");
+    $stmt->execute([$task_id, $leader_id]);
+
+    // 3. Re-insert Members
+    if (!empty($members)) {
+        $stmtMember = $pdo->prepare("INSERT INTO task_assignees (task_id, user_id, role) VALUES (?, ?, 'member')");
+        foreach ($members as $mem_id) {
+            if ($mem_id != $leader_id) {
+                 $stmtMember->execute([$task_id, $mem_id]);
+            }
+        }
+    }
+}
+
 /* ---------------------------------------------
    TASK FETCHING
 --------------------------------------------- */

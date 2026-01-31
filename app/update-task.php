@@ -98,6 +98,10 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
        $data = array($title, $description, $assigned_to, $due_date, $status, $review_comment, $admin_id, $template_file_path, $id);
        update_task($pdo, $data);
 
+       // Update Assignees (Leader + Members)
+       $team_members = isset($_POST['team_members']) ? $_POST['team_members'] : [];
+       update_task_assignees($pdo, $id, $assigned_to, $team_members);
+
        // Send notification to employee about the review result if there is an assignee
        if (!empty($assigned_to) && $assigned_to != 0) {
        	  if ($status === 'completed') {

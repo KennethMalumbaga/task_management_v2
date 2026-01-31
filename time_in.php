@@ -26,13 +26,17 @@ if (!$att) {
     $sql = "INSERT INTO attendance (user_id, att_date, time_in)
             VALUES (?, ?, ?)";
     $pdo->prepare($sql)->execute([$user_id, $today, $now]);
+    
+    // Get the inserted attendance ID
+    $new_attendance_id = $pdo->lastInsertId();
 
-    echo json_encode(['status'=>'success','message'=>'Time in recorded']);
+    echo json_encode(['status'=>'success','message'=>'Time in recorded', 'attendance_id' => $new_attendance_id]);
     exit;
 }
 
 /* ALREADY TIMED IN */
 if ($att['time_in']) {
-    echo json_encode(['status'=>'success','message'=>'Already timed in']);
+    echo json_encode(['status'=>'success','message'=>'Already timed in', 'attendance_id' => $att['id']]);
     exit;
 }
+
