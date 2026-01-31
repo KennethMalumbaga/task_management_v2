@@ -21,154 +21,114 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Edit Task</title>
+	<title>Edit Task | TaskFlow</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-	<link rel="stylesheet" href="css/style.css">
-
+	<link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
-	<input type="checkbox" id="checkbox">
-	<?php include "inc/header.php" ?>
-	<div class="body">
-		<?php include "inc/nav.php" ?>
-		<section class="section-1">
-			<h4 class="title">Edit Task <a href="tasks.php">Tasks</a></h4>
-			<form class="form-1"
-			      method="POST"
-			      enctype="multipart/form-data"
-			      action="app/update-task.php">
-			      <?php if (isset($_GET['error'])) {?>
-      	  	<div class="danger" role="alert">
-			  <?php echo stripcslashes($_GET['error']); ?>
-			</div>
-      	  <?php } ?>
+    
+    <!-- Sidebar -->
+    <?php include "inc/new_sidebar.php"; ?>
 
-      	  <?php if (isset($_GET['success'])) {?>
-      	  	<div class="success" role="alert">
-			  <?php echo stripcslashes($_GET['success']); ?>
-			</div>
-      	  <?php } ?>
-				<div class="input-holder">
-					<lable>Title</lable>
-					<input type="text" name="title" class="input-1" placeholder="Full Name" value="<?=$task['title']?>"><br>
-				</div>
-				<div class="input-holder">
-					<lable>Description</lable>
-					<textarea name="description" rows="5" class="input-1" ><?=$task['description']?></textarea><br>
-				</div>
-				<div class="input-holder">
-					<lable>Snooze</lable>
-					<input type="date" name="due_date" class="input-1" placeholder="Snooze" value="<?=$task['due_date']?>"><br>
-				</div>
-				
-            <div class="input-holder">
-					<lable>Assigned to</lable>
-					<select name="assigned_to" class="input-1">
-						<option value="0">Select employee</option>
-						<?php if ($users !=0) { 
-							foreach ($users as $user) {
-								if ($task['assigned_to'] == $user['id']) { ?>
-									<option selected value="<?=$user['id']?>"><?=$user['full_name']?></option>
-						<?php }else{ ?>
-                  <option value="<?=$user['id']?>"><?=$user['full_name']?></option>
-						<?php } } } ?>
-					</select><br>
-				</div>
-
-            <?php if (!empty($task['template_file'])) { ?>
-            <div class="input-holder">
-					<lable>Template/Guide File</lable>
-					<p>
-						<a href="<?=$task['template_file']?>" target="_blank" style="color: #007bff; text-decoration: none;">
-							<i class="fa fa-download"></i> View Current Template/Guide
-						</a>
-					</p>
-					<small style="color: #666; font-size: 12px;">Upload a new file to replace the existing template</small>
-					<input type="file" name="template_file" class="input-1" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip,.txt">
-				</div>
-            <?php } else { ?>
-            <div class="input-holder">
-					<lable>Template/Guide File (Optional)</lable>
-					<input type="file" name="template_file" class="input-1" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip,.txt">
-					<small style="color: #666; font-size: 12px;">Upload templates, guides, or reference materials for the employee</small>
-				</div>
-            <?php } ?>
-
-            <?php if (!empty($task['submission_file'])) { ?>
-            <div class="input-holder">
-					<lable>Submitted File</lable>
-					<p>
-                        <a href="<?=$task['submission_file']?>" target="_blank">View submission</a>
-                        
-                        <?php if ($task['status'] != 'completed') { ?>
-                        <button type="button" onclick="openReviewModal()" class="edit-btn" style="width:auto; margin-left: 10px; background: #17a2b8;">Review Submission</button>
-                        <?php } ?>
-                    </p>
-				</div>
-            <?php } ?>
-
-            <div class="input-holder">
-					<lable>Status</lable>
-					<select name="status" class="input-1">
-						<option value="pending" <?php if($task['status'] == "pending") echo "selected"; ?>>pending</option>
-						<option value="in_progress" <?php if($task['status'] == "in_progress") echo "selected"; ?>>in_progress</option>
-						<option value="completed" <?php if($task['status'] == "completed") echo "selected"; ?>>completed</option>
-						<option value="revise" <?php if($task['status'] == "revise") echo "selected"; ?>>revise</option>
-						<option value="rejected" <?php if($task['status'] == "rejected") echo "selected"; ?>>rejected</option>
-					</select><br>
-				</div>
-
-            <div class="input-holder">
-					<lable>Review Comment (visible to employee)</lable>
-					<textarea name="review_comment" rows="4" class="input-1"><?=$task['review_comment']?></textarea><br>
-				</div>
-				<input type="text" name="id" value="<?=$task['id']?>" hidden>
-
-				<button class="edit-btn">Update</button>
-			</form>
+     <!-- Main Content -->
+    <div class="dash-main" style="background: #f3f4f6; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        
+        <div style="background: white; width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); overflow: hidden;">
             
-            <!-- Review Modal -->
-            <div id="reviewModal" class="modal" style="display:none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4);">
-                <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%; border-radius: 8px;">
-                    <span class="close" onclick="closeReviewModal()" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-                    <h3>Review Task Submission</h3>
-                    <form method="POST" action="app/review-task.php">
-                        <input type="hidden" name="task_id" value="<?=$task['id']?>">
-                        
-                        <div class="input-holder">
-                            <label>Feedback / Instruction</label>
-                            <textarea name="feedback" class="input-1" required rows="4"></textarea>
-                        </div>
-                        
-                        <div style="margin-top: 20px;">
-                            <button name="action" value="accept" class="edit-btn" style="background: #28a745;">Accept</button>
-                            <button name="action" value="revise" class="edit-btn" style="background: #dc3545;">Request Revision</button>
-                        </div>
-                    </form>
-                </div>
+             <div style="padding: 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; font-size: 20px; font-weight: 600; color: #111827;">Edit Task</h2>
+                 <a href="tasks.php" style="color: #6B7280; text-decoration: none; font-size: 20px;">&times;</a>
             </div>
-            
-            <script>
-                function openReviewModal() {
-                    document.getElementById('reviewModal').style.display = "block";
-                }
-                function closeReviewModal() {
-                    document.getElementById('reviewModal').style.display = "none";
-                }
-                window.onclick = function(event) {
-                    if (event.target == document.getElementById('reviewModal')) {
-                        closeReviewModal();
-                    }
-                }
-            </script>
-			
-		</section>
-	</div>
 
-<script type="text/javascript">
-	var active = document.querySelector("#navList li:nth-child(4)");
-	active.classList.add("active");
-</script>
+            <form action="app/update-task.php" method="POST" enctype="multipart/form-data" style="padding: 24px;">
+                
+                <?php if (isset($_GET['error'])) {?>
+                    <div style="background: #FEF2F2; color: #991B1B; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
+                        <?php echo stripcslashes($_GET['error']); ?>
+                    </div>
+                <?php } ?>
+                
+                <?php if (isset($_GET['success'])) {?>
+                    <div style="background: #ECFDF5; color: #065F46; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
+                        <?php echo stripcslashes($_GET['success']); ?>
+                    </div>
+                <?php } ?>
+
+                 <!-- Title -->
+                 <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Task Title <span style="color: red;">*</span></label>
+                    <input type="text" name="title" required value="<?=$task['title']?>" 
+                           style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;">
+                </div>
+
+                <!-- Description -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Description <span style="color: red;">*</span></label>
+                    <textarea name="description" required rows="4" 
+                              style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; resize: vertical; transition: border-color 0.2s;"><?=$task['description']?></textarea>
+                </div>
+                
+                <!-- Due Date -->
+                <div style="margin-bottom: 20px;">
+                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Due Date</label>
+                     <input type="date" name="due_date" value="<?=$task['due_date']?>" 
+                            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;">
+                </div>
+
+                <!-- Assigned To -->
+                 <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Assigned To</label>
+                    <select name="assigned_to" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
+                        <option value="0">Select employee</option>
+                        <?php if ($users != 0) { foreach ($users as $user) { ?>
+                            <option value="<?=$user['id']?>" <?php if($task['assigned_to'] == $user['id']) echo 'selected'; ?>>
+                                <?=$user['full_name']?>
+                            </option>
+                        <?php } } ?>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+					<label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Team Members (Optional)</label>
+                    <p style="font-size: 12px; color: #666; margin-top: 0;">(Editing team members via this form is not yet implemented, please manage via task assignment for now)</p>
+                </div>
+
+                 <!-- File -->
+                 <div style="margin-bottom: 20px;">
+                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Attachment</label>
+                     <?php if(!empty($task['template_file'])): ?>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <a href="<?=$task['template_file']?>" target="_blank" style="color: #6366F1; font-size: 13px;"><i class="fa fa-download"></i> Current File</a>
+                        </div>
+                     <?php endif; ?>
+                     <input type="file" name="template_file" style="width: 100%; font-size: 14px;">
+                </div>
+
+                 <!-- Status -->
+                 <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Status</label>
+                    <select name="status" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
+                        <option value="pending" <?php if($task['status'] == "pending") echo "selected"; ?>>Pending</option>
+                        <option value="in_progress" <?php if($task['status'] == "in_progress") echo "selected"; ?>>In Progress</option>
+                        <option value="completed" <?php if($task['status'] == "completed") echo "selected"; ?>>Completed</option>
+                    </select>
+                 </div>
+
+                <input type="hidden" name="id" value="<?=$task['id']?>">
+
+                <!-- Actions -->
+                <div style="display: flex; gap: 10px; margin-top: 30px;">
+                    <a href="tasks.php" style="flex: 1; text-align: center; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; color: #374151; text-decoration: none; font-weight: 500; background: white;">Cancel</a>
+                    <button type="submit" style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: #6366F1; color: white; font-weight: 500; cursor: pointer; font-size: 14px;">Update Task</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>
 <?php }else{ 
@@ -176,4 +136,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
    header("Location: login.php?error=$em");
    exit();
 }
- ?>
+?>

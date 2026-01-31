@@ -5,186 +5,162 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     include "app/Model/User.php";
 
     $users = get_all_users($pdo);
-
  ?>
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Create Task</title>
+	<title>Create Task | TaskFlow</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-	<link rel="stylesheet" href="css/style.css">
-
+	<link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
-	<input type="checkbox" id="checkbox">
-	<?php include "inc/header.php" ?>
-	<div class="body">
-		<?php include "inc/nav.php" ?>
-		<section class="section-1">
-			<h4 class="title">Create Task </h4>
-		   <form class="form-1"
-			      method="POST"
-			      enctype="multipart/form-data"
-			      action="app/add-task.php">
-			      <?php if (isset($_GET['error'])) {?>
-      	  	<div class="danger" role="alert">
-			  <?php echo stripcslashes($_GET['error']); ?>
-			</div>
-      	  <?php } ?>
+    
+    <!-- Sidebar -->
+    <?php include "inc/new_sidebar.php"; ?>
 
-      	  <?php if (isset($_GET['success'])) {?>
-      	  	<div class="success" role="alert">
-			  <?php echo stripcslashes($_GET['success']); ?>
-			</div>
-      	  <?php } ?>
-				<div class="input-holder">
-					<lable>Title</lable>
-					<input type="text" name="title" class="input-1" placeholder="Title"><br>
-				</div>
-				<div class="input-holder">
-					<lable>Description</lable>
-					<textarea type="text" name="description" class="input-1" placeholder="Description"></textarea><br>
-				</div>
-				<div class="input-holder">
-					<lable>Due Date</lable>
-					<input type="date" name="due_date" class="input-1" placeholder="Due Date"><br>
-				</div>
-				<div class="input-holder">
-					<lable>Leader</lable>
-					<select name="leader_id" class="input-1" required>
-						<option value="0">Select leader</option>
-						<?php if ($users !=0) { 
-							foreach ($users as $user) {
-						?>
-                  <option value="<?=$user['id']?>"><?=$user['full_name']?></option>
-						<?php } } ?>
-					</select><br>
-				</div>
-				<div class="input-holder">
-					<lable>Members</lable>
-					<div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;">
-						<select id="memberSelect" class="input-1" style="flex: 1;">
-							<option value="0">Select member</option>
-							<?php if ($users !=0) { 
-								foreach ($users as $user) {
-							?>
-								<option value="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>"><?=$user['full_name']?></option>
-							<?php } } ?>
-						</select>
-						<button type="button" id="addMemberBtn" class="edit-btn" style="padding: 8px 20px; white-space: nowrap;">
-							<i class="fa fa-plus"></i> Add
-						</button>
-					</div>
-					<div id="membersList" style="min-height: 40px; margin-top: 10px;">
-						<!-- Added members will appear here -->
-					</div>
-					<small style="color: #666; font-size: 12px;">Click the plus button to add members (optional)</small>
-					<!-- Hidden inputs for form submission -->
-					<div id="memberInputs"></div>
-				</div>
-				<div class="input-holder">
-					<lable>Template/Guide File (Optional)</lable>
-					<input type="file" name="template_file" class="input-1" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip,.txt">
-					<small style="color: #666; font-size: 12px;">Upload templates, guides, or reference materials for the team</small>
-				</div>
-				<button class="edit-btn">Create Task</button>
-			</form>
-			
-		</section>
-	</div>
+    <!-- Main Content -->
+    <div class="dash-main" style="background: #f3f4f6; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        
+        <div style="background: white; width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); overflow: hidden;">
+            
+            <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
+                <h2 style="margin: 0; font-size: 20px; font-weight: 600; color: #111827;">Create Task</h2>
+            </div>
+            
+            <form action="app/add-task.php" method="POST" enctype="multipart/form-data" style="padding: 24px;">
+                
+                <?php if (isset($_GET['error'])) {?>
+                    <div style="background: #FEF2F2; color: #991B1B; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
+                        <?php echo stripcslashes($_GET['error']); ?>
+                    </div>
+                <?php } ?>
+                
+                <?php if (isset($_GET['success'])) {?>
+                    <div style="background: #ECFDF5; color: #065F46; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
+                        <?php echo stripcslashes($_GET['success']); ?>
+                    </div>
+                <?php } ?>
 
-<script type="text/javascript">
-	var active = document.querySelector("#navList li:nth-child(3)");
-	active.classList.add("active");
-	
-	// Members management
-	var selectedMembers = {}; // Object to store selected members {id: name}
-	var selectedLeaderId = null;
-	
-	// Update selected leader when leader dropdown changes
-	document.querySelector('select[name="leader_id"]').addEventListener('change', function() {
-		selectedLeaderId = this.value;
-		updateMemberDropdown();
-	});
-	
-	// Update member dropdown to exclude leader and already selected members
-	function updateMemberDropdown() {
-		var memberSelect = document.getElementById('memberSelect');
-		var currentValue = memberSelect.value;
-		var options = memberSelect.querySelectorAll('option');
-		
-		options.forEach(function(option) {
-			if (option.value == '0') return; // Keep the "Select member" option
-			
-			var memberId = option.value;
-			var isSelected = selectedMembers.hasOwnProperty(memberId);
-			var isLeader = memberId == selectedLeaderId;
-			
-			option.style.display = (isSelected || isLeader) ? 'none' : '';
-		});
-	}
-	
-	// Add member button click handler
-	document.getElementById('addMemberBtn').addEventListener('click', function() {
-		var memberSelect = document.getElementById('memberSelect');
-		var selectedOption = memberSelect.options[memberSelect.selectedIndex];
-		
-		if (selectedOption.value == '0') {
-			alert('Please select a member first');
-			return;
-		}
-		
-		var memberId = selectedOption.value;
-		var memberName = selectedOption.getAttribute('data-name');
-		
-		// Add to selected members
-		selectedMembers[memberId] = memberName;
-		
-		// Add hidden input for form submission
-		var hiddenInput = document.createElement('input');
-		hiddenInput.type = 'hidden';
-		hiddenInput.name = 'member_ids[]';
-		hiddenInput.value = memberId;
-		hiddenInput.id = 'member_' + memberId;
-		document.getElementById('memberInputs').appendChild(hiddenInput);
-		
-		// Add to members list display
-		var memberItem = document.createElement('div');
-		memberItem.className = 'member-item';
-		memberItem.id = 'member_item_' + memberId;
-		memberItem.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f0f0f0; border-radius: 4px; margin-bottom: 8px;';
-		memberItem.innerHTML = '<span>' + memberName + '</span><button type="button" class="remove-member-btn" data-id="' + memberId + '" style="background: #ef4444; color: white; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px;"><i class="fa fa-times"></i> Remove</button>';
-		document.getElementById('membersList').appendChild(memberItem);
-		
-		// Reset dropdown
-		memberSelect.value = '0';
-		updateMemberDropdown();
-	});
-	
-	// Remove member button click handler (event delegation)
-	document.getElementById('membersList').addEventListener('click', function(e) {
-		if (e.target.closest('.remove-member-btn')) {
-			var btn = e.target.closest('.remove-member-btn');
-			var memberId = btn.getAttribute('data-id');
-			
-			// Remove from selected members
-			delete selectedMembers[memberId];
-			
-			// Remove hidden input
-			var hiddenInput = document.getElementById('member_' + memberId);
-			if (hiddenInput) hiddenInput.remove();
-			
-			// Remove from display
-			var memberItem = document.getElementById('member_item_' + memberId);
-			if (memberItem) memberItem.remove();
-			
-			updateMemberDropdown();
-		}
-	});
-	
-	// Initial update of member dropdown
-	updateMemberDropdown();
-</script>
+                <!-- Title -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Task Title <span style="color: red;">*</span></label>
+                    <input type="text" name="title" required placeholder="Enter task title" 
+                           style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;">
+                </div>
+
+                <!-- Description -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Description <span style="color: red;">*</span></label>
+                    <textarea name="description" required rows="4" placeholder="Enter task description"
+                              style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; resize: vertical; transition: border-color 0.2s;"></textarea>
+                </div>
+
+                <!-- Project Leader -->
+                 <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Project Leader (Optional)</label>
+                    <select name="leader_id" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
+                        <option value="0">None</option>
+                        <?php if ($users != 0) { foreach ($users as $user) { ?>
+                            <option value="<?=$user['id']?>"><?=$user['full_name']?></option>
+                        <?php } } ?>
+                    </select>
+                </div>
+
+                <!-- Team Members -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Team Members (Optional)</label>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                         <select id="memberSelect" style="flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
+                            <option value="0">Add Team Member</option>
+                            <?php if ($users != 0) { foreach ($users as $user) { ?>
+                                <option value="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>"><?=$user['full_name']?></option>
+                            <?php } } ?>
+                        </select>
+                         <button type="button" id="addMemberBtn" style="background: white; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 15px; cursor: pointer; color: #374151;">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <div id="membersList" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <!-- Added members will appear here as badges -->
+                    </div>
+                    <!-- Hidden inputs -->
+                    <div id="memberInputs"></div>
+                </div>
+
+                <!-- Due Date -->
+                <div style="margin-bottom: 20px;">
+                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Due Date (Optional)</label>
+                     <input type="date" name="due_date" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;">
+                </div>
+
+                 <!-- File -->
+                 <div style="margin-bottom: 30px;">
+                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Attachment (Optional)</label>
+                     <input type="file" name="template_file" style="width: 100%; font-size: 14px;">
+                </div>
+
+                <!-- Actions -->
+                <div style="display: flex; gap: 10px;">
+                    <a href="tasks.php" style="flex: 1; text-align: center; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; color: #374151; text-decoration: none; font-weight: 500; background: white;">Cancel</a>
+                    <button type="submit" style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: #6366F1; color: white; font-weight: 500; cursor: pointer; font-size: 14px;">Create Task</button>
+                </div>
+
+            </form>
+        </div>
+
+    </div>
+
+    <!-- Script for Members -->
+    <script>
+        var selectedMembers = {};
+        
+        document.getElementById('addMemberBtn').addEventListener('click', function() {
+            var select = document.getElementById('memberSelect');
+            var id = select.value;
+            var name = select.options[select.selectedIndex].getAttribute('data-name');
+            
+            if(id == "0") return;
+            if(selectedMembers[id]) return;
+
+            addMemberBadge(id, name);
+            
+            // Add to selected
+            selectedMembers[id] = name;
+            
+            // Create hidden input
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'member_ids[]';
+            input.value = id;
+            input.id = 'input_' + id;
+            document.getElementById('memberInputs').appendChild(input);
+
+            // Reset select
+            select.value = "0";
+        });
+
+        function addMemberBadge(id, name) {
+            var badge = document.createElement('div');
+            badge.style.cssText = "background: #EEF2FF; color: #4F46E5; padding: 4px 10px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 6px;";
+            badge.innerHTML = `
+                ${name} 
+                <span onclick="removeMember('${id}', this)" style="cursor: pointer; font-size: 16px; opacity: 0.6;">&times;</span>
+            `;
+            document.getElementById('membersList').appendChild(badge);
+        }
+
+        window.removeMember = function(id, span) {
+            delete selectedMembers[id];
+            document.getElementById('input_' + id).remove();
+            span.parentElement.remove();
+        }
+    </script>
+
 </body>
 </html>
 <?php }else{ 
@@ -192,4 +168,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
    header("Location: login.php?error=$em");
    exit();
 }
- ?>
+?>
