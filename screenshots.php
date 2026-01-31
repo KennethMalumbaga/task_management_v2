@@ -8,8 +8,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     $filter_user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : null;
     $filter_date = isset($_GET['date']) ? $_GET['date'] : null;
 
-        // Build query: fetch per-day session columns (attendance now stores session times)
-        $sql = "SELECT s.*, u.full_name, u.username, a.att_date, a.morning_in, a.morning_out, a.afternoon_in, a.afternoon_out, a.overtime_in, a.overtime_out 
+        // Build query: fetch attendance data with time_in/time_out
+        $sql = "SELECT s.*, u.full_name, u.username, a.att_date, a.time_in, a.time_out 
             FROM screenshots s 
             INNER JOIN users u ON s.user_id = u.id 
             LEFT JOIN attendance a ON s.attendance_id = a.id 
@@ -35,46 +35,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         $stmt->execute();
     }
     $screenshots = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Normalize attendance times for display: compute earliest time_in and latest time_out using att_date
-    foreach ($screenshots as &$s) {
-        $timeIns = [];
-        $timeOuts = [];
-        foreach (['morning_in','afternoon_in','overtime_in'] as $col) {
-            if (!empty($s[$col]) && $s[$col] !== '00:00:00') $timeIns[] = $s[$col];
-        }
-        foreach (['morning_out','afternoon_out','overtime_out'] as $col) {
-            if (!empty($s[$col]) && $s[$col] !== '00:00:00') $timeOuts[] = $s[$col];
-        }
-
-        $s['time_in'] = null;
-        $s['time_out'] = null;
-        if (!empty($timeIns)) {
-            // pick earliest
-            $min = null;
-            foreach ($timeIns as $t) {
-                if ($min === null || strtotime($t) < strtotime($min)) $min = $t;
-            }
-            if (!empty($s['att_date'])) {
-                $s['time_in'] = date('Y-m-d H:i:s', strtotime($s['att_date'] . ' ' . $min));
-            } else {
-                $s['time_in'] = date('Y-m-d H:i:s', strtotime($min));
-            }
-        }
-        if (!empty($timeOuts)) {
-            // pick latest
-            $max = null;
-            foreach ($timeOuts as $t) {
-                if ($max === null || strtotime($t) > strtotime($max)) $max = $t;
-            }
-            if (!empty($s['att_date'])) {
-                $s['time_out'] = date('Y-m-d H:i:s', strtotime($s['att_date'] . ' ' . $max));
-            } else {
-                $s['time_out'] = date('Y-m-d H:i:s', strtotime($max));
-            }
-        }
-    }
-    unset($s);
 
     // Get all users for filter dropdown
     $users = get_all_users($pdo);
