@@ -5,12 +5,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     include "app/Model/User.php";
     include "app/Model/Task.php";
 
-    $users = get_all_users($pdo);
+    $role_filter = isset($_GET['role']) ? $_GET['role'] : 'all';
+    $users = get_all_users($pdo, $role_filter);
  ?>
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Users | TaskFlow</title>
+	<title>Users Directory | TaskFlow</title>
 	<!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +19,36 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <!-- Icons -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <style>
+        .filter-active {
+            background: #4F46E5 !important;
+            color: white !important;
+            border-color: #4F46E5 !important;
+        }
+        .user-card-action-btn {
+            width: 100%; 
+            display: flex; 
+            justify-content: center; 
+            padding: 8px; 
+            border-radius: 6px; 
+            text-decoration: none; 
+            font-size: 13px; 
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-msg {
+            background: #4F46E5; 
+            color: white;
+        }
+        .btn-view {
+            background: #F3F4F6; 
+            color: #374151;
+            margin-top: 8px;
+        }
+        .btn-view:hover {
+            background: #E5E7EB;
+        }
+    </style>
 </head>
 <body>
     
@@ -27,73 +58,81 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <!-- Main Content -->
     <div class="dash-main">
         
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-            <div>
+        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
                 <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0;">Users Directory</h2>
-                <span style="color: var(--text-gray); font-size: 14px;">Manage system users</span>
-            </div>
-            
-            <div style="display: flex; gap: 10px;">
-                 <a href="#" class="btn-primary" style="background: #E0E7FF; color: var(--primary);">All</a>
-                 <a href="#" class="btn-primary" style="background: white; color: var(--text-dark); border: 1px solid var(--border-color);">Admin</a>
-                 <a href="#" class="btn-primary" style="background: white; color: var(--text-dark); border: 1px solid var(--border-color);">Employee</a>
+                
+                <div style="display: flex; gap: 10px;">
+                     <a href="user.php" class="btn-outline <?= $role_filter == 'all' ? 'filter-active' : '' ?>">All</a>
+                     <a href="user.php?role=admin" class="btn-outline <?= $role_filter == 'admin' ? 'filter-active' : '' ?>">Admin</a>
+                     <a href="user.php?role=employee" class="btn-outline <?= $role_filter == 'employee' ? 'filter-active' : '' ?>">Employee</a>
+                </div>
+                
                  <a href="add-user.php" class="btn-primary">
                     <i class="fa fa-plus"></i> Add User
                 </a>
             </div>
         </div>
 
-        <?php if ($users != 0) { ?>
+        <?php if (!empty($users)) { ?>
         <div class="grid-container">
-            <?php foreach ($users as $user) { 
-                $progress = get_employee_task_progress($pdo, $user['id']);
-            ?>
-            <div class="user-card">
+            <?php foreach ($users as $user) { ?>
+            <div class="user-card" style="display: flex; flex-direction: column; height: 100%;">
+                
                 <div class="user-card-avatar">
-                     <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                     <?php if (!empty($user['profile_image']) && $user['profile_image'] != 'default.png' && file_exists('uploads/' . $user['profile_image'])): ?>
+                        <img src="uploads/<?=$user['profile_image']?>" alt="Profile" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                     <?php else: ?>
+                        <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                     <?php endif; ?>
                 </div>
-                <h3 style="margin: 0 0 5px 0; font-size: 18px;"><?= htmlspecialchars($user['full_name']) ?></h3>
+                
+                <h3 style="margin: 0 0 5px 0; font-size: 18px; color: var(--text-dark);"><?= htmlspecialchars($user['full_name']) ?></h3>
                 
                 <?php 
                     $roleClass = "badge-in_progress"; // Default blueish
                     if ($user['role'] == 'admin') $roleClass = "badge-pending"; // Orangeish
+                    // You can add more role colors if needed
                 ?>
-                <span class="badge <?= $roleClass ?>" style="display: inline-block; margin-bottom: 15px;"><?= ucfirst($user['role']) ?></span>
-
-                <div style="color: var(--text-gray); font-size: 13px; margin-bottom: 20px;">
-                    <i class="fa fa-envelope-o"></i> <?= htmlspecialchars($user['username']) ?>
+                <div style="margin-bottom: 5px;">
+                     <span class="badge <?= $roleClass ?>"><?= ucfirst($user['role']) ?></span>
                 </div>
                 
-                <?php if ($progress['total'] > 0) { ?>
-                    <div style="margin-bottom: 20px; text-align: left;">
-                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px;">
-                            <span>Task Progress</span>
-                            <span><?= $progress['percentage'] ?>%</span>
-                        </div>
-                        <div style="background: #e2e8f0; border-radius: 10px; height: 6px; overflow: hidden;">
-                            <div style="background: var(--success); height: 100%; width: <?= $progress['percentage'] ?>%;"></div>
-                        </div>
-                    </div>
-                <?php } else { ?>
-                    <div style="margin-bottom: 20px; font-size: 13px; color: var(--text-gray);">
-                        No tasks assigned
-                    </div>
-                <?php } ?>
+                <!-- Mock Rating for now or future implementation -->
+                <div style="color: #F59E0B; font-size: 13px; margin-bottom: 15px;">
+                     <i class="fa fa-star"></i> 4.5 / 5.0
+                </div>
 
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <a href="messages.php" class="btn-primary" style="width: 100%; justify-content: center;">
-                        <i class="fa fa-comment-o"></i> Message
+                <div style="color: var(--text-gray); font-size: 13px; margin-bottom: 10px;">
+                    <i class="fa fa-envelope-o"></i> <?= htmlspecialchars($user['username']) ?>
+                </div>
+
+                <div style="font-size: 13px; color: var(--text-gray); margin-bottom: 10px; flex-grow: 1;">
+                    <?php if (!empty($user['bio'])) { ?>
+                        <?= htmlspecialchars(substr($user['bio'], 0, 60)) . (strlen($user['bio']) > 60 ? '...' : '') ?>
+                    <?php } else { ?>
+                        No bio available
+                    <?php } ?>
+                </div>
+                
+                <div style="margin-top: auto; padding-top: 15px;">
+                    <div style="font-size: 12px; color: var(--text-gray); margin-bottom: 10px;">
+                        <strong>Skills:</strong> 
+                        <?= !empty($user['skills']) ? htmlspecialchars(substr($user['skills'], 0, 30)) . (strlen($user['skills']) > 30 ? '...' : '') : 'Not listed' ?>
+                    </div>
+
+                    <a href="messages.php" class="user-card-action-btn btn-msg">
+                        <i class="fa fa-comment-o" style="margin-right: 5px;"></i> Message
+                    </a>
+                    <a href="user_details.php?id=<?=$user['id']?>" class="user-card-action-btn btn-view">
+                        View Profile
                     </a>
                 </div>
-                <div style="margin-top: 10px; font-size: 12px;">
-                     <a href="edit-user.php?id=<?=$user['id']?>" style="color: var(--text-gray); text-decoration: none; margin-right: 10px;">Edit</a>
-                     <a href="delete-user.php?id=<?=$user['id']?>" style="color: var(--danger); text-decoration: none;" onclick="return confirm('Are you sure?')">Delete</a>
-                </div>
+
             </div>
             <?php } ?>
         </div>
         <?php } else { ?>
-            <!-- Empty state -->
              <div style="padding: 40px; text-align: center; color: var(--text-gray);">
                 <h3>No users found</h3>
             </div>

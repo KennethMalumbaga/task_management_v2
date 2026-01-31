@@ -1,12 +1,17 @@
 <?php 
 
-function get_all_users($pdo){
-	$sql = "SELECT * FROM users WHERE role = ? ";
-	$stmt = $pdo->prepare($sql);
-	$stmt->execute(["employee"]);
+function get_all_users($pdo, $role = 'all'){
+    if ($role === 'all') {
+        $sql = "SELECT * FROM users";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+    } else {
+        $sql = "SELECT * FROM users WHERE role = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$role]);
+    }
     $users = $stmt->fetchAll();
-    // Return 0 if empty to match original behavior, though empty array is better usually
-	return $users ?: 0;
+	return $users ?: [];
 }
 
 
@@ -52,7 +57,13 @@ function get_user_by_id($pdo, $id){
 }
 
 function update_profile($pdo, $data){
-	$sql = "UPDATE users SET full_name=?,  password=? WHERE id=? ";
+	$sql = "UPDATE users SET full_name=?, password=?, bio=?, phone=?, address=?, skills=?, profile_image=? WHERE id=? ";
+	$stmt = $pdo->prepare($sql);
+	$stmt->execute($data);
+}
+
+function update_profile_info($pdo, $data){
+	$sql = "UPDATE users SET full_name=?, bio=?, phone=?, address=?, skills=?, profile_image=? WHERE id=? ";
 	$stmt = $pdo->prepare($sql);
 	$stmt->execute($data);
 }

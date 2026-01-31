@@ -33,6 +33,9 @@
             <a href="profile.php" class="dash-nav-item <?= isActive('profile.php') ?>">
                 <i class="fa fa-user-o"></i> Profile
             </a>
+            <a href="logout.php" class="dash-nav-item">
+                <i class="fa fa-sign-out"></i> Logout
+            </a>
         <?php } else { ?>
             <!-- Admin Nav -->
             <a href="index.php" class="dash-nav-item <?= isActive('index.php') ?>">
@@ -54,15 +57,12 @@
             <a href="screenshots.php" class="dash-nav-item <?= isActive('screenshots.php') ?>">
                 <i class="fa fa-camera"></i> Captures
             </a>
-             <a href="profile.php" class="dash-nav-item <?= isActive('profile.php') ?>">
+            <a href="profile.php" class="dash-nav-item <?= isActive('profile.php') ?>">
                 <i class="fa fa-user-o"></i> Profile
+            </a>
+            <a href="logout.php" class="dash-nav-item">
+                <i class="fa fa-sign-out"></i> Logout
             </a>
         <?php } ?>
     </nav>
-
-    <div class="dash-sidebar-footer">
-        <a href="logout.php" class="dash-logout">
-            <i class="fa fa-sign-out"></i> Logout
-        </a>
-    </div>
 </div>

@@ -31,7 +31,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             <div class="profile-header-section">
                 <div class="profile-avatar-container">
                     <div class="profile-avatar-img">
-                         <i class="fa fa-user" style="font-size: 50px; color: #ccc;"></i>
+                         <?php if (!empty($user['profile_image']) && $user['profile_image'] != 'default.png' && file_exists('uploads/' . $user['profile_image'])): ?>
+                            <img src="uploads/<?=$user['profile_image']?>" alt="Profile" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                         <?php else: ?>
+                            <i class="fa fa-user" style="font-size: 50px; color: #ccc;"></i>
+                         <?php endif; ?>
                     </div>
                     <div class="profile-camera-icon">
                         <i class="fa fa-camera"></i>
