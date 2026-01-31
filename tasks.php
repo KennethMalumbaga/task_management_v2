@@ -107,7 +107,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                             ?>
                         </div>
                         <div style="margin-top: 5px; color: #6B7280; font-size: 13px;">
-                            Due: <?= $task['due_date'] ?: 'No Date' ?>
+                            Due: <?= empty($task['due_date']) ? 'No Date' : date("F j, Y", strtotime($task['due_date'])) ?>
                         </div>
                     </div>
 

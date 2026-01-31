@@ -14,20 +14,27 @@ if (isset($_SESSION['id'])) {
 	$id_2 = $_POST['id_2'];
 	$opend = 0;
 
-	$chats = getChats($id_1, $id_2, $pdo);    
-
+	$chats = getChats($id_1, $id_2, $pdo); 
+    
+    // Mark as read
+    opend($id_1, $pdo, $chats);   
+    
     if (!empty($chats)) {
     foreach ($chats as $chat) {
-        if ($chat['sender_id'] == $id_1) { // My message
+        if ($chat['sender_id'] == $id_1) { // My message (Outgoing)
     ?>
-        <div style="align-self: flex-end; max-width: 70%; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px 12px 0 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 5px;">
-             <div style="font-size: 14px;"><?=$chat['message']?></div>
-             <div style="font-size: 10px; opacity: 0.8; margin-top: 5px; text-align: right;"><?=$chat['created_at']?></div>
+        <div class="message-outgoing">
+             <div class="message-bubble-outgoing">
+                <?=$chat['message']?>
+             </div>
+             <div class="message-time"><?=formatChatTime($chat['created_at'])?></div>
         </div>
-    <?php } else { // Received message ?>
-        <div style="align-self: flex-start; max-width: 70%; background: white; padding: 10px 15px; border-radius: 0 12px 12px 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 5px;">
-            <div style="font-size: 14px;"><?=$chat['message']?></div>
-            <div style="font-size: 10px; color: var(--text-gray); margin-top: 5px;"><?=$chat['created_at']?></div>
+    <?php } else { // Received message (Incoming) ?>
+        <div class="message-incoming">
+             <div class="message-bubble-incoming">
+                <?=$chat['message']?>
+             </div>
+             <div class="message-time"><?=formatChatTime($chat['created_at'])?></div>
         </div>
     <?php } } }
 	}

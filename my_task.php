@@ -71,7 +71,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             ?>
                             <span class="badge <?= $badgeClass ?>"><?= str_replace('_',' ',$task['status']) ?></span>
                         </td>
-                        <td><?= $task['due_date'] ?></td>
+                        <td>
+                            <?= empty($task['due_date']) ? "" : date("F j, Y", strtotime($task['due_date'])) ?>
+                        </td>
                         <td>
                             <?php if ($task['status'] === 'completed') { ?>
                                 <button class="btn-outline btn-sm" disabled style="opacity: 0.6; cursor: not-allowed;">Submitted</button>

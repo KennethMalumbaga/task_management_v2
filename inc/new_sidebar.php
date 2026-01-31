@@ -27,8 +27,15 @@
             <a href="calendar.php" class="dash-nav-item <?= isActive('calendar.php') ?>">
                 <i class="fa fa-calendar"></i> Calendar
             </a>
+            <?php 
+                include_once "app/Model/Message.php";
+                $allUnread = countAllUnread($_SESSION['id'], $pdo);
+            ?>
             <a href="messages.php" class="dash-nav-item <?= isActive('messages.php') ?>">
                 <i class="fa fa-comment-o"></i> Messages
+                <?php if($allUnread > 0){ ?>
+                    <span class="dash-nav-badge"><?=$allUnread?></span>
+                <?php } ?>
             </a>
             <a href="profile.php" class="dash-nav-item <?= isActive('profile.php') ?>">
                 <i class="fa fa-user-o"></i> Profile
@@ -48,8 +55,15 @@
             <a href="calendar.php" class="dash-nav-item <?= isActive('calendar.php') ?>">
                 <i class="fa fa-calendar"></i> Calendar
             </a>
+            <?php 
+                include_once "app/Model/Message.php";
+                $allUnread = countAllUnread($_SESSION['id'], $pdo);
+            ?>
             <a href="messages.php" class="dash-nav-item <?= isActive('messages.php') ?>">
                 <i class="fa fa-comment-o"></i> Messages
+                <?php if($allUnread > 0){ ?>
+                    <span class="dash-nav-badge"><?=$allUnread?></span>
+                <?php } ?>
             </a>
             <a href="user.php" class="dash-nav-item <?= isActive('user.php') ?>">
                 <i class="fa fa-users"></i> Users

@@ -777,3 +777,19 @@ body {
     min-height: 100px;
     line-height: 1.5;
 }
+
+/* BADGES FOR SIDEBAR */
+.dash-nav-badge {
+    background: #EF4444;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1; /* reset for vertical align */
+}

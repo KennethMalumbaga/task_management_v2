@@ -198,7 +198,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                             <tr>
                                 <td><?=$sub['member_name']?></td>
                                 <td><?= mb_strimwidth($sub['description'], 0, 30, "...") ?></td>
-                                <td><?=$sub['due_date']?></td>
+                                <td><?= empty($sub['due_date']) ? "" : date("F j, Y", strtotime($sub['due_date'])) ?></td>
                                 <td><span class="badge badge-pending"><?= ucfirst($sub['status']) ?></span></td>
                                 <td>
                                     <?php if ($sub['submission_file']) { ?>
@@ -284,7 +284,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                             <?php foreach ($my_subtasks as $sub) { ?>
                             <tr>
                                 <td><?= mb_strimwidth($sub['description'], 0, 50, "...") ?></td>
-                                <td><?=$sub['due_date']?></td>
+                                <td><?= empty($sub['due_date']) ? "" : date("F j, Y", strtotime($sub['due_date'])) ?></td>
                                 <td><span class="badge badge-pending"><?= ucfirst($sub['status']) ?></span></td>
                                 <td>
                                     <a href="submit-subtask.php?id=<?=$sub['id']?>" class="btn-primary" style="padding: 4px 10px; font-size: 12px;">Submit/View</a>

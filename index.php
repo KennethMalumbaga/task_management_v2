@@ -140,7 +140,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     </div>
 
                     <div class="task-meta">
-                        Due: <?= htmlspecialchars($task['due_date'] ?? 'No Due Date') ?>
+                        Due: <?= empty($task['due_date']) ? 'No Due Date' : date("F j, Y", strtotime($task['due_date'])) ?>
                     </div>
                     
                     <div class="task-actions">
