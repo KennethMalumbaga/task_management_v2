@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Login | Task Management System</title>
+	<title>Create Account | Task Management System</title>
 	<!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,30 +16,26 @@
       
       <div class="auth-container">
             <div class="auth-icon">
-                <i class="fa fa-sign-in"></i> <!-- Using sign in icon instead of logo for now -->
+                <i class="fa fa-user-plus"></i>
             </div>
-            <h3 class="auth-title">Welcome Back</h3>
-            <p class="auth-subtitle">Task Management System</p>
+            <h3 class="auth-title">Create Account</h3>
+            <p class="auth-subtitle">Join the Task Management System</p>
 
             <?php if (isset($_GET['error'])) { ?>
                 <div class="alert alert-danger" role="alert">
                     <?= htmlspecialchars($_GET['error']) ?>
                 </div>
             <?php } ?>
-            
-            <?php if (isset($_GET['success'])) { ?>
-                <div class="alert alert-success" role="alert">
-                    <?= htmlspecialchars($_GET['success']) ?>
-                </div>
-            <?php } ?>
 
-            <form method="POST" action="app/login.php">
-                
-                <?php if (isset($_GET['first_time'])) { ?>
-                    <div class="auth-info-box">
-                        <strong>First time here?</strong> Create an account to explore the full-featured task management system with role-based access, time tracking, and team collaboration.
-                    </div>
-                <?php } ?>
+            <div class="auth-info-box">
+                <strong>Choose your role:</strong> Admin (full access), Project Leader (manage tasks & teams), or Employee (complete tasks & track time).
+            </div>
+
+            <form method="POST" action="app/signup.php">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-control" name="full_name" placeholder="John Doe" required>
+                </div>
 
                 <div class="form-group">
                     <label class="form-label">Email</label>
@@ -50,12 +46,20 @@
                     <label class="form-label">Password</label>
                     <input type="password" class="form-control" name="password" placeholder="........" required>
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label">Role</label>
+                    <select class="form-control" name="role" required>
+                        <option value="employee">Employee</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
                 
-                <button type="submit" class="btn-primary">Log In</button>
+                <button type="submit" class="btn-primary">Sign Up</button>
             </form>
 
             <div class="auth-footer">
-                Don't have an account? <a href="signup.php" class="auth-link">Sign Up</a>
+                Already have an account? <a href="login.php" class="auth-link">Log In</a>
             </div>
       </div>
 </body>

@@ -6,80 +6,101 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     include "app/Model/Task.php";
 
     $users = get_all_users($pdo);
-  
  ?>
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Manage Users</title>
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-	<link rel="stylesheet" href="css/style.css">
-
+	<title>Users | TaskFlow</title>
+	<!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
-	<input type="checkbox" id="checkbox">
-	<?php include "inc/header.php" ?>
-	<div class="body">
-		<?php include "inc/nav.php" ?>
-		<section class="section-1">
-			<h4 class="title">Manage Users <a href="add-user.php">Add User</a></h4>
-			<?php if ($users != 0) { ?>
-			<table class="main-table">
-				<tr>
-					<th>#</th>
-					<th>Full Name</th>
-					<th>Username</th>
-					<th>Role</th>
-					<th>Task Progress</th>
-					<th>Action</th>
-				</tr>
-				<?php $i=0; foreach ($users as $user) { 
-					$progress = get_employee_task_progress($pdo, $user['id']);
-				?>
-				<tr>
-					<td><?=++$i?></td>
-					<td><?=$user['full_name']?></td>
-					<td><?=$user['username']?></td>
-					<td><?=$user['role']?></td>
-					<td>
-						<?php if ($progress['total'] > 0) { ?>
-							<div style="display: flex; align-items: center; gap: 10px;">
-								<span style="font-weight: 600; color: #333;"><?=$progress['completed']?>/<?=$progress['total']?></span>
-								<div style="flex: 1; background: #e2e8f0; border-radius: 10px; height: 20px; max-width: 150px; overflow: hidden; position: relative;">
-									<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); height: 100%; width: <?=$progress['percentage']?>%; transition: width 0.3s ease; border-radius: 10px;"></div>
-								</div>
-								<span style="font-size: 12px; color: #64748b;"><?=$progress['percentage']?>%</span>
-							</div>
-						<?php } else { ?>
-							<span style="color: #64748b; font-style: italic;">No tasks assigned</span>
-						<?php } ?>
-					</td>
-					<td>
-						<a href="edit-user.php?id=<?=$user['id']?>" class="edit-btn">Edit</a>
-						<a href="delete-user.php?id=<?=$user['id']?>" class="delete-btn" onclick="return confirmDelete('<?=$user['full_name']?>')">Delete</a>
-					</td>
-				</tr>
-			   <?php	} ?>
-			</table>
-		<?php }else { ?>
-			<h3>Empty</h3>
-		<?php  }?>
-			
-		</section>
-	</div>
+    
+    <!-- Sidebar -->
+    <?php include "inc/new_sidebar.php"; ?>
 
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-	<?php include 'inc/modals.php'; ?>
+    <!-- Main Content -->
+    <div class="dash-main">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div>
+                <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0;">Users Directory</h2>
+                <span style="color: var(--text-gray); font-size: 14px;">Manage system users</span>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                 <a href="#" class="btn-primary" style="background: #E0E7FF; color: var(--primary);">All</a>
+                 <a href="#" class="btn-primary" style="background: white; color: var(--text-dark); border: 1px solid var(--border-color);">Admin</a>
+                 <a href="#" class="btn-primary" style="background: white; color: var(--text-dark); border: 1px solid var(--border-color);">Employee</a>
+                 <a href="add-user.php" class="btn-primary">
+                    <i class="fa fa-plus"></i> Add User
+                </a>
+            </div>
+        </div>
 
-<script type="text/javascript">
-	var active = document.querySelector("#navList li:nth-child(2)");
-	active.classList.add("active");
+        <?php if ($users != 0) { ?>
+        <div class="grid-container">
+            <?php foreach ($users as $user) { 
+                $progress = get_employee_task_progress($pdo, $user['id']);
+            ?>
+            <div class="user-card">
+                <div class="user-card-avatar">
+                     <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                </div>
+                <h3 style="margin: 0 0 5px 0; font-size: 18px;"><?= htmlspecialchars($user['full_name']) ?></h3>
+                
+                <?php 
+                    $roleClass = "badge-in_progress"; // Default blueish
+                    if ($user['role'] == 'admin') $roleClass = "badge-pending"; // Orangeish
+                ?>
+                <span class="badge <?= $roleClass ?>" style="display: inline-block; margin-bottom: 15px;"><?= ucfirst($user['role']) ?></span>
 
-	function confirmDelete(userName) {
-		return confirm("Are you sure you want to delete user '" + userName + "'?\n\nThis action cannot be undone. If this user has tasks assigned, the deletion will fail.");
-	}
-</script>
+                <div style="color: var(--text-gray); font-size: 13px; margin-bottom: 20px;">
+                    <i class="fa fa-envelope-o"></i> <?= htmlspecialchars($user['username']) ?>
+                </div>
+                
+                <?php if ($progress['total'] > 0) { ?>
+                    <div style="margin-bottom: 20px; text-align: left;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px;">
+                            <span>Task Progress</span>
+                            <span><?= $progress['percentage'] ?>%</span>
+                        </div>
+                        <div style="background: #e2e8f0; border-radius: 10px; height: 6px; overflow: hidden;">
+                            <div style="background: var(--success); height: 100%; width: <?= $progress['percentage'] ?>%;"></div>
+                        </div>
+                    </div>
+                <?php } else { ?>
+                    <div style="margin-bottom: 20px; font-size: 13px; color: var(--text-gray);">
+                        No tasks assigned
+                    </div>
+                <?php } ?>
+
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <a href="messages.php" class="btn-primary" style="width: 100%; justify-content: center;">
+                        <i class="fa fa-comment-o"></i> Message
+                    </a>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px;">
+                     <a href="edit-user.php?id=<?=$user['id']?>" style="color: var(--text-gray); text-decoration: none; margin-right: 10px;">Edit</a>
+                     <a href="delete-user.php?id=<?=$user['id']?>" style="color: var(--danger); text-decoration: none;" onclick="return confirm('Are you sure?')">Delete</a>
+                </div>
+            </div>
+            <?php } ?>
+        </div>
+        <?php } else { ?>
+            <!-- Empty state -->
+             <div style="padding: 40px; text-align: center; color: var(--text-gray);">
+                <h3>No users found</h3>
+            </div>
+        <?php } ?>
+
+    </div>
+
 </body>
 </html>
 <?php }else{ 
@@ -87,4 +108,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
    header("Location: login.php?error=$em");
    exit();
 }
- ?>
+?>

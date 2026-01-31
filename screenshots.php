@@ -82,198 +82,91 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Employee Screenshots</title>
+    <title>Captures | TaskFlow</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link rel="stylesheet" href="css/style.css">
-    <style>
-        .screenshots-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .screenshot-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            background: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .screenshot-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        .screenshot-thumbnail {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 4px;
-            cursor: pointer;
-            border: 2px solid #ddd;
-        }
-        .screenshot-info {
-            margin-top: 10px;
-        }
-        .screenshot-info p {
-            margin: 5px 0;
-            font-size: 14px;
-        }
-        .screenshot-info strong {
-            color: #333;
-        }
-        .filter-section {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .filter-section form {
-            display: flex;
-            gap: 15px;
-            align-items: flex-end;
-            flex-wrap: wrap;
-        }
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-        }
-        .filter-group label {
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #555;
-        }
-        .filter-group select,
-        .filter-group input {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .filter-btn-group {
-            display: flex;
-            gap: 10px;
-        }
-        .btn-filter {
-            padding: 8px 20px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .btn-filter:hover {
-            background: #0056b3;
-        }
-        .btn-reset {
-            padding: 8px 20px;
-            background: #6c757d;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .btn-reset:hover {
-            background: #545b62;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-        .empty-state i {
-            font-size: 48px;
-            margin-bottom: 10px;
-        }
-        .modal-image {
-            max-width: 100%;
-            height: auto;
-        }
-    </style>
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
-    <input type="checkbox" id="checkbox">
-    <?php include "inc/header.php" ?>
-    <div class="body">
-        <?php include "inc/nav.php" ?>
-        <section class="section-1">
-            <h4 class="title">Employee Screenshots</h4>
+    
+    <!-- Sidebar -->
+    <?php include "inc/new_sidebar.php"; ?>
 
-            <!-- Filter Section -->
-            <div class="filter-section">
-                <form method="GET" action="screenshots.php">
-                    <div class="filter-group">
-                        <label>Filter by Employee:</label>
-                        <select name="user_id">
-                            <option value="">All Employees</option>
-                            <?php foreach ($users as $user) { 
-                                if ($user['role'] == 'employee') { ?>
-                                    <option value="<?=$user['id']?>" <?=($filter_user_id == $user['id']) ? 'selected' : ''?>>
-                                        <?=$user['full_name']?> (@<?=$user['username']?>)
-                                    </option>
-                            <?php } } ?>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Filter by Date:</label>
-                        <input type="date" name="date" value="<?=$filter_date?>">
-                    </div>
-                    <div class="filter-btn-group">
-                        <button type="submit" class="btn-filter">Apply Filters</button>
-                        <a href="screenshots.php" class="btn-reset" style="text-decoration: none; display: inline-block;">Reset</a>
-                    </div>
+    <!-- Main Content -->
+    <div class="dash-main">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div>
+                <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0;">Employee Captures</h2>
+                <span style="color: var(--text-gray); font-size: 14px;">Monitor activity screenshots</span>
+            </div>
+            
+             <!-- Filter Section -->
+             <div class="filter-section" style="background: white; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; gap: 10px;">
+                <form method="GET" action="screenshots.php" style="display: flex; gap: 10px; margin: 0;">
+                    <select name="user_id" class="form-input" style="width: auto; margin: 0; padding: 8px;">
+                        <option value="">All Employees</option>
+                        <?php foreach ($users as $user) { 
+                            if ($user['role'] == 'employee') { ?>
+                                <option value="<?=$user['id']?>" <?=($filter_user_id == $user['id']) ? 'selected' : ''?>>
+                                    <?=$user['full_name']?> (@<?=$user['username']?>)
+                                </option>
+                        <?php } } ?>
+                    </select>
+                    <input type="date" name="date" value="<?=$filter_date?>" class="form-input" style="width: auto; margin: 0; padding: 8px;">
+                    <button type="submit" class="btn-primary btn-sm">Filter</button>
+                    <a href="screenshots.php" class="btn-outline btn-sm">Reset</a>
                 </form>
             </div>
+        </div>
 
-            <!-- Screenshots Grid -->
-            <div id="screenshotsContainer" 
-                 data-user-id="<?=htmlspecialchars($filter_user_id ?? '')?>" 
-                 data-date="<?=htmlspecialchars($filter_date ?? '')?>">
-                <?php if (!empty($screenshots)) { ?>
-                    <div class="screenshots-container" id="screenshotsGrid">
-                        <?php foreach ($screenshots as $screenshot) { 
-                            $imagePath = $screenshot['image_path'];
-                            $fileExists = file_exists($imagePath);
-                            $imageUrl = null;
-                            if ($fileExists && file_exists($imagePath)) {
-                                $mtime = @filemtime($imagePath);
-                                $imageUrl = $imagePath . '?t=' . ($mtime ? $mtime : time());
-                            }
-                        ?>
-                            <div class="screenshot-card" data-screenshot-id="<?=$screenshot['id']?>" <?=($screenshot['attendance_id'] ? 'data-attendance-id="' . $screenshot['attendance_id'] . '"' : '')?>>
-                                <?php if ($fileExists) { ?>
-                                    <img src="<?=$imageUrl?>" alt="Screenshot" class="screenshot-thumbnail" 
-                                         onclick="showFullImage('<?=$imagePath?>', '<?=htmlspecialchars($screenshot['full_name'])?>', '<?=$screenshot['taken_at']?>')">
-                                <?php } else { ?>
-                                    <div style="width: 100%; height: 200px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
-                                        <i class="fa fa-image" style="font-size: 48px; color: #ccc;"></i>
-                                    </div>
-                                <?php } ?>
-                                <div class="screenshot-info">
-                                    <p><strong>Employee:</strong> <?=$screenshot['full_name']?> (@<?=$screenshot['username']?>)</p>
-                                    <p><strong>Taken At:</strong> <?=date('Y-m-d H:i:s', strtotime($screenshot['taken_at']))?></p>
-                                    <?php if ($screenshot['time_in']) { ?>
-                                        <p><strong>Time In:</strong> <?=date('Y-m-d H:i:s', strtotime($screenshot['time_in']))?></p>
-                                    <?php } ?>
-                                    <?php if ($screenshot['time_out']) { ?>
-                                        <p><strong>Time Out:</strong> <?=date('Y-m-d H:i:s', strtotime($screenshot['time_out']))?></p>
-                                    <?php } ?>
+        <!-- Screenshots Grid -->
+        <div id="screenshotsContainer" 
+                data-user-id="<?=htmlspecialchars($filter_user_id ?? '')?>" 
+                data-date="<?=htmlspecialchars($filter_date ?? '')?>">
+            <?php if (!empty($screenshots)) { ?>
+                <div class="grid-container" id="screenshotsGrid">
+                    <?php foreach ($screenshots as $screenshot) { 
+                        $imagePath = $screenshot['image_path'];
+                        $fileExists = file_exists($imagePath);
+                        $imageUrl = null;
+                        if ($fileExists && file_exists($imagePath)) {
+                            $mtime = @filemtime($imagePath);
+                            $imageUrl = $imagePath . '?t=' . ($mtime ? $mtime : time());
+                        }
+                    ?>
+                        <div class="capture-card" data-screenshot-id="<?=$screenshot['id']?>">
+                            <?php if ($fileExists) { ?>
+                                <img src="<?=$imageUrl?>" alt="Screenshot" style="width: 100%; height: 180px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; cursor: pointer;"
+                                        onclick="showFullImage('<?=$imagePath?>', '<?=htmlspecialchars($screenshot['full_name'])?>', '<?=$screenshot['taken_at']?>')">
+                            <?php } else { ?>
+                                <div style="width: 100%; height: 180px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                                    <i class="fa fa-image" style="font-size: 32px; color: #ccc;"></i>
+                                </div>
+                            <?php } ?>
+                            
+                            <div style="text-align: left; margin-top: 15px;">
+                                <div style="font-weight: 600; font-size: 14px; margin-bottom: 5px;">
+                                    <?= htmlspecialchars($screenshot['full_name']) ?>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-gray);">
+                                    <?= date('M d, Y h:i A', strtotime($screenshot['taken_at'])) ?>
                                 </div>
                             </div>
-                        <?php } ?>
-                    </div>
-                <?php } else { ?>
-                    <div class="empty-state" id="emptyState">
-                        <i class="fa fa-image"></i>
-                        <h3>No Screenshots Found</h3>
-                        <p>No screenshots match your filter criteria.</p>
-                    </div>
-                <?php } ?>
-            </div>
-        </section>
+                        </div>
+                    <?php } ?>
+                </div>
+            <?php } else { ?>
+                <div style="padding: 40px; text-align: center; color: var(--text-gray);">
+                    <i class="fa fa-camera" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
+                    <h3>No screenshots found</h3>
+                </div>
+            <?php } ?>
+        </div>
     </div>
 
     <!-- Modal for Full Image -->

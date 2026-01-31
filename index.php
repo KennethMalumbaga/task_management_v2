@@ -6,202 +6,290 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "app/Model/Task.php";
     include "app/Model/User.php";
 
+    // --- DATA FETCHING FOR DASHBOARD ---
+    
+    // 1. Stats and Counts
     if ($_SESSION['role'] == "admin") {
-        $todaydue_task = count_tasks_due_today($pdo);
-        $overdue_task = count_tasks_overdue($pdo);
-        $nodeadline_task = count_tasks_NoDeadline($pdo);
         $num_task = count_tasks($pdo);
-        $num_users = count_users($pdo);
-        $pending = count_pending_tasks($pdo);
-        $in_progress = count_in_progress_tasks($pdo);
         $completed = count_completed_tasks($pdo);
-        // Count total screenshots
-        $sql_screenshots = "SELECT COUNT(*) as total FROM screenshots";
-        $stmt_screenshots = $pdo->query($sql_screenshots);
-        $result_screenshots = $stmt_screenshots->fetch(PDO::FETCH_ASSOC);
-        $num_screenshots = $result_screenshots['total'] ?? 0;
+        $num_users = count_users($pdo); // Employees
+        $avg_rating = "4.3"; // Mock data as per design
     } else {
-        $num_my_task = count_my_tasks($pdo, $_SESSION['id']);
-        $overdue_task = count_my_tasks_overdue($pdo, $_SESSION['id']);
-        $nodeadline_task = count_my_tasks_NoDeadline($pdo, $_SESSION['id']);
-        $pending = count_my_pending_tasks($pdo, $_SESSION['id']);
-        $in_progress = count_my_in_progress_tasks($pdo, $_SESSION['id']);
+        $num_task = count_my_tasks($pdo, $_SESSION['id']);
         $completed = count_my_completed_tasks($pdo, $_SESSION['id']);
+        $num_users = count_users($pdo); // Show total team members
+        $avg_rating = "4.3"; 
+    }
+
+    // 2. Recent Tasks (List 2-3 items)
+    if ($_SESSION['role'] == "admin") {
+         $sql_recent = "SELECT * FROM tasks ORDER BY id DESC LIMIT 2";
+         $stmt_recent = $pdo->query($sql_recent);
+         $recent_tasks = $stmt_recent->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+         $user_id = $_SESSION['id'];
+         $sql_recent = "SELECT DISTINCT t.* FROM tasks t
+                        JOIN task_assignees ta ON t.id = ta.task_id
+                        WHERE ta.user_id=?
+                        ORDER BY t.id DESC LIMIT 2";
+         $stmt_recent = $pdo->prepare($sql_recent);
+         $stmt_recent->execute([$user_id]);
+         $recent_tasks = $stmt_recent->fetchAll(PDO::FETCH_ASSOC);
     }
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dashboard</title>
+    <title>TaskFlow Dashboard</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="css/style.css">
-    <style>
-        .dashboard-link {
-            text-decoration: none;
-            color: inherit;
-            display: inline-block;
-            margin-right: 20px;
-            margin-bottom: 20px;
-        }
-
-        .dashboard-link .dashboard-item {
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .dashboard-link:hover .dashboard-item {
-            transform: translateY(-5px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            cursor: pointer;
-        }
-        
-        .dashboard-link:hover {
-            cursor: pointer;
-        }
-        
-        /* Ensure the entire dashboard item area is clickable */
-        .dashboard-link,
-        .dashboard-link * {
-            cursor: pointer;
-        }
-    </style>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
-    <input type="checkbox" id="checkbox">
-    <?php include "inc/header.php" ?>
-    <div class="body">
-        <?php include "inc/nav.php" ?>
-        <section class="section-1">
-            <?php if ($_SESSION['role'] == "admin") { ?>
-                <div class="dashboard">
-                    <a href="user.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-users"></i>
-                            <span><?=$num_users?> Employee</span>
-                        </div>
-                    </a>
-
-                    <a href="tasks.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-tasks"></i>
-                            <span><?=$num_task?> All Tasks</span>
-                        </div>
-                    </a>
-
-                    <a href="tasks.php?due_date=Overdue" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-window-close-o"></i>
-                            <span><?=$overdue_task?> Overdue</span>
-                        </div>
-                    </a>
-
-                    <a href="tasks.php?due_date=No Deadline" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-clock-o"></i>
-                            <span><?=$nodeadline_task?> No Deadline</span>
-                        </div>
-                    </a>
-
-                    <a href="tasks.php?due_date=Due Today" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-exclamation-triangle"></i>
-                            <span><?=$todaydue_task?> Due Today</span>
-                        </div>
-                    </a>
-
-                    <a href="notifications.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-bell"></i>
-                            <span><?=$overdue_task?> Notifications</span>
-                        </div>
-                    </a>
-
-                    <a href="tasks.php?status=Pending" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-square-o"></i>
-                            <span><?=$pending?> Pending</span>
-                        </div>
-                    </a>
-
-                    <a href="tasks.php?status=in_progress" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-spinner"></i>
-                            <span><?=$in_progress?> In progress</span>
-                        </div>
-                    </a>
-
-                    <a href="tasks.php?status=Completed" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-check-square-o"></i>
-                            <span><?=$completed?> Completed</span>
-                        </div>
-                    </a>
-
-                    <a href="screenshots.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-camera"></i>
-                            <span><?=$num_screenshots?> Screenshots</span>
-                        </div>
-                    </a>
-                </div>
+    
+    <!-- Sidebar -->
+    <div class="dash-sidebar">
+        <div class="dash-brand">
+            <h2>TaskFlow</h2>
+            <span>Management System</span>
+        </div>
+        
+        <nav class="dash-nav">
+            <?php if($_SESSION['role'] == "employee"){ ?>
+                <!-- Employee Nav -->
+                <a href="index.php" class="dash-nav-item active">
+                    <i class="fa fa-th-large"></i> Dashboard
+                </a>
+                <a href="my_task.php" class="dash-nav-item">
+                    <i class="fa fa-check-square-o"></i> Tasks
+                </a>
+                <a href="my_subtasks.php" class="dash-nav-item">
+                     <i class="fa fa-list-alt"></i> Subtasks
+                </a>
+                <a href="dtr.php" class="dash-nav-item">
+                    <i class="fa fa-calendar"></i> Calendar
+                </a>
+                <a href="notifications.php" class="dash-nav-item">
+                    <i class="fa fa-comment-o"></i> Messages
+                </a>
+                <a href="profile.php" class="dash-nav-item">
+                    <i class="fa fa-user-o"></i> Profile
+                </a>
             <?php } else { ?>
-                <div class="dashboard">
-                    <div style="margin-bottom: 20px;">
-                        <button id="btnTimeIn">Time In</button>
-                        <button id="btnTimeOut" disabled>Time Out</button>
-                        <span id="attendanceStatus"></span>
-                    </div>
-                    <a href="my_task.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-tasks"></i>
-                            <span><?=$num_my_task?> My Tasks</span>
-                        </div>
-                    </a>
-
-                    <a href="my_tasks_overdue.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-window-close-o"></i>
-                            <span><?=$overdue_task?> Overdue</span>
-                        </div>
-                    </a>
-
-                    <a href="my_tasks_nodeadline.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-clock-o"></i>
-                            <span><?=$nodeadline_task?> No Deadline</span>
-                        </div>
-                    </a>
-
-                    <a href="my_tasks_pending.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-square-o"></i>
-                            <span><?=$pending?> Pending</span>
-                        </div>
-                    </a>
-
-                    <a href="my_tasks_in_progress.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-spinner"></i>
-                            <span><?=$in_progress?> In progress</span>
-                        </div>
-                    </a>
-
-                    <a href="my_tasks_completed.php" class="dashboard-link">
-                        <div class="dashboard-item">
-                            <i class="fa fa-check-square-o"></i>
-                            <span><?=$completed?> Completed</span>
-                        </div>
-                    </a>
-                </div>
+                <!-- Admin Nav -->
+                <a href="index.php" class="dash-nav-item active">
+                    <i class="fa fa-th-large"></i> Dashboard
+                </a>
+                <a href="tasks.php" class="dash-nav-item">
+                    <i class="fa fa-check-square-o"></i> Tasks
+                </a>
+                <a href="create_task.php" class="dash-nav-item">
+                    <i class="fa fa-plus-square-o"></i> Create Task
+                </a>
+                <a href="dtr.php" class="dash-nav-item">
+                    <i class="fa fa-calendar"></i> Calendar
+                </a>
+                <a href="notifications.php" class="dash-nav-item">
+                    <i class="fa fa-comment-o"></i> Messages
+                </a>
+                <a href="user.php" class="dash-nav-item">
+                    <i class="fa fa-users"></i> Users
+                </a>
+                <a href="screenshots.php" class="dash-nav-item">
+                    <i class="fa fa-camera"></i> Captures
+                </a>
             <?php } ?>
-        </section>
+        </nav>
+
+        <div class="dash-sidebar-footer">
+            <a href="logout.php" class="dash-logout">
+                <i class="fa fa-sign-out"></i> Logout
+            </a>
+        </div>
     </div>
 
-<script type="text/javascript">
-    var active = document.querySelector("#navList li:nth-child(1)");
-    if (active) {
-        active.classList.add("active");
-    }
+    <!-- Main Content -->
+    <div class="dash-main">
+        
+        <!-- Top Section: Time Tracker & Welcome -->
+        <div class="dash-top-grid">
+            
+            <!-- Time Tracker Card -->
+            <div class="dash-card">
+                <div class="time-tracker-header">
+                    <div class="time-tracker-title">
+                        <i class="fa fa-clock-o" style="color: #4F46E5;"></i> 
+                        Time Tracker
+                    </div>
+                    <div style="color: #9CA3AF;">
+                        <i class="fa fa-camera"></i>
+                    </div>
+                </div>
 
+                <?php if ($_SESSION['role'] !== 'admin') { ?>
+                    <!-- Employee Clock In/Out -->
+                    <div style="margin-bottom: 20px;">
+                        <button id="btnTimeIn" class="btn-clock-in" style="display: flex;">
+                            <i class="fa fa-play"></i> Clock In
+                        </button>
+                        <button id="btnTimeOut" class="btn-clock-out" disabled style="display: none;">
+                            <i class="fa fa-pause"></i> Clock Out/Pause
+                        </button>
+                    </div>
+                    <div class="screenshot-info">
+                        <i class="fa fa-camera"></i>
+                        <span id="attendanceStatus">Screen captures are taken randomly for activity tracking</span>
+                    </div>
+                <?php } else { ?>
+                     <!-- Admin View -->
+                     <button class="btn-clock-in" style="opacity: 0.5; cursor: default;">
+                        <i class="fa fa-play"></i> Admin View Only
+                    </button>
+                     <div class="screenshot-info">
+                        <i class="fa fa-info-circle"></i>
+                        <span>Tracking is active for employees.</span>
+                    </div>
+                <?php } ?>
+            </div>
+
+            <!-- Welcome Card -->
+            <div class="dash-card welcome-card">
+                <h3>Welcome, <?= htmlspecialchars($_SESSION['full_name'] ?? 'User') ?>!</h3>
+                <div class="welcome-role">Role: <?= ucfirst($_SESSION['role']) ?></div>
+                <div style="margin-top: 20px; font-size: 13px; color: #6B7280; line-height: 1.6;">
+                    You have <b><?= $num_task - $completed ?></b> active tasks remaining effectively. <br>
+                    Keep up the good work!
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasks Section -->
+        <div>
+            <div class="tasks-section-header">
+                <h3>Tasks</h3>
+                <?php if ($_SESSION['role'] == "admin") { ?>
+                    <a href="create_task.php" class="btn-create-task">
+                        <i class="fa fa-plus"></i> Create Task
+                    </a>
+                <?php } ?>
+            </div>
+
+            <div class="task-list">
+                <?php if (!empty($recent_tasks) && count($recent_tasks) > 0) { 
+                    foreach($recent_tasks as $task) { 
+                        $badgeClass = "badge-pending";
+                        if ($task['status'] == 'in_progress') $badgeClass = "badge-in_progress";
+                        if ($task['status'] == 'completed') $badgeClass = "badge-completed";
+                ?>
+                <div class="task-item">
+                    <div class="task-header">
+                         <i class="fa fa-chevron-right" style="font-size: 10px; color: #9CA3AF;"></i>
+                         <div class="task-title"><?= htmlspecialchars($task['title']) ?></div>
+                         <span class="task-badge <?= $badgeClass ?>"><?= htmlspecialchars(str_replace('_', ' ', $task['status'])) ?></span>
+                    </div>
+                    
+                    <div class="task-desc">
+                        <?= htmlspecialchars(mb_strimwidth($task['description'], 0, 100, "...")) ?>
+                    </div>
+
+                    <div class="task-meta">
+                        Due: <?= htmlspecialchars($task['due_date'] ?? 'No Due Date') ?>
+                    </div>
+                    
+                    <div class="task-actions">
+                         <?php if ($_SESSION['role'] == "admin") { ?>
+                            <a href="edit-task.php?id=<?= $task['id'] ?>" class="btn-task-action" style="background: #F3F4F6; color: #374151;">
+                                <i class="fa fa-pencil"></i> Edit
+                            </a>
+                         <?php } else { ?>
+                            <?php if ($task['status'] != 'completed') { ?>
+                                <?php if ($task['status'] == 'in_progress') { ?>
+                                    <a href="#" class="btn-task-action btn-complete">
+                                        <i class="fa fa-check"></i> Complete
+                                    </a>
+                                    <a href="#" class="btn-task-action btn-pause">
+                                        <i class="fa fa-pause"></i> Pause
+                                    </a>
+                                <?php } else { ?>
+                                     <a href="#" class="btn-task-action btn-start">
+                                        <i class="fa fa-play"></i> Start
+                                    </a>
+                                <?php } ?>
+                            <?php } ?>
+                         <?php } ?>
+                    </div>
+                </div>
+                <?php } 
+                } else { ?>
+                    <div class="task-item" style="text-align: center; color: #9CA3AF;">
+                        No recent tasks found.
+                    </div>
+                <?php } ?>
+            </div>
+            
+            <div style="margin-top: 15px; text-align: center;">
+                 <a href="<?= ($_SESSION['role']=='admin'?'tasks.php':'my_task.php') ?>" style="color: #4F46E5; text-decoration: none; font-size: 14px; font-weight: 500;">
+                     View All Tasks <i class="fa fa-arrow-right"></i>
+                 </a>
+            </div>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="dash-stats-grid">
+            <!-- Total Tasks -->
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h4>Total Tasks</h4>
+                    <span><?= $num_task ?></span>
+                </div>
+                <div class="stat-icon icon-blue">
+                    <i class="fa fa-check-square-o"></i>
+                </div>
+            </div>
+
+            <!-- Completed Tasks -->
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h4>Completed Tasks</h4>
+                    <span><?= $completed ?></span>
+                </div>
+                <div class="stat-icon icon-green">
+                    <i class="fa fa-clock-o"></i>
+                </div>
+            </div>
+
+            <!-- Team Members -->
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h4>Team Members</h4>
+                    <span><?= $num_users ?></span>
+                </div>
+                <div class="stat-icon icon-purple">
+                    <i class="fa fa-users"></i>
+                </div>
+            </div>
+
+            <!-- Avg Rating -->
+            <div class="stat-card">
+                <div class="stat-info">
+                    <h4>Avg Rating</h4>
+                    <span><?= $avg_rating ?></span>
+                </div>
+                <div class="stat-icon icon-yellow">
+                    <i class="fa fa-star-o"></i>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+<!-- SCRIPTS PRESERVED FROM ORIGINAL -->
+<script type="text/javascript">
     // Store user ID from PHP session
     var currentUserId = <?= isset($_SESSION['id']) ? $_SESSION['id'] : 'null' ?>;
 
@@ -213,6 +301,23 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     let screenshotTimerId = null;
     let mediaStream = null;
     let isTimingOut = false; // Flag to prevent multiple simultaneous time out calls
+
+    // Toggle button visibility based on state
+    function updateButtonState(isTimeIn) {
+        if (!btnIn || !btnOut) return;
+        if (isTimeIn) {
+            btnIn.style.display = 'none';
+            btnOut.style.display = 'flex';
+            btnOut.disabled = false;
+            // Also enable time in button as resume button if needed?
+            // For now just swap them.
+        } else {
+            btnIn.style.display = 'flex';
+            btnIn.innerHTML = '<i class="fa fa-play"></i> Clock In'; // Reset text just in case
+            btnOut.style.display = 'none';
+            btnIn.disabled = false;
+        }
+    }
 
     function ajax(url, data, cb, method) {
         var xhr = new XMLHttpRequest();
@@ -266,8 +371,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         if (res.status === 'success') {
                             attendanceId = res.attendance_id || null;
                             statusSpan.textContent = 'Timed in. Extension will handle screenshots automatically.';
-                            btnIn.disabled = true;
-                            btnOut.disabled = false;
+                            updateButtonState(true);
                             
                             // Tell extension to start capturing
                             window.postMessage({
@@ -289,7 +393,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         userId: currentUserId,
                         apiUrl: window.location.origin + window.location.pathname.replace('index.php', 'save_screenshot.php')
                     }, window.location.origin);
-                    btnIn.disabled = true;
+                    updateButtonState(true);
                 }
             } else {
                 // Fallback to browser screen share - request permission when Time In is pressed
@@ -311,8 +415,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         if (res.status === 'success') {
                             attendanceId = res.attendance_id || null;
                             statusSpan.textContent = 'Timed in. Screenshots will be taken automatically.';
-                            btnIn.disabled = true;
-                            btnOut.disabled = false;
+                            updateButtonState(true);
                             // Start screenshot loop - mediaStream is already stored globally, will be reused
                             startScreenshotLoop();
                         } else {
@@ -327,7 +430,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 } else {
                     // Already timed in, just start screenshot loop
                     statusSpan.textContent = 'Timed in. Screenshots will be taken automatically.';
-                    btnIn.disabled = true;
+                    updateButtonState(true);
                     startScreenshotLoop();
                 }
             }
@@ -345,8 +448,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             
             if (res.status === 'success') {
                 statusSpan.textContent = 'Timed out.';
-                btnIn.disabled = false;
-                btnOut.disabled = true;
+                updateButtonState(false);
                 attendanceId = null; // Clear attendance ID
                 
                 // Stop extension if it's running
@@ -375,9 +477,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             if (res.status === 'success' && res.has_active_attendance) {
                 attendanceId = res.attendance_id || null;
                 statusSpan.textContent = 'Timed in (restored). Please press Time In again to start screen sharing.';
-                btnIn.disabled = false; // Allow user to press Time In again to start screen sharing
+                
+                // UI Restoration:
+                // Enable resume state
+                btnIn.style.display = 'flex'; 
+                btnIn.innerHTML = '<i class="fa fa-play"></i> Resume Tracking';
+                btnOut.style.display = 'flex'; 
                 btnOut.disabled = false;
-                // Don't request screen share automatically - user must press Time In button
+                
             }
         }, 'GET');
     }
@@ -521,7 +628,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 </script>
 </body>
 </html>
-
 <?php 
 } else { 
    $em = "First login";
