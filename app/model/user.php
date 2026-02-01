@@ -57,7 +57,7 @@ function get_user_by_id($pdo, $id){
 }
 
 function update_profile($pdo, $data){
-	$sql = "UPDATE users SET full_name=?, password=?, bio=?, phone=?, address=?, skills=?, profile_image=? WHERE id=? ";
+	$sql = "UPDATE users SET full_name=?, password=?, bio=?, phone=?, address=?, skills=?, profile_image=?, must_change_password=FALSE WHERE id=? ";
 	$stmt = $pdo->prepare($sql);
 	$stmt->execute($data);
 }

@@ -40,12 +40,24 @@ if (isset($_POST['user_name']) && isset($_POST['password'])) {
 	       	   			$_SESSION['role'] = $role;
 	       	   			$_SESSION['id'] = $id;
 	       	   			$_SESSION['username'] = $usernameDb;
+                        if (isset($user['must_change_password']) && $user['must_change_password']) {
+                             $_SESSION['must_change_password'] = true;
+                             $warning = "Action Needed: Please change your password.";
+                             header("Location: ../edit_profile.php?warning=" . urlencode($warning));
+                             exit();
+                        }
                         header("Location: ../index.php");
                         exit();
 	       	   		}else if ($role == 'employee') {
 	       	   			$_SESSION['role'] = $role;
 	       	   			$_SESSION['id'] = $id;
 	       	   			$_SESSION['username'] = $usernameDb;
+                        if (isset($user['must_change_password']) && $user['must_change_password']) {
+                             $_SESSION['must_change_password'] = true;
+                             $warning = "Action Needed: Please change your password.";
+                             header("Location: ../edit_profile.php?warning=" . urlencode($warning));
+                             exit();
+                        }
                         header("Location: ../index.php");
                         exit();
 	       	   		}else {

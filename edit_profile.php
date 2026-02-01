@@ -61,6 +61,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="profile-content">
                     
                     <!-- Alert Messages -->
+                    <?php if (isset($_GET['warning'])) {?>
+                        <div style="background: #FFFBEB; color: #B45309; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #FCD34D;">
+                            <i class="fa fa-exclamation-triangle"></i> <?php echo stripcslashes($_GET['warning']); ?>
+                        </div>
+                    <?php } ?>
                     <?php if (isset($_GET['error'])) {?>
                         <div style="background: #FEF2F2; color: #991B1B; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #F87171;">
                             <?php echo stripcslashes($_GET['error']); ?>

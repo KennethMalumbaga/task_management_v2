@@ -28,7 +28,7 @@
             <?php } ?>
 
             <div class="auth-info-box">
-                <strong>Choose your role:</strong> Admin (full access), Project Leader (manage tasks & teams), or Employee (complete tasks & track time).
+                Enter your details to create an <strong>Employee</strong> account. A secure password will be emailed to you.
             </div>
 
             <form method="POST" action="app/signup.php">
@@ -42,20 +42,7 @@
                     <input type="text" class="form-control" name="user_name" placeholder="you@example.com" required>
                 </div>
                 
-                <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <input type="password" class="form-control" name="password" placeholder="........" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Role</label>
-                    <select class="form-control" name="role" required>
-                        <option value="employee">Employee</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-                
-                <button type="submit" class="btn-primary">Sign Up</button>
+                <button type="submit" class="btn-primary">Register & Get Password</button>
             </form>
 
             <div class="auth-footer">

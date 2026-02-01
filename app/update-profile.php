@@ -94,8 +94,19 @@ if (isset($_POST['full_name']) && isset($_SESSION['role'])) {
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
             $data = array($full_name, $hashed_password, $bio, $phone, $address, $skills, $current_image, $id);
             update_profile($pdo, $data);
+            
+            // Clear the forced flag session if it was set
+            if (isset($_SESSION['must_change_password'])) {
+                unset($_SESSION['must_change_password']);
+            }
         } else {
             // Not changing password
+            if (isset($_SESSION['must_change_password']) && $_SESSION['must_change_password']) {
+                 $em = "You must change your password to continue.";
+                 header("Location: ../edit_profile.php?warning=" . urlencode($em));
+                 exit();
+            }
+            
             $data = array($full_name, $bio, $phone, $address, $skills, $current_image, $id);
             update_profile_info($pdo, $data);
         }
