@@ -38,6 +38,17 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         return $stmt->fetchAll();
     }
     $recent_tasks = get_recent_user_tasks($pdo, $user_id);
+
+    // Calculate Rating
+    function get_user_rating_stats($pdo, $user_id) {
+        $sql = "SELECT COUNT(*) as count, AVG(rating) as avg FROM tasks WHERE assigned_to = ? AND status = 'completed' AND rating > 0";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$user_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    $rating_stats = get_user_rating_stats($pdo, $user_id);
+    $avg_rating = $rating_stats['avg'] ? number_format($rating_stats['avg'], 1) : "0.0";
+    $rated_count = $rating_stats['count'];
  ?>
 <!DOCTYPE html>
 <html>
@@ -118,10 +129,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div style="background: #FFF7ED; padding: 20px; border-radius: 12px; border: 1px solid #FFEDD5;">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
                             <i class="fa fa-star" style="color: #F59E0B; font-size: 24px;"></i>
-                            <span style="font-size: 28px; font-weight: 700; color: var(--text-dark);">4.5</span>
+                            <span style="font-size: 28px; font-weight: 700; color: var(--text-dark);"><?= $avg_rating ?></span>
                             <span style="color: var(--text-gray); font-size: 14px;">/ 5.0</span>
                         </div>
-                        <span style="font-size: 13px; color: var(--text-gray);">Based on <?= $completed_tasks ?> completed tasks</span>
+                        <span style="font-size: 13px; color: var(--text-gray);">Based on <?= $rated_count ?> rated tasks</span>
                     </div>
 
                 </div>

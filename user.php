@@ -5,8 +5,29 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     include "app/Model/User.php";
     include "app/Model/Task.php";
 
-    $role_filter = isset($_GET['role']) ? $_GET['role'] : 'all';
+    // Modifying logic to exclude admins by default from the directory view
+    $role_filter = isset($_GET['role']) ? $_GET['role'] : 'employee'; 
+    if ($role_filter == 'all') {
+        // If 'all' is requested, we still might want to hide admins based on user request "admin is not in users directory"
+        // So we force 'employee' or we filter the result. 
+        // Let's assume 'all' means all non-admins for this directory context.
+        $role_filter = 'employee';
+    }
+    
+    // However, if we want to show 'all' as in 'all employees' vs 'specific role employees', but we only have 'employee' role really besides admin.
+    // The previous code had "Admin" button. User said "admin is not in users directory".
+    // So usually directory is for employees.
+    
     $users = get_all_users($pdo, $role_filter);
+
+    // Helper to get rating
+    function get_user_avg_rating($pdo, $user_id) {
+        $sql = "SELECT AVG(rating) as avg FROM tasks WHERE assigned_to = ? AND status = 'completed' AND rating > 0";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$user_id]);
+        $res = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $res['avg'] ? number_format($res['avg'], 1) : "0.0";
+    }
  ?>
 <!DOCTYPE html>
 <html>
@@ -63,20 +84,20 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0;">Users Directory</h2>
                 
                 <div style="display: flex; gap: 10px;">
-                     <a href="user.php" class="btn-outline <?= $role_filter == 'all' ? 'filter-active' : '' ?>">All</a>
-                     <a href="user.php?role=admin" class="btn-outline <?= $role_filter == 'admin' ? 'filter-active' : '' ?>">Admin</a>
-                     <a href="user.php?role=employee" class="btn-outline <?= $role_filter == 'employee' ? 'filter-active' : '' ?>">Employee</a>
+                     <!-- Removed Admin filter button as requested -->
+                     <a href="user.php?role=employee" class="btn-outline filter-active">Employees</a>
                 </div>
-                
-                 <a href="add-user.php" class="btn-primary">
-                    <i class="fa fa-plus"></i> Add User
-                </a>
             </div>
         </div>
 
         <?php if (!empty($users)) { ?>
         <div class="grid-container">
-            <?php foreach ($users as $user) { ?>
+            <?php foreach ($users as $user) { 
+                // Double check to skip admins if get_all_users returns them (depending on implementation of 'all')
+                if ($user['role'] == 'admin') continue;
+
+                $avg_rating = get_user_avg_rating($pdo, $user['id']);
+            ?>
             <div class="user-card" style="display: flex; flex-direction: column; height: 100%;">
                 
                 <div class="user-card-avatar">
@@ -90,17 +111,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <h3 style="margin: 0 0 5px 0; font-size: 18px; color: var(--text-dark);"><?= htmlspecialchars($user['full_name']) ?></h3>
                 
                 <?php 
-                    $roleClass = "badge-in_progress"; // Default blueish
-                    if ($user['role'] == 'admin') $roleClass = "badge-pending"; // Orangeish
-                    // You can add more role colors if needed
+                    $roleClass = "badge-in_progress"; 
                 ?>
                 <div style="margin-bottom: 5px;">
                      <span class="badge <?= $roleClass ?>"><?= ucfirst($user['role']) ?></span>
                 </div>
                 
-                <!-- Mock Rating for now or future implementation -->
                 <div style="color: #F59E0B; font-size: 13px; margin-bottom: 15px;">
-                     <i class="fa fa-star"></i> 4.5 / 5.0
+                     <i class="fa fa-star"></i> <?= $avg_rating ?> / 5.0
                 </div>
 
                 <div style="color: var(--text-gray); font-size: 13px; margin-bottom: 10px;">
