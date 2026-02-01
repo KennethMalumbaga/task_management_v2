@@ -155,12 +155,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
                     <!-- Right Column -->
                     <div style="display: flex; flex-direction: column; gap: 20px;">
-                        <div class="profile-field-group">
-                             <label>Bio</label>
-                             <div class="field-value bio-box" style="background: #F9FAFB; border-radius: 8px; padding: 15px;">
-                                 <?= htmlspecialchars($user['bio'] ?? 'No bio provided') ?>
-                             </div>
-                        </div>
+
                         
                         <div class="profile-field-group">
                             <label>Skills</label>

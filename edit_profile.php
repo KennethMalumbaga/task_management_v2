@@ -80,11 +80,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             <input type="text" class="field-value" style="width: 100%; box-sizing: border-box;" value="<?= htmlspecialchars($user['username']) ?>" disabled>
                         </div>
 
-                        <!-- Bio -->
-                        <div class="profile-field-group" style="grid-row: span 3;">
-                             <label>Bio</label>
-                             <textarea name="bio" class="field-value bio-box" style="width: 100%; box-sizing: border-box; resize: vertical;" placeholder="Tell us about yourself"><?= htmlspecialchars($user['bio'] ?? '') ?></textarea>
-                        </div>
+
 
                         <!-- Full Name -->
                         <div class="profile-field-group">

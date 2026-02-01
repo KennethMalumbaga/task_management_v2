@@ -14,7 +14,7 @@ if (isset($_POST['full_name']) && isset($_SESSION['role'])) {
 
 	
 	$full_name = validate_input($_POST['full_name']);
-	$bio = validate_input($_POST['bio']);
+
 	$phone = validate_input($_POST['phone']);
 	$address = validate_input($_POST['address']);
 	$skills = validate_input($_POST['skills']); // This might be comma separated or text
@@ -92,11 +92,11 @@ if (isset($_POST['full_name']) && isset($_SESSION['role'])) {
             }
             // All good, hash new password
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-            $data = array($full_name, $hashed_password, $bio, $phone, $address, $skills, $current_image, $id);
+            $data = array($full_name, $hashed_password, $phone, $address, $skills, $current_image, $id);
             update_profile($pdo, $data);
         } else {
             // Not changing password
-            $data = array($full_name, $bio, $phone, $address, $skills, $current_image, $id);
+            $data = array($full_name, $phone, $address, $skills, $current_image, $id);
             update_profile_info($pdo, $data);
         }
 

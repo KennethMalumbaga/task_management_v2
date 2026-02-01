@@ -21,9 +21,7 @@
             <a href="my_task.php" class="dash-nav-item <?= isActive('my_task.php') ?>">
                 <i class="fa fa-check-square-o"></i> Tasks
             </a>
-            <a href="my_subtasks.php" class="dash-nav-item <?= isActive('my_subtasks.php') ?>">
-                 <i class="fa fa-list-alt"></i> Subtasks
-            </a>
+            <!-- Subtasks link removed -->
             <a href="calendar.php" class="dash-nav-item <?= isActive('calendar.php') ?>">
                 <i class="fa fa-calendar"></i> Calendar
             </a>

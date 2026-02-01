@@ -171,7 +171,7 @@ function get_all_tasks_completed($pdo){
 }
 
 function get_task_assignees($pdo, $task_id){
-    $sql = "SELECT u.full_name, ta.role, ta.user_id 
+    $sql = "SELECT u.full_name, ta.role, ta.user_id, u.profile_image 
             FROM users u 
             JOIN task_assignees ta ON u.id = ta.user_id 
             WHERE ta.task_id = ?";

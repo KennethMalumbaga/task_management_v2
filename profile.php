@@ -64,13 +64,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         </div>
                     </div>
 
-                    <!-- Right Column: Bio spans 2 rows visually or we can just use 2 main cols -->
-                    <div class="profile-field-group" style="grid-row: span 3;">
-                         <label>Bio</label>
-                         <div class="field-value bio-box">
-                             <?= htmlspecialchars($user['bio'] ?? 'No bio provided') ?>
-                         </div>
-                    </div>
+
 
                     <div class="profile-field-group">
                         <label>Full Name</label>

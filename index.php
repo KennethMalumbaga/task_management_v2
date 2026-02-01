@@ -125,42 +125,136 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <?php if (!empty($recent_tasks) && count($recent_tasks) > 0) { 
                     foreach($recent_tasks as $task) { 
                         $badgeClass = "badge-pending";
+                        $statusDisplay = str_replace('_',' ',$task['status']);
+                        
                         if ($task['status'] == 'in_progress') $badgeClass = "badge-in_progress";
                         if ($task['status'] == 'completed') $badgeClass = "badge-completed";
+
+                        // Logic for "Submitted for Review" visual
+                        $isSubmittedForReview = false;
+                        if ($task['status'] == 'completed' && ($task['rating'] == 0 || $task['rating'] == NULL)) {
+                             $statusDisplay = "submitted for review"; 
+                             $badgeClass = "badge-purple"; 
+                             $isSubmittedForReview = true;
+                        }
+
+                        // Organize Assignees
+                        $assignees = get_task_assignees($pdo, $task['id']);
+                        $leader = null;
+                        $members = [];
+                        if ($assignees != 0) {
+                            foreach ($assignees as $a) {
+                                if ($a['role'] == 'leader') {
+                                    $leader = $a;
+                                } else {
+                                    $members[] = $a;
+                                }
+                            }
+                        }
                 ?>
-                <div class="task-item">
-                    <div class="task-header">
-                         <i class="fa fa-chevron-right" style="font-size: 10px; color: #9CA3AF;"></i>
-                         <div class="task-title"><?= htmlspecialchars($task['title']) ?></div>
-                         <span class="task-badge <?= $badgeClass ?>"><?= htmlspecialchars(str_replace('_', ' ', $task['status'])) ?></span>
-                    </div>
+                <div class="task-card" style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #E5E7EB; position: relative;">
                     
-                    <div class="task-desc">
+                    <!-- Edit/Action Button -->
+                     <?php if ($_SESSION['role'] == "admin") { ?>
+                        <a href="edit-task.php?id=<?= $task['id'] ?>" style="position: absolute; top: 24px; right: 24px; color: #9CA3AF; text-decoration: none; font-size: 14px;">
+                            <i class="fa fa-pencil"></i>
+                        </a>
+                     <?php } else { ?>
+                        <?php if ($task['status'] != 'completed') { ?>
+                            <?php if ($task['status'] == 'in_progress') { ?>
+                                <a href="#" class="btn-task-action btn-complete" style="position: absolute; top: 24px; right: 24px; font-size: 13px;">
+                                    <i class="fa fa-check"></i> Complete
+                                </a>
+                            <?php } else { ?>
+                                 <span class="badge-pending" style="position: absolute; top: 24px; right: 24px; padding: 4px 8px; border-radius: 4px; font-size: 12px; opacity: 0.7;">Pending</span>
+                            <?php } ?>
+                        <?php } ?>
+                     <?php } ?>
+
+                    <!-- Header -->
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fa fa-chevron-right" style="color: #6B7280; font-size: 10px;"></i>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #111827;"><?= htmlspecialchars($task['title']) ?></h3>
+                        
+                        <?php if($isSubmittedForReview) { ?>
+                            <span style="background: #F3E8FF; color: #7E22CE; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: lowercase;">submitted_for_review</span>
+                        <?php } else { ?>
+                            <span class="badge <?= $badgeClass ?>"><?= $statusDisplay ?></span>
+                        <?php } ?>
+                    </div>
+
+                    <!-- Description -->
+                    <div style="color: #6B7280; font-size: 14px; margin-bottom: 24px; padding-left: 20px;">
                         <?= htmlspecialchars(mb_strimwidth($task['description'], 0, 100, "...")) ?>
                     </div>
 
-                    <div class="task-meta">
-                        Due: <?= empty($task['due_date']) ? 'No Due Date' : date("F j, Y", strtotime($task['due_date'])) ?>
-                    </div>
-                    
-                    <div class="task-actions">
-                         <?php if ($_SESSION['role'] == "admin") { ?>
-                            <a href="edit-task.php?id=<?= $task['id'] ?>" class="btn-task-action" style="background: #F3F4F6; color: #374151;">
-                                <i class="fa fa-pencil"></i> Edit
-                            </a>
-                         <?php } else { ?>
-                            <?php if ($task['status'] != 'completed') { ?>
-                                <?php if ($task['status'] == 'in_progress') { ?>
-                                    <a href="#" class="btn-task-action btn-complete">
-                                        <i class="fa fa-check"></i> Complete
-                                    </a>
-                                <?php } else { ?>
-                                     <!-- Start Button Removed -->
-                                     <span class="badge-pending" style="padding: 4px 8px; border-radius: 4px; font-size: 12px; opacity: 0.7;">Pending</span>
+                    <div style="padding-left: 20px;">
+                        
+                        <!-- Project Leader Section -->
+                        <?php if ($leader) { 
+                            $leaderImg = !empty($leader['profile_image']) ? 'uploads/' . $leader['profile_image'] : 'img/user.png';
+                        ?>
+                        <div style="background: #F5F3FF; border: 1px solid #E0E7FF; border-radius: 8px; padding: 12px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+                            <img src="<?= $leaderImg ?>" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6366F1; letter-spacing: 0.5px; text-transform: uppercase;">
+                                    <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
+                                </div>
+                                <div style="font-weight: 600; color: #1F2937; font-size: 14px;">
+                                    <?= htmlspecialchars($leader['full_name']) ?>
+                                </div>
+                                <div style="font-size: 11px; color: #F59E0B; font-weight: 500;">
+                                    <i class="fa fa-star"></i> 4.2/5
+                                </div>
+                            </div>
+                        </div>
+                        <?php } ?>
+
+                        <!-- Team Members Section -->
+                        <?php if (!empty($members)) { ?>
+                        <div style="margin-bottom: 16px;">
+                            <div style="font-size: 11px; font-weight: 600; color: #059669; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">
+                                <i class="fa fa-users" style="margin-right: 4px;"></i> Team Members
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+                                <?php foreach ($members as $member) { 
+                                    $memImg = !empty($member['profile_image']) ? 'uploads/' . $member['profile_image'] : 'img/user.png';
+                                ?>
+                                <div style="background: #F0FDFA; border: 1px solid #CCFBF1; border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 10px;">
+                                    <img src="<?= $memImg ?>" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                                    <div>
+                                        <div style="font-weight: 500; color: #1F2937; font-size: 13px;">
+                                            <?= htmlspecialchars($member['full_name']) ?>
+                                        </div>
+                                        <div style="font-size: 10px; color: #F59E0B; font-weight: 500;">
+                                            <i class="fa fa-star"></i> 4.5/5
+                                        </div>
+                                    </div>
+                                </div>
                                 <?php } ?>
+                            </div>
+                        </div>
+                        <?php } ?>
+
+                        <!-- Footer Info (Due Date & Rating) -->
+                        <div style="margin-top: 20px;">
+                            <div style="color: #6B7280; font-size: 12px;">
+                                Due: <?= empty($task['due_date']) ? 'No Date' : date("n/j/Y", strtotime($task['due_date'])) ?>
+                            </div>
+
+                            <!-- Rating & Feedback Display (Task Level) -->
+                            <?php if ($task['status'] == 'completed' && $task['rating'] > 0) { ?>
+                                <div style="margin-top: 8px; font-size: 13px; color: #4B5563;">
+                                    <span style="color: #F59E0B; font-weight: 600;"><i class="fa fa-star"></i> <?= $task['rating'] ?>/5</span> 
+                                    <?php if(!empty($task['review_comment'])) { ?>
+                                        - <?= htmlspecialchars($task['review_comment']) ?>
+                                    <?php } ?>
+                                </div>
                             <?php } ?>
-                         <?php } ?>
+                        </div>
+                        
                     </div>
+
                 </div>
                 <?php } 
                 } else { ?>

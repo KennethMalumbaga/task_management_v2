@@ -57,13 +57,13 @@ function get_user_by_id($pdo, $id){
 }
 
 function update_profile($pdo, $data){
-	$sql = "UPDATE users SET full_name=?, password=?, bio=?, phone=?, address=?, skills=?, profile_image=? WHERE id=? ";
+	$sql = "UPDATE users SET full_name=?, password=?, phone=?, address=?, skills=?, profile_image=? WHERE id=? ";
 	$stmt = $pdo->prepare($sql);
 	$stmt->execute($data);
 }
 
 function update_profile_info($pdo, $data){
-	$sql = "UPDATE users SET full_name=?, bio=?, phone=?, address=?, skills=?, profile_image=? WHERE id=? ";
+	$sql = "UPDATE users SET full_name=?, phone=?, address=?, skills=?, profile_image=? WHERE id=? ";
 	$stmt = $pdo->prepare($sql);
 	$stmt->execute($data);
 }
