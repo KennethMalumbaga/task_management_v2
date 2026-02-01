@@ -21,7 +21,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
 
         $subtask = get_subtask_by_id($pdo, $subtask_id);
         if (!$subtask) {
-            header("Location: ../edit-task-employee.php?error=Subtask not found&id=$parent_id");
+            header("Location: ../my_task.php?error=Subtask not found");
             exit();
         }
 

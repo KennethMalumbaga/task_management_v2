@@ -19,14 +19,15 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         
         $subtask = get_subtask_by_id($pdo, $id);
         if (!$subtask) {
-             header("Location: ../my_subtasks.php?error=Subtask not found");
+             header("Location: ../my_task.php?error=Subtask not found");
              exit();
         }
 
         /* ---- FILE UPLOAD ---- */
         if ($_FILES['submission_file']['error'] !== UPLOAD_ERR_OK) {
             $errorCode = $_FILES['submission_file']['error'];
-            header("Location: ../submit-subtask.php?error=Upload failed with error code $errorCode&id=$id");
+            $em = "Upload failed with error code $errorCode";
+            header("Location: ../my_task.php?error=$em");
             exit();
         }
 
@@ -34,12 +35,14 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         $ext = strtolower(pathinfo($_FILES['submission_file']['name'], PATHINFO_EXTENSION));
 
         if (!in_array($ext, $allowed)) {
-            header("Location: ../submit-subtask.php?error=Invalid file type&id=$id");
+            $em = "Invalid file type";
+            header("Location: ../my_task.php?error=$em");
             exit();
         }
 
         if ($_FILES['submission_file']['size'] > 10 * 1024 * 1024) {
-            header("Location: ../submit-subtask.php?error=File too large&id=$id");
+            $em = "File too large";
+            header("Location: ../my_task.php?error=$em");
             exit();
         }
 
@@ -52,7 +55,8 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         $destination = "$upload_dir/$filename";
         
         if (!move_uploaded_file($_FILES['submission_file']['tmp_name'], $destination)) {
-            header("Location: ../submit-subtask.php?error=Failed to move uploaded file&id=$id");
+            $em = "Failed to move uploaded file";
+            header("Location: ../my_task.php?error=$em");
             exit();
         }
 

@@ -23,11 +23,11 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
 
         if (empty($description)) {
             $em = "Description is required";
-            header("Location: ../edit-task-employee.php?error=$em&id=$parent_id");
+            header("Location: ../my_task.php?error=$em");
             exit();
         }else if (empty($due_date)) {
             $em = "Due Date is required";
-            header("Location: ../edit-task-employee.php?error=$em&id=$parent_id");
+            header("Location: ../my_task.php?error=$em");
             exit();
         }else {
             $data = array($task_id, $member_id, $description, $due_date);

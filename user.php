@@ -51,7 +51,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             width: 100%; 
             display: flex; 
             justify-content: center; 
-            padding: 8px; 
+            padding: 7px; 
             border-radius: 6px; 
             text-decoration: none; 
             font-size: 13px; 
@@ -61,6 +61,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         .btn-msg {
             background: #4F46E5; 
             color: white;
+            width: 97%;
         }
         .btn-view {
             background: #F3F4F6; 
@@ -148,6 +149,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             background: #F3E8FF !important;
             color: #7C3AED !important;
             margin-top: 8px;
+            margin-left: 4px;
+            border: none;
+            width: 100%;
         }
         .btn-edit-role:hover {
             background: #EDE9FE !important;
