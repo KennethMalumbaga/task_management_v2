@@ -4,6 +4,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     include "DB_connection.php";
     include "app/Model/User.php";
     include "app/Model/Task.php";
+    
+    $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
 
     // Modifying logic to exclude admins by default from the directory view
     $role_filter = isset($_GET['role']) ? $_GET['role'] : 'employee'; 
@@ -11,6 +13,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         // If 'all' is requested, we still might want to hide admins based on user request "admin is not in users directory"
         // So we force 'employee' or we filter the result. 
         // Let's assume 'all' means all non-admins for this directory context.
+        $role_filter = 'employee';
+    }
+    
+    // Only super admin can see other admins
+    if ($role_filter == 'admin' && !$is_super_admin) {
         $role_filter = 'employee';
     }
     
@@ -77,9 +84,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
                 <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0;">Users Directory</h2>
                 
-                <div style="display: flex; gap: 10px;">
-                     <!-- Removed Admin filter button as requested -->
-                     <a href="user.php?role=employee" class="btn-outline filter-active">Employees</a>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                     <a href="user.php?role=employee" class="btn-outline <?= ($role_filter == 'employee') ? 'filter-active' : '' ?>">Employees</a>
+                     <?php if ($is_super_admin) { ?>
+                        <a href="user.php?role=admin" class="btn-outline <?= ($role_filter == 'admin') ? 'filter-active' : '' ?>">Admins</a>
+                     <?php } ?>
+                     <a href="add-user.php" class="btn-primary" style="background: #4F46E5; margin-left: 10px;">
+                        <i class="fa fa-user-plus"></i> Add User
+                     </a>
                 </div>
             </div>
         </div>

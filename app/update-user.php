@@ -33,14 +33,38 @@ if (isset($_POST['user_name']) && isset($_POST['password']) && isset($_POST['ful
 	}else {
     
        include "Model/User.php";
-       $password = password_hash($password, PASSWORD_DEFAULT);
+       $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
 
-       $data = array($full_name, $user_name, $password, "employee", $id, "employee");
-       update_user($pdo, $data);
+       // Check if trying to change role
+       $target_user = get_user_by_id($pdo, $id);
+       $role = $target_user['role'];
 
-       $em = "User created successfully";
-	    header("Location: ../edit-user.php?success=$em&id=$id");
-	    exit();
+       if (isset($_POST['role']) && $is_super_admin) {
+           $role = $_POST['role'];
+       }
+
+       // Security: Non-super-admin cannot edit an admin
+       if ($target_user['role'] == 'admin' && !$is_super_admin && $target_user['id'] != $_SESSION['id']) {
+           $em = "Access denied";
+           header("Location: ../edit-user.php?error=$em&id=$id");
+           exit();
+       }
+
+       if ($password == "**********") {
+           // Not changing password
+           $sql = "UPDATE users SET full_name=?, username=?, role=? WHERE id=?";
+           $stmt = $pdo->prepare($sql);
+           $stmt->execute([$full_name, $user_name, $role, $id]);
+       }else {
+           $password = password_hash($password, PASSWORD_DEFAULT);
+           $sql = "UPDATE users SET full_name=?, username=?, password=?, role=? WHERE id=?";
+           $stmt = $pdo->prepare($sql);
+           $stmt->execute([$full_name, $user_name, $password, $role, $id]);
+       }
+
+       $em = "User updated successfully";
+       header("Location: ../edit-user.php?success=$em&id=$id");
+       exit();
 
     
 	}

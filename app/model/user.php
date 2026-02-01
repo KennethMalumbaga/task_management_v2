@@ -87,3 +87,11 @@ function get_user_rating_stats($pdo, $user_id) {
         'avg' => $res['avg'] ? number_format($res['avg'], 1) : "0.0"
     ];
 }
+
+function is_super_admin($user_id, $pdo) {
+    $sql = "SELECT username FROM users WHERE id = ? AND role = 'admin'";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$user_id]);
+    $username = $stmt->fetchColumn();
+    return $username === 'admin';
+}

@@ -1,7 +1,9 @@
 <?php 
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
-  
+    include "DB_connection.php";
+    include "app/Model/User.php";
+    $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
  ?>
 <!DOCTYPE html>
 <html>
@@ -44,6 +46,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 					<lable>Password</lable>
 					<input type="text" name="password" class="input-1" placeholder="Password"><br>
 				</div>
+
+				<?php if ($is_super_admin) { ?>
+				<div class="input-holder">
+					<lable>Role</lable>
+					<select name="role" class="input-1">
+						<option value="employee">Employee</option>
+						<option value="admin">Admin</option>
+					</select><br>
+				</div>
+				<?php } ?>
 
 				<button class="edit-btn">Add</button>
 			</form>

@@ -15,7 +15,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     	 header("Location: user.php");
     	 exit();
     }
+    $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
 
+    // Security check: only super admin can edit other admins
+    if ($user['role'] == 'admin' && !$is_super_admin && $user['id'] != $_SESSION['id']) {
+        $em = "Access denied";
+        header("Location: user.php?error=$em");
+        exit();
+    }
  ?>
 <!DOCTYPE html>
 <html>
@@ -58,6 +65,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 					<lable>Password</lable>
 					<input type="text" value="**********" name="password" class="input-1" placeholder="Password"><br>
 				</div>
+				
+				<?php if ($is_super_admin) { ?>
+				<div class="input-holder">
+					<lable>Role</lable>
+					<select name="role" class="input-1">
+						<option value="employee" <?=($user['role'] == 'employee')?'selected':''?>>Employee</option>
+						<option value="admin" <?=($user['role'] == 'admin')?'selected':''?>>Admin</option>
+					</select><br>
+				</div>
+				<?php } else { ?>
+					<input type="text" name="role" value="<?=$user['role']?>" hidden>
+				<?php } ?>
+
 				<input type="text" name="id" value="<?=$user['id']?>" hidden>
 
 				<button class="edit-btn">Update</button>

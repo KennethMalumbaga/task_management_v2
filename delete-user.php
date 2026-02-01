@@ -2,8 +2,11 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "DB_connection.php";
-    include "app/model/User.php";
+    include "app/Model/User.php";
+    include "app/Model/Task.php";
     
+    $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
+
     if (!isset($_GET['id'])) {
     	 header("Location: user.php");
     	 exit();
@@ -17,6 +20,20 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     	 exit();
     }
 
+    // Security check: only super admin can delete admins
+    if ($user['role'] == 'admin' && !$is_super_admin) {
+        $em = "Access denied. Only Super Admin can delete other Admins.";
+        header("Location: user.php?error=$em");
+        exit();
+    }
+    
+    // Prevent super admin from deleting themselves (username 'admin')
+    if ($user['username'] == 'admin') {
+        $em = "Access denied. The Super Admin account cannot be deleted.";
+        header("Location: user.php?error=$em");
+        exit();
+    }
+
     // Check if user has active (non-completed) tasks assigned
     if (user_has_tasks($pdo, $id)) {
     	$em = "Cannot delete user. This user has active tasks assigned. Please reassign or complete the tasks first.";
@@ -25,12 +42,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     }
 
     // Unassign completed tasks (set assigned_to to NULL) before deletion
-    // This prevents foreign key constraint errors
-    include "app/model/Task.php";
     unassign_completed_tasks($pdo, $id);
 
-    $data = array($id, "employee");
-    $result = delete_user($pdo, $data);
+    $sql = "DELETE FROM users WHERE id=?";
+    $stmt = $pdo->prepare($sql);
+    $result = $stmt->execute([$id]);
     
     if ($result) {
     	$sm = "User deleted successfully";
