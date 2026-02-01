@@ -37,7 +37,7 @@ function send_confirmation_email($to_email, $full_name, $password) {
             <p>Your account has been successfully created.</p>
             <p><strong>Your Password is:</strong> <span style='font-size: 1.2em; color: #333;'>$password</span></p>
             <p>Please keep this password secure. You can change it after logging in.</p>
-            <p>You can now <a href='http://localhost/Task_Management/login.php'>login</a> to your account.</p>
+            <p>You can now <a href='http://localhost/task_management_v2/login.php'>login</a> to your account.</p>
             <br>
             <p>Regards,<br>The Team</p>
         ";
@@ -72,7 +72,7 @@ function send_password_reset_email($to_email, $full_name, $token) {
 
         //Content
         $mail->isHTML(true);
-        $url = "http://localhost/Task_Management/reset-password.php?token=$token";
+        $url = "http://localhost/task_management_v2/reset-password.php?token=$token";
         
         $mail->Subject = 'Password Reset Request';
         $mail->Body    = "

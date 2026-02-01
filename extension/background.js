@@ -79,7 +79,7 @@ async function startScreenshotCapture(attendanceId, userId, url) {
 
     currentAttendanceId = attendanceId;
     currentUserId = userId;
-    apiUrl = url || 'http://localhost/Task_Management/save_screenshot.php';
+    apiUrl = url || 'http://localhost/task_management_v2/save_screenshot.php';
 
     // Save state to storage for persistence
     await chrome.storage.local.set({

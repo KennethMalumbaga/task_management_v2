@@ -1,7 +1,7 @@
 <?php
 /**
  * Get password hash for admin123
- * Visit this file in your browser: http://localhost/Task_Management/get_password_hash.php
+ * Visit this file in your browser: http://localhost/task_management_v2/get_password_hash.php
  * Copy the hash and replace it in reset_database.sql
  */
 

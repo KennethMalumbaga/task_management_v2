@@ -9,7 +9,7 @@
  * 
  * WARNING: This will DELETE ALL DATA in your database!
  * 
- * Usage: Visit http://localhost/Task_Management/reset_database.php in your browser
+ * Usage: Visit http://localhost/task_management_v2/reset_database.php in your browser
  */
 
 include "DB_connection.php";

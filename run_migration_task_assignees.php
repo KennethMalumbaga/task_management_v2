@@ -5,7 +5,7 @@
  * This will create the task_assignees table to support assigning tasks
  * to 1 leader and multiple members.
  * 
- * Usage: Visit http://localhost/Task_Management/run_migration_task_assignees.php in your browser
+ * Usage: Visit http://localhost/task_management_v2/run_migration_task_assignees.php in your browser
  */
 
 include "DB_connection.php";
