@@ -18,7 +18,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $num_task = count_my_tasks($pdo, $_SESSION['id']);
         $completed = count_my_completed_tasks($pdo, $_SESSION['id']);
         $num_users = count_users($pdo); // Show total team members
-        $avg_rating = "4.3"; 
+        $stats = get_user_rating_stats($pdo, $_SESSION['id']);
+        $avg_rating = $stats['avg']; 
     }
 
     // 2. Recent Tasks (List 2-3 items)
@@ -204,7 +205,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <?= htmlspecialchars($leader['full_name']) ?>
                                 </div>
                                 <div style="font-size: 11px; color: #F59E0B; font-weight: 500;">
-                                    <i class="fa fa-star"></i> 4.2/5
+                                    <?php $lStats = get_user_rating_stats($pdo, $leader['user_id']); ?>
+                                    <i class="fa fa-star"></i> <?= $lStats['avg'] ?>/5
                                 </div>
                             </div>
                         </div>
@@ -227,7 +229,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                             <?= htmlspecialchars($member['full_name']) ?>
                                         </div>
                                         <div style="font-size: 10px; color: #F59E0B; font-weight: 500;">
-                                            <i class="fa fa-star"></i> 4.5/5
+                                            <?php $mStats = get_user_rating_stats($pdo, $member['user_id']); ?>
+                                            <i class="fa fa-star"></i> <?= $mStats['avg'] ?>/5
                                         </div>
                                     </div>
                                 </div>

@@ -20,14 +20,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     
     $users = get_all_users($pdo, $role_filter);
 
-    // Helper to get rating
-    function get_user_avg_rating($pdo, $user_id) {
-        $sql = "SELECT AVG(rating) as avg FROM tasks WHERE assigned_to = ? AND status = 'completed' AND rating > 0";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$user_id]);
-        $res = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $res['avg'] ? number_format($res['avg'], 1) : "0.0";
-    }
+    // Helper to get rating (Fix: Use task_assignees to include members)
+    // function get_user_avg_rating($pdo, $user_id) ... REMOVED, using Model function now
  ?>
 <!DOCTYPE html>
 <html>
@@ -96,7 +90,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 // Double check to skip admins if get_all_users returns them (depending on implementation of 'all')
                 if ($user['role'] == 'admin') continue;
 
-                $avg_rating = get_user_avg_rating($pdo, $user['id']);
+                $stats = get_user_rating_stats($pdo, $user['id']);
+                $avg_rating = $stats['avg'];
             ?>
             <div class="user-card" style="display: flex; flex-direction: column; height: 100%;">
                 

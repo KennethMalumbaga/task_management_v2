@@ -73,3 +73,17 @@ function count_users($pdo){
 	$stmt = $pdo->query($sql);
 	return $stmt->fetchColumn();
 }
+
+function get_user_rating_stats($pdo, $user_id) {
+    $sql = "SELECT COUNT(*) as count, AVG(t.rating) as avg 
+            FROM tasks t 
+            JOIN task_assignees ta ON t.id = ta.task_id 
+            WHERE ta.user_id = ? AND t.status = 'completed' AND t.rating > 0";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$user_id]);
+    $res = $stmt->fetch(PDO::FETCH_ASSOC);
+    return [
+        'count' => $res['count'],
+        'avg' => $res['avg'] ? number_format($res['avg'], 1) : "0.0"
+    ];
+}

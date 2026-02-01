@@ -18,9 +18,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         exit();
     }
 
-    // Get Stats
+    // Get Stats (Fix: Use task_assignees)
     function count_user_tasks_by_status($pdo, $user_id, $status) {
-        $sql = "SELECT COUNT(*) FROM tasks WHERE assigned_to = ? AND status = ?";
+        $sql = "SELECT COUNT(*) FROM tasks t 
+                JOIN task_assignees ta ON t.id = ta.task_id 
+                WHERE ta.user_id = ? AND t.status = ?";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$user_id, $status]);
         return $stmt->fetchColumn();
@@ -30,24 +32,23 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     $in_progress_tasks = count_user_tasks_by_status($pdo, $user_id, 'in_progress');
     $pending_tasks = count_user_tasks_by_status($pdo, $user_id, 'pending');
 
-    // Recent Tasks
+    // Recent Tasks (Fix: Use task_assignees)
     function get_recent_user_tasks($pdo, $user_id) {
-        $sql = "SELECT * FROM tasks WHERE assigned_to = ? ORDER BY created_at DESC LIMIT 5";
+        $sql = "SELECT t.* FROM tasks t 
+                JOIN task_assignees ta ON t.id = ta.task_id 
+                WHERE ta.user_id = ? 
+                ORDER BY t.created_at DESC LIMIT 5";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$user_id]);
         return $stmt->fetchAll();
     }
     $recent_tasks = get_recent_user_tasks($pdo, $user_id);
 
-    // Calculate Rating
-    function get_user_rating_stats($pdo, $user_id) {
-        $sql = "SELECT COUNT(*) as count, AVG(rating) as avg FROM tasks WHERE assigned_to = ? AND status = 'completed' AND rating > 0";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$user_id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
+    // Calculate Rating (Fix: Use task_assignees)
+    // get_user_rating_stats is now in Model/User.php
+    
     $rating_stats = get_user_rating_stats($pdo, $user_id);
-    $avg_rating = $rating_stats['avg'] ? number_format($rating_stats['avg'], 1) : "0.0";
+    $avg_rating = $rating_stats['avg']; // Model function returns formatted avg
     $rated_count = $rating_stats['count'];
  ?>
 <!DOCTYPE html>
