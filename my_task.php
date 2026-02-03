@@ -791,8 +791,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 // Remove the param from URL without reload (optional but cleaner)
                 // window.history.replaceState(null, null, window.location.pathname); 
                 
-                // Toggle task
-                toggleTask(openTaskId);
+                // Open task modal
+                openTaskModal(openTaskId);
                 
                 // Scroll to task
                 const element = document.getElementById("task-card-" + openTaskId);

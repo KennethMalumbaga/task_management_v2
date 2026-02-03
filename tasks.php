@@ -666,6 +666,26 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             });
         }
     </script>
+    <script>
+        $(document).ready(function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const openTaskId = urlParams.get('open_task');
+            if (openTaskId) {
+                // Assuming openTaskModal or similar exists, otherwise use toggleTask logic
+                if (typeof openTaskModal === "function") {
+                    openTaskModal(openTaskId);
+                } else if (typeof toggleTask === "function") {
+                    toggleTask(openTaskId);
+                }
+                
+                // Scroll to task
+                const element = document.getElementById("task-card-" + openTaskId);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+    </script>
 </body>
 </html>
 <?php 
