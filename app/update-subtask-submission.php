@@ -26,7 +26,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         /* ---- FILE UPLOAD ---- */
         if ($_FILES['submission_file']['error'] !== UPLOAD_ERR_OK) {
             $errorCode = $_FILES['submission_file']['error'];
-            header("Location: ../submit-subtask.php?error=Upload failed with error code $errorCode&id=$id");
+            header("Location: ../my_task.php?error=Upload failed with error code $errorCode&open_task=" . $subtask['task_id']);
             exit();
         }
 
@@ -34,12 +34,12 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         $ext = strtolower(pathinfo($_FILES['submission_file']['name'], PATHINFO_EXTENSION));
 
         if (!in_array($ext, $allowed)) {
-            header("Location: ../submit-subtask.php?error=Invalid file type&id=$id");
+            header("Location: ../my_task.php?error=Invalid file type&open_task=" . $subtask['task_id']);
             exit();
         }
 
-        if ($_FILES['submission_file']['size'] > 10 * 1024 * 1024) {
-            header("Location: ../submit-subtask.php?error=File too large&id=$id");
+        if ($_FILES['submission_file']['size'] > 100 * 1024 * 1024) {
+            header("Location: ../my_task.php?error=File too large (Max 100MB)&open_task=" . $subtask['task_id']);
             exit();
         }
 
@@ -52,7 +52,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         $destination = "$upload_dir/$filename";
         
         if (!move_uploaded_file($_FILES['submission_file']['tmp_name'], $destination)) {
-            header("Location: ../submit-subtask.php?error=Failed to move uploaded file&id=$id");
+            header("Location: ../my_task.php?error=Failed to move uploaded file&open_task=" . $subtask['task_id']);
             exit();
         }
 
@@ -73,7 +73,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         }
 
         $em = "Subtask submitted successfully";
-        header("Location: ../my_task.php?success=$em");
+        header("Location: ../my_task.php?success=$em&open_task=" . $subtask['task_id']);
         exit();
 
     }else {

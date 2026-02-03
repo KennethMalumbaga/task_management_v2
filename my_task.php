@@ -540,6 +540,26 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         function closeResubmitModal() {
             $("#resubmitModal").fadeOut(200);
         }
+
+        // Auto-open task if param exists
+        $(document).ready(function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const openTaskId = urlParams.get('open_task');
+            
+            if (openTaskId) {
+                // Remove the param from URL without reload (optional but cleaner)
+                // window.history.replaceState(null, null, window.location.pathname); 
+                
+                // Toggle task
+                toggleTask(openTaskId);
+                
+                // Scroll to task
+                const element = document.getElementById("task-card-" + openTaskId);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
     </script>
 </body>
 </html>

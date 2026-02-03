@@ -120,6 +120,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                     <i class="fa fa-envelope-o"></i> <?= htmlspecialchars($user['username']) ?>
                 </div>
 
+                <?php 
+                    // Get Attendance Stats for Directory
+                    $dirStats = get_todays_attendance_stats($pdo, $user['id']);
+                ?>
+                <div style="color: #4F46E5; font-size: 13px; margin-bottom: 15px; font-weight: 500;">
+                    <i class="fa fa-clock-o"></i> Total Hours: <?= $dirStats['overall_duration'] ?>
+                </div>
+
 
                 
                 <div style="margin-top: auto; padding-top: 15px;">

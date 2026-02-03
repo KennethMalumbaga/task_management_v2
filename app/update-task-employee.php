@@ -54,8 +54,8 @@ if (!in_array($ext, $allowed)) {
     exit();
 }
 
-if ($_FILES['submission_file']['size'] > 10 * 1024 * 1024) {
-    header("Location: ../edit-task-employee.php?error=File too large&id=$id");
+if ($_FILES['submission_file']['size'] > 100 * 1024 * 1024) {
+    header("Location: ../edit-task-employee.php?error=File too large (Max 100MB)&id=$id");
     exit();
 }
 

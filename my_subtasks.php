@@ -68,7 +68,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <!-- Using submit-subtask.php or maybe we should modernize that too? 
                              For now link to it, but styling might be old there.
                              Ideally should point to a modal or new page. -->
-                        <a href="submit-subtask.php?id=<?=$sub['id']?>" class="btn-primary btn-sm" style="padding: 6px 12px; font-size: 12px;">
+                        <a href="my_task.php?open_task=<?=$sub['task_id']?>" class="btn-primary btn-sm" style="padding: 6px 12px; font-size: 12px;">
                             View / Submit
                         </a>
 					</td>
