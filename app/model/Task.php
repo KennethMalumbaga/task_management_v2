@@ -303,6 +303,15 @@ function count_my_completed_tasks($pdo, $user_id){
     return $stmt->fetchColumn();
 }
 
+function count_my_active_tasks($pdo, $user_id){
+    $sql = "SELECT COUNT(*) FROM tasks t
+            JOIN task_assignees ta ON t.id = ta.task_id
+            WHERE ta.user_id=? AND t.status != 'completed'";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$user_id]);
+    return $stmt->fetchColumn();
+}
+
 /* ---------------------------------------------
    USER TASKS (task_assignees)
 --------------------------------------------- */

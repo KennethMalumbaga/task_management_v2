@@ -95,3 +95,66 @@ function is_super_admin($user_id, $pdo) {
     $username = $stmt->fetchColumn();
     return $username === 'admin';
 }
+
+function get_todays_attendance_stats($pdo, $user_id) {
+    date_default_timezone_set('Asia/Manila'); // Ensure correct timezone
+    
+    // 1. Get ALL records for total duration
+    $sql = "SELECT * FROM attendance 
+            WHERE user_id = ? 
+            ORDER BY id ASC"; 
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$user_id]);
+    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $total_seconds_all = 0;
+    $total_seconds_today = 0;
+    $latest_in = null;
+    $latest_out = null;
+    $today_date = date('Y-m-d');
+
+    foreach ($records as $row) {
+        $in = strtotime($row['time_in']);
+        // Active session check
+        if (!empty($row['time_out']) && $row['time_out'] != '00:00:00') {
+            $out = strtotime($row['time_out']);
+        } else {
+            // If active and it's TODAY, count up to now (realtime)
+            if (isset($row['att_date']) && $row['att_date'] == $today_date) {
+                 $out = time();
+            } else {
+                 // Old unclosed records -> ignore duration (or assume closed at end of day?)
+                 // Simplest is to ignore duration for invalid old sessions
+                 $out = $in; 
+            }
+        }
+        
+        $duration = max(0, $out - $in);
+        $total_seconds_all += $duration;
+        
+        if (isset($row['att_date']) && $row['att_date'] == $today_date) {
+            $total_seconds_today += $duration;
+            // Update latest (only if today, or maybe just last record?)
+            // Actually usually we want the Very Last Record's info
+        }
+        
+        // Track latest record regardless of date for "Last Action"
+        $latest_in = $row['time_in'];
+        $latest_out = $row['time_out'];
+    }
+
+    // Format totals
+    $all_h = floor($total_seconds_all / 3600);
+    $all_m = floor(($total_seconds_all % 3600) / 60);
+    
+    $day_h = floor($total_seconds_today / 3600);
+    $day_m = floor(($total_seconds_today % 3600) / 60);
+
+    return [
+        'time_in' => $latest_in ? date("h:i A", strtotime($latest_in)) : '--:--',
+        'time_out' => (!empty($latest_out) && $latest_out != '00:00:00') ? date("h:i A", strtotime($latest_out)) : '--:--',
+        'total_duration' => "{$all_h}h {$all_m}m", // Keeping this as Overall check
+        'overall_duration' => "{$all_h}h {$all_m}m",
+        'daily_duration' => "{$day_h}h {$day_m}m"
+    ];
+}

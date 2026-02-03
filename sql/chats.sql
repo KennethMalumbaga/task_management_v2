@@ -1,8 +1,0 @@
-CREATE TABLE chats (
-  chat_id SERIAL PRIMARY KEY,
-  sender_id INTEGER NOT NULL,
-  receiver_id INTEGER NOT NULL,
-  message TEXT NOT NULL,
-  opened BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);

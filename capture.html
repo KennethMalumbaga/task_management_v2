@@ -29,8 +29,10 @@
     <div id="preview"></div>
 
     <script>
-        const MIN_INTERVAL = 20 * 1000;
-        const MAX_INTERVAL = 30 * 1000;
+        // Interval: 20 to 30 MINUTES
+        const MIN_INTERVAL = 20 * 60 * 1000;
+        const MAX_INTERVAL = 30 * 60 * 1000;
+        let keepAliveInterval = null;
         let captureInterval = null;
         let attendanceId = null;
         let sessionId = null;
@@ -61,6 +63,7 @@
                 stream.getVideoTracks()[0].onended = () => {
                     statusDiv.innerText = "Stopped";
                     statusDiv.className = "error";
+                    stopHeartbeat(); // Stop heartbeat
                     if (window.opener) {
                         window.opener.postMessage({ type: 'CAPTURE_STOPPED' }, '*');
                     }
@@ -72,6 +75,7 @@
                 }
 
                 // Start loop
+                startHeartbeat(); // Start heartbeat
                 takeScreenshot(stream); // First one immediately
                 scheduleNext(stream);
 
@@ -79,10 +83,34 @@
                 console.error("Error:", err);
                 statusDiv.innerText = "Error: " + err.message;
                 statusDiv.className = "error";
+                stopHeartbeat(); // Stop heartbeat
                 if (window.opener) {
                     window.opener.postMessage({ type: 'CAPTURE_ERROR', message: err.message }, '*');
                 }
             }
+        }
+
+        let heartbeatInterval = null;
+
+        function startHeartbeat() {
+            // Update initial immediately
+            localStorage.setItem('taskflow_heartbeat', Date.now());
+
+            heartbeatInterval = setInterval(() => {
+                localStorage.setItem('taskflow_heartbeat', Date.now());
+            }, 2000);
+
+            // Server Session Keep-Alive (every 5 mins) to prevent timeout
+            // since screenshot interval is now 20-30 mins.
+            keepAliveInterval = setInterval(() => {
+                fetch('check_attendance.php').then(r => console.log('Keep-alive ping:', r.status));
+            }, 5 * 60 * 1000);
+        }
+
+        function stopHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            if (keepAliveInterval) clearInterval(keepAliveInterval);
+            localStorage.removeItem('taskflow_heartbeat');
         }
 
         function scheduleNext(stream) {

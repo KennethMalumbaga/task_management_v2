@@ -96,7 +96,7 @@ if (isset($_POST['title']) && isset($_POST['description']) && isset($_POST['lead
        }
 
        $em = "Task created successfully";
-	    header("Location: ../create_task.php?success=$em");
+	    header("Location: ../tasks.php?success=$em");
 	    exit();
 
     

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 2026-01-31 16:45:26 - Request received from user: 4
 2026-01-31 16:45:26 - POST data present: YES
 2026-01-31 16:45:26 - Image data present: YES (length: 151334)
@@ -224,3 +225,357 @@ Success: Saved to C:\xampp\htdocs\task_management_v2\screenshots/3_5.png
 Success: Saved to C:\xampp\htdocs\task_management_v2\screenshots/3_5.png
 2026-02-03 10:58:02 - Request from User: 1 - Attendance: 5
 Success: Saved to C:\xampp\htdocs\task_management_v2\screenshots/3_5.png
+=======
+2026-02-03 14:04:00 - Request from User: 5 - Attendance: 2
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\5_2.png
+2026-02-03 14:04:22 - Request from User: 5 - Attendance: 2
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/5_2.png
+2026-02-03 14:04:52 - Request from User: 5 - Attendance: 2
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/5_2.png
+2026-02-03 14:05:14 - Request from User: 5 - Attendance: 2
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/5_2.png
+2026-02-03 14:05:38 - Request from User: 5 - Attendance: 2
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/5_2.png
+2026-02-03 14:06:08 - Request from User: 5 - Attendance: 2
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/5_2.png
+2026-02-03 14:06:35 - Request from User: 5 - Attendance: 2
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/5_2.png
+2026-02-03 14:09:30 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\2_3.png
+2026-02-03 14:09:43 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:13:37 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:14:04 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:14:26 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:14:55 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:15:25 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:15:50 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:16:18 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:16:42 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:17:10 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:17:33 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:18:01 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:18:22 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:18:45 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:19:14 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:19:40 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:20:08 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:20:36 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:21:02 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:21:26 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:21:52 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:22:13 - Request from User: 2 - Attendance: 3
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/2_3.png
+2026-02-03 14:22:33 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\4_4.png
+2026-02-03 14:22:43 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:23:01 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:23:23 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:23:52 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:24:21 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:24:46 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:25:09 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:25:30 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:25:57 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:26:06 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\8_5.png
+2026-02-03 14:26:27 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:26:29 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:26:51 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:26:54 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:27:13 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:27:15 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:27:37 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:27:44 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:28:00 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:28:12 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:28:22 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:28:42 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:28:50 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:28:52 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:29:11 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:29:15 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:29:37 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:29:39 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:30:03 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:30:05 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:30:27 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:30:31 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:30:49 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:30:57 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:31:10 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:31:25 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:31:40 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:31:48 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:31:57 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:32:06 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:32:25 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:32:28 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:32:47 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:32:57 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:33:15 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:33:24 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:33:36 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:33:53 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:34:03 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:34:23 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:34:31 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:34:47 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:34:53 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:35:14 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:35:15 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:35:37 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:35:41 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:35:59 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:36:06 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:36:21 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:36:29 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:36:49 - Request from User: 8 - Attendance: 5
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/8_5.png
+2026-02-03 14:36:53 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:37:15 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:37:36 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:37:58 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:38:02 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:38:24 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:38:46 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:38:52 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:39:15 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:39:40 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:40:04 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:40:32 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:40:58 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:41:20 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:41:44 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:42:05 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:42:27 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:42:41 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:43:12 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:43:39 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:44:07 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:44:19 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:44:44 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:44:50 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:45:18 - Request from User: 4 - Attendance: 4
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/4_4.png
+2026-02-03 14:47:36 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_6.png
+2026-02-03 14:48:00 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:48:51 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:49:21 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:49:51 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:50:18 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:50:41 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:51:06 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:51:28 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:51:50 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:52:15 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:52:42 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:52:49 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:53:05 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:53:27 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:53:54 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:54:00 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:54:31 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:54:57 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:55:36 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:55:42 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:55:55 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:57:07 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:57:36 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:57:57 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:58:20 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:58:50 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:59:19 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 14:59:40 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 15:00:07 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 15:00:30 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 15:00:54 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 15:01:23 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 15:01:48 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 15:02:11 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 15:02:39 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 15:03:31 - Request from User: 7 - Attendance: 6
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_6.png
+2026-02-03 15:23:45 - Request from User: 7 - Attendance: 7
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_7.png
+2026-02-03 15:24:10 - Request from User: 7 - Attendance: 7
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_7.png
+2026-02-03 15:24:36 - Request from User: 7 - Attendance: 7
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_7.png
+2026-02-03 15:25:10 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_8.png
+2026-02-03 15:25:39 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_8.png
+2026-02-03 15:26:07 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_8.png
+2026-02-03 15:26:37 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_8.png
+2026-02-03 15:26:59 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_8.png
+2026-02-03 15:27:20 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_8.png
+2026-02-03 15:27:47 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_8.png
+2026-02-03 15:28:10 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_8.png
+2026-02-03 15:28:32 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_8.png
+2026-02-03 15:28:58 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots/7_8.png
+2026-02-03 15:29:22 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_8_1770128962_6982064255804.png
+2026-02-03 15:29:47 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_8_1770128987_6982065b6cefd.png
+2026-02-03 15:30:17 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_8_1770129017_6982067951014.png
+2026-02-03 15:30:38 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_8_1770129038_6982068e4ff7b.png
+2026-02-03 15:31:03 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_8_1770129063_698206a76f198.png
+2026-02-03 15:31:30 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_8_1770129090_698206c26879d.png
+2026-02-03 15:31:59 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_8_1770129119_698206df51b80.png
+2026-02-03 15:32:28 - Request from User: 7 - Attendance: 8
+Success: Saved to C:\xampp\htdocs\Task_Management\screenshots\7_8_1770129148_698206fc5411c.png
+>>>>>>> upstream/main

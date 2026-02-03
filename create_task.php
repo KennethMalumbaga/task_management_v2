@@ -3,8 +3,10 @@ session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "DB_connection.php";
     include "app/Model/User.php";
+    include "app/Model/Task.php";
 
-    $users = get_all_users($pdo);
+    // Only get employees (exclude admin)
+    $users = get_all_users($pdo, 'employee');
  ?>
 <!DOCTYPE html>
 <html>
@@ -61,10 +63,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <!-- Project Leader -->
                  <div style="margin-bottom: 20px;">
                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Project Leader (Optional)</label>
-                    <select name="leader_id" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
+                    <select name="leader_id" id="leaderSelect" onchange="onLeaderChange()" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
                         <option value="0">None</option>
-                        <?php if ($users != 0) { foreach ($users as $user) { ?>
-                            <option value="<?=$user['id']?>"><?=$user['full_name']?></option>
+                        <?php if ($users != 0) { foreach ($users as $user) { 
+                            $pendingCount = count_my_active_tasks($pdo, $user['id']);
+                            $pendingText = $pendingCount > 0 ? " (Pending: $pendingCount)" : "";
+                        ?>
+                            <option value="<?=$user['id']?>"><?=$user['full_name'] . $pendingText?></option>
                         <?php } } ?>
                     </select>
                 </div>
@@ -76,8 +81,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                          <select id="memberSelect" style="flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
                             <option value="0">Add Team Member</option>
-                            <?php if ($users != 0) { foreach ($users as $user) { ?>
-                                <option value="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>"><?=$user['full_name']?></option>
+                            <?php if ($users != 0) { foreach ($users as $user) { 
+                                $pendingCount = count_my_active_tasks($pdo, $user['id']);
+                                $pendingText = $pendingCount > 0 ? " (Pending: $pendingCount)" : "";
+                            ?>
+                                <option value="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>"><?=$user['full_name'] . $pendingText?></option>
                             <?php } } ?>
                         </select>
                          <button type="button" id="addMemberBtn" style="background: white; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 15px; cursor: pointer; color: #374151;">
@@ -118,14 +126,58 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <!-- Script for Members -->
     <script>
         var selectedMembers = {};
+        var currentLeaderId = "0";
+        
+        // Function called when project leader is changed
+        function onLeaderChange() {
+            var leaderSelect = document.getElementById('leaderSelect');
+            var memberSelect = document.getElementById('memberSelect');
+            var newLeaderId = leaderSelect.value;
+            
+            // Show the previously hidden leader option in member select
+            if (currentLeaderId !== "0") {
+                var prevOption = memberSelect.querySelector('option[value="' + currentLeaderId + '"]');
+                if (prevOption) {
+                    prevOption.style.display = '';
+                }
+            }
+            
+            // Hide the new leader from member select
+            if (newLeaderId !== "0") {
+                var newOption = memberSelect.querySelector('option[value="' + newLeaderId + '"]');
+                if (newOption) {
+                    newOption.style.display = 'none';
+                }
+                
+                // If the new leader was already added as team member, remove them
+                if (selectedMembers[newLeaderId]) {
+                    removeMember(newLeaderId, null);
+                }
+            }
+            
+            // Reset member select if current selection is the new leader
+            if (memberSelect.value === newLeaderId) {
+                memberSelect.value = "0";
+            }
+            
+            currentLeaderId = newLeaderId;
+        }
         
         document.getElementById('addMemberBtn').addEventListener('click', function() {
             var select = document.getElementById('memberSelect');
+            var leaderSelect = document.getElementById('leaderSelect');
             var id = select.value;
             var name = select.options[select.selectedIndex].getAttribute('data-name');
             
             if(id == "0") return;
             if(selectedMembers[id]) return;
+            
+            // Don't allow adding the project leader as a team member
+            if(id === leaderSelect.value) {
+                alert('This person is already selected as Project Leader!');
+                select.value = "0";
+                return;
+            }
 
             addMemberBadge(id, name);
             
@@ -146,6 +198,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
         function addMemberBadge(id, name) {
             var badge = document.createElement('div');
+            badge.id = 'badge_' + id;
             badge.style.cssText = "background: #EEF2FF; color: #4F46E5; padding: 4px 10px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 6px;";
             badge.innerHTML = `
                 ${name} 
@@ -156,8 +209,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
         window.removeMember = function(id, span) {
             delete selectedMembers[id];
-            document.getElementById('input_' + id).remove();
-            span.parentElement.remove();
+            var inputEl = document.getElementById('input_' + id);
+            if (inputEl) inputEl.remove();
+            var badgeEl = document.getElementById('badge_' + id);
+            if (badgeEl) badgeEl.remove();
+            if (span) span.parentElement.remove();
         }
     </script>
 

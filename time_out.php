@@ -14,13 +14,15 @@ $user_id = $_SESSION['id'];
 $today   = date('Y-m-d');
 $now     = date('H:i:s');
 
-$sql = "SELECT * FROM attendance WHERE user_id=? AND att_date=?";
+// Find the ACTIVE session (time_out IS NULL) for today (or recent)
+// We prioritize today's active session.
+$sql = "SELECT * FROM attendance WHERE user_id=? AND time_out IS NULL ORDER BY id DESC LIMIT 1";
 $stmt = $pdo->prepare($sql);
-$stmt->execute([$user_id, $today]);
+$stmt->execute([$user_id]);
 $att = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$att || !$att['time_in']) {
-    echo json_encode(['status'=>'error','message'=>'No time in']);
+if (!$att) {
+    echo json_encode(['status'=>'error','message'=>'No active session to time out']);
     exit;
 }
 

@@ -48,45 +48,17 @@ if (!is_dir($dir)) {
     mkdir($dir, 0777, true);
 }
 
-// Check if there's already a screenshot for this attendance_id
-$oldScreenshot = null;
-$oldScreenshots = [];
-if ($attendance_id) {
-    // Get all existing screenshots for this attendance_id
-    $sql_check = "SELECT id, image_path FROM screenshots WHERE attendance_id = ?";
-    $stmt_check = $pdo->prepare($sql_check);
-    $stmt_check->execute([$attendance_id]);
-    $oldScreenshots = $stmt_check->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Get the latest one to reuse filename
-    if (!empty($oldScreenshots)) {
-        $oldScreenshot = $oldScreenshots[0]; // Use first one for filename
-    }
+$dir = __DIR__ . DIRECTORY_SEPARATOR . 'screenshots';
+if (!is_dir($dir)) {
+    mkdir($dir, 0777, true);
 }
 
-// Use existing filename if updating, otherwise create new filename
-if ($oldScreenshot && $oldScreenshot['image_path']) {
-    // Update existing screenshot - use the same filename
-    $relativePath = $oldScreenshot['image_path'];
-    $fullPath = __DIR__ . DIRECTORY_SEPARATOR . $relativePath;
-    
-    // Delete all old screenshot files for this attendance_id
-    foreach ($oldScreenshots as $old) {
-        if (!empty($old['image_path'])) {
-            $oldFilePath = __DIR__ . DIRECTORY_SEPARATOR . $old['image_path'];
-            if (file_exists($oldFilePath)) {
-                @unlink($oldFilePath);
-            }
-        }
-    }
-} else {
-    // Create new screenshot filename
-    $filenameOnly = $user_id . '_' . ($attendance_id ? $attendance_id : time()) . '.png';
-    $relativePath = 'screenshots/' . $filenameOnly;
-    $fullPath = $dir . DIRECTORY_SEPARATOR . $filenameOnly;
-}
+// ALWAYS create new screenshot filename for history
+// Format: userID_attendanceID_timestamp_unique.png
+$filenameOnly = $user_id . '_' . ($attendance_id ? $attendance_id : '0') . '_' . time() . '_' . uniqid() . '.png';
+$relativePath = 'screenshots/' . $filenameOnly;
+$fullPath = $dir . DIRECTORY_SEPARATOR . $filenameOnly;
 
-// Save the new screenshot
 // Save the new screenshot
 if (file_put_contents($fullPath, $binary) === false) {
     $logEntry .= "Error: Failed to write file to $fullPath\n";
@@ -98,19 +70,43 @@ if (file_put_contents($fullPath, $binary) === false) {
 $logEntry .= "Success: Saved to $fullPath\n";
 file_put_contents($logFile, $logEntry, FILE_APPEND);
 
-// Delete all old screenshot records for this attendance_id, then insert new one
-if ($attendance_id && !empty($oldScreenshots)) {
-    // Delete all old screenshot records for this attendance_id
-    $sql_delete = "DELETE FROM screenshots WHERE attendance_id = ?";
-    $stmt_delete = $pdo->prepare($sql_delete);
-    $stmt_delete->execute([$attendance_id]);
-}
-
-// Insert new screenshot record (always insert, even if updating - keeps it simple)
+// Insert new screenshot record (Append history)
 $sql = "INSERT INTO screenshots (user_id, attendance_id, image_path, taken_at)
         VALUES (?, ?, ?, NOW())";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$user_id, $attendance_id ?: null, $relativePath]);
+
+// CLEANUP: Delete screenshots older than 7 days
+// This runs on every save to keep storage managed
+$seven_days_ago = date('Y-m-d H:i:s', strtotime('-7 days'));
+
+// 1. Get files to delete
+$sql_cleanup = "SELECT id, image_path FROM screenshots WHERE taken_at < ?";
+$stmt_cleanup = $pdo->prepare($sql_cleanup);
+$stmt_cleanup->execute([$seven_days_ago]);
+$old_records = $stmt_cleanup->fetchAll(PDO::FETCH_ASSOC);
+
+if (!empty($old_records)) {
+    // 2. Delete physical files
+    foreach ($old_records as $rec) {
+        if (!empty($rec['image_path'])) {
+            $file_to_delete = __DIR__ . DIRECTORY_SEPARATOR . $rec['image_path'];
+            if (file_exists($file_to_delete)) {
+                @unlink($file_to_delete);
+            }
+        }
+    }
+    
+    // 3. Delete DB records
+    $sql_del_cleanup = "DELETE FROM screenshots WHERE taken_at < ?";
+    $stmt_del_cleanup = $pdo->prepare($sql_del_cleanup);
+    $stmt_del_cleanup->execute([$seven_days_ago]);
+    
+    // Log cleanup
+    $count = count($old_records);
+    $logEntry .= "Cleanup: Deleted $count old screenshots (> 7 days)\n";
+    file_put_contents($logFile, $logEntry, FILE_APPEND);
+}
 
 echo json_encode(['status' => 'success']);
 

@@ -12,23 +12,12 @@ require 'DB_connection.php';
 $user_id = $_SESSION['id'];
 
 // Check if there is an open attendance (no time_out yet)
-date_default_timezone_set('Asia/Manila');
-$hour = (int) date('H');
-
-if ($hour >= 5 && $hour < 12) {
-    $session = 'morning';
-} elseif ($hour >= 12 && $hour < 18) {
-    $session = 'afternoon';
-} else {
-    $session = 'overtime';
-}
-
-// Check if there is an open attendance for the CURRENT session
+// Aligning with time_in.php which uses 'time_in' column
 $sql = "SELECT id FROM attendance 
         WHERE user_id = ? 
         AND att_date = CURRENT_DATE 
-        AND {$session}_in IS NOT NULL 
-        AND {$session}_out IS NULL 
+        AND time_in IS NOT NULL 
+        AND (time_out IS NULL OR time_out = '00:00:00')
         LIMIT 1";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$user_id]);
