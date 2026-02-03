@@ -160,6 +160,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             position: relative;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
+         .close-modal {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #6B7280;
+            font-size: 20px;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
     </style>
 </head>
 <body>
