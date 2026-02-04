@@ -43,6 +43,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 <html>
 <head>
     <title>Captures | TaskFlow</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,29 +60,32 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <!-- Main Content -->
     <div class="dash-main">
         
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-            <div>
-                <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0;">Employee Captures</h2>
-                <span style="color: var(--text-gray); font-size: 14px;">Monitor activity screenshots</span>
-            </div>
-            
-             <!-- Filter Section -->
-             <div class="filter-section" style="background: white; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; gap: 10px;">
-                <form method="GET" action="screenshots.php" style="display: flex; gap: 10px; margin: 0;">
-                    <select name="user_id" class="form-input" style="width: auto; margin: 0; padding: 8px;">
-                        <option value="">All Employees</option>
-                        <?php foreach ($users as $user) { 
-                            if ($user['role'] == 'employee') { ?>
-                                <option value="<?=$user['id']?>" <?=($filter_user_id == $user['id']) ? 'selected' : ''?>>
-                                    <?=$user['full_name']?> (@<?=$user['username']?>)
-                                </option>
-                        <?php } } ?>
-                    </select>
-                    <input type="date" name="date" value="<?=$filter_date?>" class="form-input" style="width: auto; margin: 0; padding: 8px;">
-                    <button type="submit" class="btn-primary btn-sm">Filter</button>
-                    <a href="screenshots.php" class="btn-outline btn-sm">Reset</a>
-                </form>
-            </div>
+        <!-- Page Header -->
+        <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0 0 8px 0;">Captures</h2>
+            <span style="color: var(--text-gray); font-size: 14px;">Monitor employee activity</span>
+        </div>
+        
+        <!-- Filter Section -->
+        <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #E5E7EB; margin-bottom: 24px;">
+            <form method="GET" action="screenshots.php" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 0; align-items: center;">
+                <select name="user_id" class="form-input" style="flex: 1; min-width: 180px; margin: 0; padding: 10px; border-radius: 8px; border: 1px solid #E5E7EB;">
+                    <option value="">All Employees</option>
+                    <?php foreach ($users as $user) { 
+                        if ($user['role'] == 'employee') { ?>
+                            <option value="<?=$user['id']?>" <?=($filter_user_id == $user['id']) ? 'selected' : ''?>>
+                                <?=$user['full_name']?>
+                            </option>
+                    <?php } } ?>
+                </select>
+                <input type="date" name="date" value="<?=$filter_date?>" class="form-input" style="flex: 1; min-width: 150px; margin: 0; padding: 10px; border-radius: 8px; border: 1px solid #E5E7EB;">
+                <button type="submit" class="btn-primary" style="padding: 10px 20px; white-space: nowrap;">
+                    <i class="fa fa-filter"></i> Filter
+                </button>
+                <a href="screenshots.php" class="btn-outline" style="padding: 10px 20px; white-space: nowrap; text-decoration: none;">
+                    <i class="fa fa-refresh"></i> Reset
+                </a>
+            </form>
         </div>
 
         <!-- Screenshots Grid -->
