@@ -50,12 +50,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             border-color: #4F46E5 !important;
         }
         
-        /* Compact 2-Column Card Layout */
+        /* User Card Grid - 4 Columns on Desktop, 2 Columns on Mobile */
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 16px;
             align-items: stretch;
+        }
+
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 12px !important;
+            }
         }
 
         .user-card {
