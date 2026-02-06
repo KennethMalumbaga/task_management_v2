@@ -383,27 +383,36 @@
 /* Mobile Responsive Chat */
 @media (max-width: 768px) {
     .chat-layout {
-        height: calc(100vh - 80px);
-        /* Taller on mobile */
+        height: calc(100vh - 140px);
+        /* Account for header and bottom padding */
         border: none;
         box-shadow: none;
         border-radius: 0;
-        margin: -20px;
-        /* Counteract dashboard padding if any */
+        margin: 0;
+        /* Clean margins for proper layout */
     }
-
+    
     .chat-sidebar {
         width: 100%;
+        height: 100%;
         border-right: none;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-list {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0; /* Critical for flexbox scrolling */
     }
 
     .chat-main {
         display: none !important;
         width: 100%;
         position: fixed;
-        top: 0;
+        top: 60px; /* Position below the app header */
         left: 0;
-        height: 100%;
+        height: calc(100% - 60px); /* Adjust height to account for app header */
         background: white;
         z-index: 50;
     }

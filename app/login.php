@@ -40,6 +40,7 @@ if (isset($_POST['user_name']) && isset($_POST['password'])) {
 	       	   			$_SESSION['role'] = $role;
 	       	   			$_SESSION['id'] = $id;
 	       	   			$_SESSION['username'] = $usernameDb;
+                        $_SESSION['full_name'] = $user['full_name'];
                         if (isset($user['must_change_password']) && $user['must_change_password']) {
                              $_SESSION['must_change_password'] = true;
                              $warning = "Action Needed: Please change your password.";
@@ -52,6 +53,7 @@ if (isset($_POST['user_name']) && isset($_POST['password'])) {
 	       	   			$_SESSION['role'] = $role;
 	       	   			$_SESSION['id'] = $id;
 	       	   			$_SESSION['username'] = $usernameDb;
+                        $_SESSION['full_name'] = $user['full_name'];
                         if (isset($user['must_change_password']) && $user['must_change_password']) {
                              $_SESSION['must_change_password'] = true;
                              $warning = "Action Needed: Please change your password.";
