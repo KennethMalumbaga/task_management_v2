@@ -2,7 +2,7 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "../DB_connection.php";
-    include "Model/Task.php";
+    include "model/Task.php";
 
     if (isset($_GET['id']) && isset($_GET['status'])) {
         $id = $_GET['id'];
@@ -30,3 +30,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     header("Location: ../login.php");
     exit();
 }
+

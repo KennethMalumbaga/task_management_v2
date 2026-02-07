@@ -4,9 +4,9 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
     
     if (isset($_POST['id']) && isset($_FILES['submission_file'])) {
         require_once "../DB_connection.php";
-        require_once "Model/Subtask.php";
-        require_once "Model/Notification.php";
-        require_once "Model/Task.php"; // Include this at the top
+        require_once "model/Subtask.php";
+        require_once "model/Notification.php";
+        require_once "model/Task.php"; // Include this at the top
 
         function validate_input($data) {
             $data = trim($data);
@@ -91,3 +91,4 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
     header("Location: ../login.php?error=$em");
     exit();
 }
+

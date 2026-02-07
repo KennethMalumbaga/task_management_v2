@@ -4,7 +4,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
 	if (isset($_POST['id'])) {
 		include "../DB_connection.php";
-        include "Model/Task.php";
+        include "model/Task.php";
 
         function validate_input($data) {
             $data = trim($data);
@@ -37,3 +37,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 	header("Location: ../login.php?error=$em");
 	exit();
 }
+

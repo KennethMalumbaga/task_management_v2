@@ -12,9 +12,9 @@ if (!isset($_POST['id'])) {
 }
 
 require_once "../DB_connection.php";
-require_once "Model/Task.php";
-require_once "Model/Notification.php";
-require_once "Model/User.php";
+require_once "model/Task.php";
+require_once "model/Notification.php";
+require_once "model/user.php";
 
 function clean($data) {
     return htmlspecialchars(stripslashes(trim($data)));
@@ -88,3 +88,4 @@ foreach ($stmt->fetchAll() as $admin) {
 
 header("Location: ../edit-task-employee.php?success=Submitted successfully&id=$id");
 exit();
+

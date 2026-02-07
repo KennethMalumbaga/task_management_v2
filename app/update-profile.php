@@ -60,7 +60,7 @@ if (isset($_POST['full_name']) && isset($_SESSION['role'])) {
 	    exit();
 	}
 
-    include "Model/User.php";
+    include "model/user.php";
     $user = get_user_by_id($pdo, $id);
 
     if ($user) {
