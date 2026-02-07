@@ -2,7 +2,7 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
-    include "app/Model/user.php";
+    include "a../model/user.php";
     $user = get_user_by_id($pdo, $_SESSION['id']);
     
  ?>

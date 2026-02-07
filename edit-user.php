@@ -2,7 +2,7 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "DB_connection.php";
-    include "app/Model/user.php";
+    include "a../model/user.php";
     
     if (!isset($_GET['id'])) {
     	 header("Location: user.php");

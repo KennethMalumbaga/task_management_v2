@@ -2,8 +2,8 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "DB_connection.php";
-    include "app/Model/user.php";
-    include "app/Model/Task.php";
+    include "a../model/user.php";
+    include "a../model/Task.php";
     
     $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
 

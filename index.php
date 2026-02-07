@@ -3,9 +3,9 @@ session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
     include "DB_connection.php";
-    include "app/model/Task.php";
-    include "app/model/user.php";
-    include "app/model/Subtask.php";
+    include "a../model/Task.php";
+    include "a../model/user.php";
+    include "a../model/Subtask.php";
 
     // --- DATA FETCHING FOR DASHBOARD ---
     
@@ -660,3 +660,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
 ?>
+

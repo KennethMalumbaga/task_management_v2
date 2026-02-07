@@ -7,8 +7,8 @@ if (isset($_SESSION['id'])) {
 	if (isset($_POST['id_2'])) {
 	
 	include "../../DB_connection.php";
-    include "../Model/Message.php";
-    include "../Model/User.php";
+    include "../model/Message.php";
+    include "../model/user.php";
 
 	$id_1 = $_SESSION['id'];
 	$id_2 = $_POST['id_2'];

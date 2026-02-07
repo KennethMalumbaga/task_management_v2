@@ -2,9 +2,9 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "employee") {
     include "DB_connection.php";
-    include "app/Model/Task.php";
-    include "app/Model/user.php";
-    include "app/Model/Subtask.php";
+    include "a../model/Task.php";
+    include "a../model/user.php";
+    include "a../model/Subtask.php";
     
     if (!isset($_GET['id'])) {
     	 header("Location: tasks.php");

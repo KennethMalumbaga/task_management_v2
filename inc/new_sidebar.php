@@ -56,7 +56,7 @@
                 <i class="fa fa-calendar"></i> Calendar
             </a>
             <?php 
-                include_once "app/Model/Message.php";
+                include_once "a../model/Message.php";
                 $allUnread = countAllUnread($_SESSION['id'], $pdo);
             ?>
             <a href="messages.php" class="dash-nav-item <?= isActive('messages.php') ?>">
@@ -84,7 +84,7 @@
                 <i class="fa fa-calendar"></i> Calendar
             </a>
             <?php 
-                include_once "app/Model/Message.php";
+                include_once "a../model/Message.php";
                 $allUnread = countAllUnread($_SESSION['id'], $pdo);
             ?>
             <a href="messages.php" class="dash-nav-item <?= isActive('messages.php') ?>">
@@ -108,3 +108,4 @@
         <?php } ?>
     </nav>
 </div>
+
