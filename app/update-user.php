@@ -32,7 +32,7 @@ if (isset($_POST['user_name']) && isset($_POST['password']) && isset($_POST['ful
 	    exit();
 	}else {
     
-       include "Model/User.php";
+       include "model/user.php";
        $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
 
        // Check if trying to change role

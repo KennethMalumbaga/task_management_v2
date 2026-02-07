@@ -2,8 +2,8 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "DB_connection.php";
-    include "app/Model/User.php";
-    include "app/Model/Task.php";
+    include "app/model/user.php";
+    include "app/model/Task.php";
 
     // Only get employees (exclude admin)
     $users = get_all_users($pdo, 'employee');
@@ -253,3 +253,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
    exit();
 }
 ?>
+

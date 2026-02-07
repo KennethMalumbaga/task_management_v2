@@ -2,7 +2,7 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
-    include "app/Model/Task.php";
+    include "app/model/Task.php";
 
     // --- 1. Date & Calendar Logic ---
     $currentDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
@@ -310,3 +310,5 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
 ?>
+
+

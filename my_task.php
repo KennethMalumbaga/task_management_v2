@@ -2,9 +2,9 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
-    include "app/Model/Task.php";
-    include "app/Model/User.php";
-    include "app/Model/Subtask.php"; // Include subtask model
+    include "app/model/Task.php";
+    include "app/model/user.php";
+    include "app/model/Subtask.php"; // Include subtask model
 
     $tasks = get_all_tasks_by_user($pdo, $_SESSION['id']);
     $users = get_all_users($pdo); // For assigning subtasks
@@ -34,6 +34,39 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/task_redesign.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Ensure global modal helpers exist even if later PHP errors truncate output.
+        if (typeof window.openTaskModal !== "function") {
+            window.openTaskModal = function(taskId) {
+                var modal = document.getElementById("modal-task-" + taskId);
+                if (modal) {
+                    modal.style.display = "flex";
+                    document.body.style.overflow = "hidden";
+                }
+            };
+        }
+        if (typeof window.closeTaskModal !== "function") {
+            window.closeTaskModal = function(taskId) {
+                var modal = document.getElementById("modal-task-" + taskId);
+                if (modal) {
+                    modal.style.display = "none";
+                    document.body.style.overflow = "auto";
+                }
+            };
+        }
+        // Vanilla auto-open fallback (works even if jQuery fails to load).
+        document.addEventListener("DOMContentLoaded", function () {
+            var params = new URLSearchParams(window.location.search);
+            var openTaskId = params.get("open_task");
+            if (openTaskId && typeof window.openTaskModal === "function") {
+                window.openTaskModal(openTaskId);
+                var el = document.getElementById("task-card-" + openTaskId);
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+            }
+        });
+    </script>
     <style>
         .tasks-grid {
             display: grid;
@@ -340,7 +373,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     }
             ?>
             <!-- Task Card (Trigger) -->
-            <div class="task-card" onclick="openTaskModal(<?=$task['id']?>)">
+            <div class="task-card" id="task-card-<?=$task['id']?>" onclick="openTaskModal(<?=$task['id']?>)">
                 
                 <!-- Action Buttons (Admin Edit) -->
                 <?php if($_SESSION['role'] == 'admin') { ?>
@@ -907,3 +940,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
 ?>
+

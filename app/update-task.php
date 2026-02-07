@@ -34,8 +34,8 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
 	    exit();
 	}else {
     
-       include "Model/Task.php";
-       include "Model/Notification.php";
+       include "model/Task.php";
+       include "model/Notification.php";
 
        // Handle template file upload (optional)
        $template_file_path = null;

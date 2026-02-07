@@ -2,8 +2,8 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
-    include "app/Model/Notification.php";
-    include "app/Model/Task.php";
+    include "app/model/Notification.php";
+    include "app/model/Task.php";
 
     $notifications = get_all_my_notifications($pdo, $_SESSION['id']);
     $user_role = $_SESSION['role'];
@@ -133,3 +133,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
  ?>
+

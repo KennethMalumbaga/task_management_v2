@@ -2,9 +2,9 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "DB_connection.php";
-    include "app/Model/User.php";
-    include "app/Model/Task.php";
-    include "app/Model/Subtask.php";
+    include "app/model/user.php";
+    include "app/model/Task.php";
+    include "app/model/Subtask.php";
     
     $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
 
@@ -426,3 +426,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
    exit();
 }
 ?>
+

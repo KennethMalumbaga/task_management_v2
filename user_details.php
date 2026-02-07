@@ -2,8 +2,8 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
-    include "app/Model/User.php";
-    include "app/Model/Task.php";
+    include "app/model/user.php";
+    include "app/model/Task.php";
 
     if (!isset($_GET['id'])) {
         header("Location: user.php");
@@ -12,7 +12,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     
     $user_id = $_GET['id'];
     $user = get_user_by_id($pdo, $user_id);
-    include "app/Model/Subtask.php";
+    include "app/model/Subtask.php";
     $collab_scores = get_collaborative_scores_by_user($pdo, $user_id);
 
     if ($user == 0) {
@@ -47,7 +47,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     $recent_tasks = get_recent_user_tasks($pdo, $user_id);
 
     // Calculate Rating (Fix: Use task_assignees)
-    // get_user_rating_stats is now in Model/User.php
+    // get_user_rating_stats is now in model/user.php
     
     $rating_stats = get_user_rating_stats($pdo, $user_id);
     $avg_rating = $rating_stats['avg']; // Model function returns formatted avg
@@ -298,3 +298,5 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
 ?>
+
+

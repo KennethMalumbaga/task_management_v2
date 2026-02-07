@@ -4,8 +4,8 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
     
     if (isset($_POST['subtask_id']) && isset($_POST['action']) && isset($_POST['feedback'])) {
         include "../DB_connection.php";
-        include "Model/Subtask.php";
-        include "Model/Notification.php";
+        include "model/Subtask.php";
+        include "model/Notification.php";
 
         function validate_input($data) {
             $data = trim($data);
@@ -59,3 +59,4 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
     header("Location: ../login.php?error=$em");
     exit();
 }
+

@@ -6,7 +6,7 @@ if (isset($_SESSION['id'])) {
     if (isset($_POST['key'])) {
 
        include "../../DB_connection.php";
-       include "../Model/User.php";
+       include "../model/user.php";
 
        $key = "%{$_POST['key']}%";
      
@@ -15,7 +15,7 @@ if (isset($_SESSION['id'])) {
        $stmt = $pdo->prepare($sql);
        $stmt->execute([$key, $key]);
 
-       include "../Model/Message.php";
+       include "../model/Message.php";
        
        if($stmt->rowCount() > 0){ 
          $users = $stmt->fetchAll();

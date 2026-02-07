@@ -2,8 +2,8 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
-    include "app/Model/Task.php";
-    include "app/Model/User.php";
+    include "app/model/Task.php";
+    include "app/model/user.php";
 
     $tasks = get_my_tasks_overdue($pdo, $_SESSION['id']);
 
@@ -78,4 +78,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
  ?>
+
+
 

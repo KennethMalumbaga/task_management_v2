@@ -2,8 +2,8 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
-    include "app/Model/User.php";
-    include "app/Model/Message.php";
+    include "app/model/user.php";
+    include "app/model/Message.php";
     
     // Fetch users for the chat list
     $users = get_all_users($pdo);
@@ -413,3 +413,5 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
 ?>
+
+

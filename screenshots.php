@@ -2,7 +2,7 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "DB_connection.php";
-    include "app/Model/User.php";
+    include "app/model/user.php";
 
     // Get filter parameters
     $filter_user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : null;
@@ -442,4 +442,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     exit();
 }
 ?>
+
+
 

@@ -2,7 +2,7 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "../DB_connection.php";
-    include "Model/User.php";
+    include "model/user.php";
 
     $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
 
@@ -41,3 +41,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     header("Location: ../login.php");
     exit();
 }
+

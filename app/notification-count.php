@@ -2,7 +2,7 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "../DB_connection.php";
-    include "Model/Notification.php";
+    include "model/Notification.php";
 
     $count_notification = count_notification($pdo, $_SESSION['id']);
     if ($count_notification) {
