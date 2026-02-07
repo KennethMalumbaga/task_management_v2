@@ -19,7 +19,7 @@ try {
         $port = getenv('PGPORT') ?: 5432;
         $dbName = getenv('PGDATABASE') ?: 'task_management_db';
         $user = getenv('PGUSER') ?: 'postgres';
-        $pass = getenv('PGPASSWORD') ?: 'admin';
+        $pass = getenv('PGPASSWORD') ?: 'hOXniYYYZRxvdhIhsBojEVQpiQCJuztM';
         $sslmode = getenv('PGSSLMODE') ?: null;
     }
 
