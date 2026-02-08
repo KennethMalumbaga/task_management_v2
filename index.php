@@ -617,6 +617,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         document.getElementById('confirmModal').style.display = 'none';
     }
 
+    function setClockedOutUI() {
+        attendanceId = null;
+        updateButtonState(false);
+        statusSpan.textContent = 'Timed out. Session ended.';
+        statusSpan.style.color = '';
+    }
+
     // On page load, check for active attendance
     if (btnIn && btnOut) {
         ajax('check_attendance.php', '', function (res) {
@@ -627,8 +634,24 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 // This persists across page refreshes/navigation.
                 updateButtonState(true);
                 statusSpan.textContent = 'Timed in. Monitoring active.';
+            } else if (res.status === 'success') {
+                setClockedOutUI();
             }
         }, 'GET');
+    }
+
+    // Keep UI in sync if admin clocks out the user
+    if (btnIn && btnOut) {
+        setInterval(function () {
+            ajax('check_attendance.php', '', function (res) {
+                if (res.status === 'success' && !res.has_active_attendance) {
+                    if (captureWindow && !captureWindow.closed) {
+                        captureWindow.close();
+                    }
+                    setClockedOutUI();
+                }
+            }, 'GET');
+        }, 15000);
     }
 
     function closeModal() {

@@ -37,6 +37,8 @@
         let attendanceId = null;
         let sessionId = null;
         let userId = null;
+        let currentStream = null;
+        let attendanceCheckInterval = null;
         // Robust relative URL
         let apiUrl = new URL('save_screenshot.php', window.location.href).href;
 
@@ -56,6 +58,7 @@
                     video: { cursor: "always", displaySurface: "monitor" },
                     audio: false
                 });
+                currentStream = stream;
 
                 statusDiv.innerText = "Monitoring active";
 
@@ -79,6 +82,7 @@
 
                 // Start loop
                 startHeartbeat(); // Start heartbeat
+                startAttendanceCheck(); // Auto-close when session is ended
                 takeScreenshot(stream); // First one immediately
                 scheduleNext(stream);
 
@@ -114,6 +118,40 @@
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             if (keepAliveInterval) clearInterval(keepAliveInterval);
             localStorage.removeItem('taskflow_heartbeat');
+        }
+
+        function startAttendanceCheck() {
+            if (attendanceCheckInterval) return;
+            attendanceCheckInterval = setInterval(async () => {
+                try {
+                    const res = await fetch('check_attendance.php', { cache: 'no-store' });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data.status === 'success' && data.has_active_attendance === false) {
+                        stopCaptureAndClose('Session ended.');
+                    }
+                } catch (e) {
+                    // Ignore transient errors
+                }
+            }, 15000);
+        }
+
+        function stopCaptureAndClose(message) {
+            stopHeartbeat();
+            if (attendanceCheckInterval) clearInterval(attendanceCheckInterval);
+            if (captureInterval) clearTimeout(captureInterval);
+            if (currentStream) {
+                currentStream.getTracks().forEach((t) => t.stop());
+                currentStream = null;
+            }
+            statusDiv.innerText = message || 'Stopped';
+            statusDiv.className = "error";
+            if (window.opener) {
+                window.opener.postMessage({ type: 'CAPTURE_STOPPED', reason: 'attendance_ended' }, '*');
+            }
+            setTimeout(() => {
+                window.close();
+            }, 500);
         }
 
         function scheduleNext(stream) {
