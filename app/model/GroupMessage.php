@@ -34,12 +34,14 @@ function get_group_attachments($pdo, $message_id){
     return $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
 }
 
-function table_exists($pdo, $table_name){
-    try {
-        $stmt = $pdo->prepare("SELECT 1 FROM information_schema.tables WHERE table_name = ?");
-        $stmt->execute([$table_name]);
-        return (bool)$stmt->fetchColumn();
-    } catch (PDOException $e) {
-        return false;
+if (!function_exists('table_exists')) {
+    function table_exists($pdo, $table_name){
+        try {
+            $stmt = $pdo->prepare("SELECT 1 FROM information_schema.tables WHERE table_name = ?");
+            $stmt->execute([$table_name]);
+            return (bool)$stmt->fetchColumn();
+        } catch (PDOException $e) {
+            return false;
+        }
     }
 }
