@@ -96,6 +96,9 @@
             <a href="user.php" class="dash-nav-item <?= isActive('user.php') ?>">
                 <i class="fa fa-users"></i> Users
             </a>
+            <a href="groups.php" class="dash-nav-item <?= isActive('groups.php') ?>">
+                <i class="fa fa-object-group"></i> Groups
+            </a>
             <a href="screenshots.php" class="dash-nav-item <?= isActive('screenshots.php') ?>">
                 <i class="fa fa-camera"></i> Captures
             </a>

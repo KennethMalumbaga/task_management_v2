@@ -4,9 +4,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
     include "app/model/user.php";
     include "app/model/Message.php";
+    include "app/model/Group.php";
     
     // Fetch users for the chat list
     $users = get_all_users($pdo);
+    $groups = get_groups_for_user($pdo, $_SESSION['id']);
 ?>
 <!DOCTYPE html>
 <html>
@@ -96,6 +98,30 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     } 
                     ?>
                 </div>
+
+                <!-- Group Chats -->
+                <div style="margin-top: 12px; padding: 0 8px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.5px; margin: 6px 0;">Groups</div>
+                </div>
+                <div class="chat-list" id="groupList">
+                    <?php if (!empty($groups)) { foreach ($groups as $group) { ?>
+                        <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>">
+                            <div class="avatar-md" style="background:#EEF2FF; color:#4F46E5;">
+                                <i class="fa fa-users"></i>
+                            </div>
+                            <div class="chat-item-content">
+                                <div class="chat-item-header">
+                                    <span class="chat-user-name"><?=htmlspecialchars($group['name'])?></span>
+                                </div>
+                                <div class="chat-item-sub-row">
+                                    <div class="chat-user-role">Group Chat</div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php } } else { ?>
+                        <div style="padding: 12px; color:#9CA3AF; font-size:13px;">No groups yet.</div>
+                    <?php } ?>
+                </div>
             </div>
 
             <!-- Chat Main Area -->
@@ -156,6 +182,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $(document).ready(function(){
             
             var currentChatUserId = 0;
+            var currentGroupId = 0;
+            var currentChatType = "user"; // user | group
             var loadInterval;
             var selectedFiles = []; // Array to store multiple files
 
@@ -174,9 +202,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             });
 
             bindChatClicks();
+            bindGroupClicks();
 
             function bindChatClicks(){
                 $(".chat-item").click(function(){
+                    if ($(this).hasClass("group-item")) return;
                     // Styles
                     $(".chat-item").removeClass("active");
                     $(this).addClass("active");
@@ -213,6 +243,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     var avatarHtml = $(this).find(".avatar-md").html();
 
                     currentChatUserId = userId;
+                    currentGroupId = 0;
+                    currentChatType = "user";
 
                     // UI Update
                     $("#noChatSelected").hide();
@@ -228,6 +260,32 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     loadMessages();
                     
                     // Auto scroll down will happen in loadMessages for first load
+                });
+            }
+
+            function bindGroupClicks(){
+                $(".group-item").click(function(){
+                    // Styles
+                    $(".chat-item").removeClass("active");
+                    $(this).addClass("active");
+
+                    $(".chat-layout").addClass("mobile-chat-active");
+
+                    var groupId = $(this).attr("data-group-id");
+                    var groupName = $(this).attr("data-group-name");
+
+                    currentGroupId = groupId;
+                    currentChatUserId = 0;
+                    currentChatType = "group";
+
+                    $("#noChatSelected").hide();
+                    $("#chatInterface").css("display", "flex");
+                    $("#chatUserName").text(groupName);
+                    $("#chatUserRole").text("Group");
+                    $("#headerAvatar").html('<i class="fa fa-users"></i>');
+
+                    resetAttachment();
+                    loadMessages();
                 });
             }
 
@@ -345,7 +403,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
                 var formData = new FormData();
                 formData.append("message", message);
-                formData.append("to_id", currentChatUserId);
+                if (currentChatType === "group") {
+                    formData.append("group_id", currentGroupId);
+                } else {
+                    formData.append("to_id", currentChatUserId);
+                }
                 
                 if(selectedFiles.length > 0) {
                     for(var i=0; i<selectedFiles.length; i++){
@@ -354,7 +416,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 }
 
                 $.ajax({
-                    url: 'app/ajax/insert.php',
+                    url: currentChatType === "group" ? 'app/ajax/insertGroupMessage.php' : 'app/ajax/insert.php',
                     type: 'POST',
                     data: formData,
                     processData: false,
@@ -368,9 +430,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
 
             function loadMessages(forceScroll = false) {
-                if(currentChatUserId == 0) return;
-                
-                 $.post("app/ajax/getMessage.php", { id_2: currentChatUserId }, function(data, status){
+                if(currentChatType === "user" && currentChatUserId == 0) return;
+                if(currentChatType === "group" && currentGroupId == 0) return;
+
+                 var endpoint = currentChatType === "group" ? "app/ajax/getGroupMessage.php" : "app/ajax/getMessage.php";
+                 var payload = currentChatType === "group" ? { group_id: currentGroupId } : { id_2: currentChatUserId };
+
+                 $.post(endpoint, payload, function(data, status){
                     var chatBox = $("#chatBox");
                     var isScrolledToBottom = chatBox[0].scrollHeight - chatBox[0].scrollTop <= chatBox[0].clientHeight + 50;
                     
@@ -401,6 +467,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         targetItem.click();
                     }
                 }, 500); // Small delay to ensure list is rendered
+            }
+
+            const openGroupId = urlParams.get('group_id');
+            if (openGroupId) {
+                setTimeout(function() {
+                    const targetItem = $(`.group-item[data-group-id="${openGroupId}"]`);
+                    if (targetItem.length > 0) {
+                        targetItem.click();
+                    }
+                }, 500);
             }
 
         });
