@@ -79,11 +79,17 @@ if (isset($_SESSION['id'])) {
     if (!empty($all_groups)) {
         foreach ($all_groups as $group) {
             $lastGroupMsg = get_last_group_message($pdo, $group['id']);
-            $group['last_msg_time'] = !empty($lastGroupMsg) ? $lastGroupMsg['created_at'] : '0000-00-00 00:00:00';
+            if (!empty($lastGroupMsg) && !empty($lastGroupMsg['created_at'])) {
+                $group['last_msg_time'] = $lastGroupMsg['created_at'];
+            } elseif (!empty($group['created_at'])) {
+                $group['last_msg_time'] = $group['created_at'];
+            } else {
+                $group['last_msg_time'] = null;
+            }
             $groups[] = $group;
         }
         usort($groups, function($a, $b) {
-            return strtotime($b['last_msg_time']) - strtotime($a['last_msg_time']);
+            return strtotime($b['last_msg_time'] ?? '1970-01-01 00:00:00') - strtotime($a['last_msg_time'] ?? '1970-01-01 00:00:00');
         });
     }
 
@@ -108,7 +114,7 @@ if (isset($_SESSION['id'])) {
                         <span class="message-badge"><?=$grpUnread?></span>
                     <?php } ?>
                 </div>
-                <?php if(!empty($group['created_at'])) { ?>
+                <?php if(!empty($group['last_msg_time'])) { ?>
                      <div class="chat-time"><?=formatChatTime($group['last_msg_time'])?></div>
                 <?php } ?>
             </div>
