@@ -1,14 +1,15 @@
 <?php
 session_start();
 if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SESSION['role']) && $_SESSION['role'] == "admin")) {
-    
+
     if (isset($_POST['task_id']) && isset($_POST['member_id']) && isset($_POST['description']) && isset($_POST['due_date'])) {
         include "../DB_connection.php";
         include "model/Subtask.php";
         include "model/Notification.php";
         include "model/Task.php";
 
-        function validate_input($data) {
+        function validate_input($data)
+        {
             $data = trim($data);
             $data = stripslashes($data);
             $data = htmlspecialchars($data);
@@ -25,11 +26,23 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
             $em = "Description is required";
             header("Location: ../my_task.php?error=$em");
             exit();
-        }else if (empty($due_date)) {
+        }
+        else if (empty($due_date)) {
             $em = "Due Date is required";
             header("Location: ../my_task.php?error=$em");
             exit();
-        }else {
+        }
+        else {
+            // Check for duplicate subtask (same description in the same task)
+            $checkSql = "SELECT id FROM subtasks WHERE task_id = ? AND description = ?";
+            $checkStmt = $pdo->prepare($checkSql);
+            $checkStmt->execute([$task_id, $description]);
+            if ($checkStmt->rowCount() > 0) {
+                $em = "A subtask with this description already exists in this task.";
+                header("Location: ../my_task.php?error=$em");
+                exit();
+            }
+
             $data = array($task_id, $member_id, $description, $due_date);
             insert_subtask($pdo, $data);
 
@@ -42,14 +55,15 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
             header("Location: ../my_task.php?success=$em");
             exit();
         }
-    }else {
+    }
+    else {
         $em = "Unknown error occurred";
         header("Location: ../tasks.php?error=$em");
         exit();
     }
-}else{ 
+}
+else {
     $em = "First login";
     header("Location: ../login.php?error=$em");
     exit();
 }
-

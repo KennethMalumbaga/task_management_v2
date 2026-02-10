@@ -640,18 +640,60 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }, 'GET');
     }
 
-    // Keep UI in sync if admin clocks out the user
+    // Keep UI in sync if admin clocks out the user (SSE with fallback)
     if (btnIn && btnOut) {
-        setInterval(function () {
+        function applyAttendanceState(payload) {
+            if (!payload) return;
+            if (payload.has_active_attendance) {
+                attendanceId = payload.attendance_id || attendanceId;
+                updateButtonState(true);
+                if (statusSpan) {
+                    statusSpan.textContent = 'Timed in. Monitoring active.';
+                }
+                if (payload.time_in) {
+                    var elIn = document.getElementById('statTimeIn');
+                    if (elIn) elIn.innerText = payload.time_in;
+                }
+                if (payload.time_out) {
+                    var elOut = document.getElementById('statTimeOut');
+                    if (elOut) elOut.innerText = payload.time_out;
+                }
+            } else {
+                if (captureWindow && !captureWindow.closed) {
+                    captureWindow.close();
+                }
+                setClockedOutUI();
+                if (payload.time_out) {
+                    var elOut2 = document.getElementById('statTimeOut');
+                    if (elOut2) elOut2.innerText = payload.time_out;
+                }
+            }
+        }
+
+        function fallbackPoll() {
             ajax('check_attendance.php', '', function (res) {
-                if (res.status === 'success' && !res.has_active_attendance) {
-                    if (captureWindow && !captureWindow.closed) {
-                        captureWindow.close();
-                    }
-                    setClockedOutUI();
+                if (res.status === 'success') {
+                    applyAttendanceState(res);
                 }
             }, 'GET');
-        }, 15000);
+        }
+
+        var source = new EventSource('sse_my_attendance.php');
+        source.onmessage = function (event) {
+            try {
+                var data = JSON.parse(event.data || '{}');
+                if (data && data.status === 'success') {
+                    applyAttendanceState(data);
+                }
+            } catch (e) {
+                // ignore parse errors
+            }
+        };
+        source.onerror = function () {
+            source.close();
+            fallbackPoll();
+            setInterval(fallbackPoll, 5000);
+        };
     }
 
     function closeModal() {
