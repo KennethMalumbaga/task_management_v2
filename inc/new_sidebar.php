@@ -57,12 +57,15 @@
             </a>
             <?php 
                 include_once "app/model/Message.php";
-                $allUnread = countAllUnread($_SESSION['id'], $pdo);
+                include_once "app/model/GroupMessage.php";
+                $dmUnread = countAllUnread($_SESSION['id'], $pdo);
+                $grpUnread = count_all_group_unread($pdo, $_SESSION['id']);
+                $totalUnread = $dmUnread + $grpUnread;
             ?>
             <a href="messages.php" class="dash-nav-item <?= isActive('messages.php') ?>">
                 <i class="fa fa-comment-o"></i> Messages
-                <?php if($allUnread > 0){ ?>
-                    <span class="dash-nav-badge"><?=$allUnread?></span>
+                <?php if($totalUnread > 0){ ?>
+                    <span class="dash-nav-badge"><?=$totalUnread?></span>
                 <?php } ?>
             </a>
             <a href="profile.php" class="dash-nav-item <?= isActive('profile.php') ?>">
@@ -85,16 +88,22 @@
             </a>
             <?php 
                 include_once "app/model/Message.php";
-                $allUnread = countAllUnread($_SESSION['id'], $pdo);
+                include_once "app/model/GroupMessage.php";
+                $dmUnread = countAllUnread($_SESSION['id'], $pdo);
+                $grpUnread = count_all_group_unread($pdo, $_SESSION['id']);
+                $totalUnread = $dmUnread + $grpUnread;
             ?>
             <a href="messages.php" class="dash-nav-item <?= isActive('messages.php') ?>">
                 <i class="fa fa-comment-o"></i> Messages
-                <?php if($allUnread > 0){ ?>
-                    <span class="dash-nav-badge"><?=$allUnread?></span>
+                <?php if($totalUnread > 0){ ?>
+                    <span class="dash-nav-badge"><?=$totalUnread?></span>
                 <?php } ?>
             </a>
             <a href="user.php" class="dash-nav-item <?= isActive('user.php') ?>">
                 <i class="fa fa-users"></i> Users
+            </a>
+            <a href="groups.php" class="dash-nav-item <?= isActive('groups.php') ?>">
+                <i class="fa fa-object-group"></i> Groups
             </a>
             <a href="screenshots.php" class="dash-nav-item <?= isActive('screenshots.php') ?>">
                 <i class="fa fa-camera"></i> Captures
@@ -108,5 +117,3 @@
         <?php } ?>
     </nav>
 </div>
-
-

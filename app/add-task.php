@@ -2,7 +2,7 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
-if (isset($_POST['title']) && isset($_POST['description']) && isset($_POST['leader_id']) && $_SESSION['role'] == 'admin' && isset($_POST['due_date'])) {
+if (isset($_POST['title']) && isset($_POST['description']) && $_SESSION['role'] == 'admin' && isset($_POST['due_date'])) {
 	include "../DB_connection.php";
 
     function validate_input($data) {
@@ -14,8 +14,10 @@ if (isset($_POST['title']) && isset($_POST['description']) && isset($_POST['lead
 
 	$title = validate_input($_POST['title']);
 	$description = validate_input($_POST['description']);
-	$leader_id = validate_input($_POST['leader_id']);
+	$leader_id = isset($_POST['leader_id']) ? validate_input($_POST['leader_id']) : 0;
 	$due_date = validate_input($_POST['due_date']);
+	$assignment_mode = isset($_POST['assignment_mode']) ? validate_input($_POST['assignment_mode']) : 'manual';
+	$group_id = isset($_POST['group_id']) ? (int)$_POST['group_id'] : 0;
 	$member_ids = isset($_POST['member_ids']) ? $_POST['member_ids'] : [];
 	// Clean member_ids array
 	$member_ids = array_filter(array_map('intval', $member_ids), function($id) { return $id > 0; });
@@ -28,7 +30,11 @@ if (isset($_POST['title']) && isset($_POST['description']) && isset($_POST['lead
 		$em = "Description is required";
 	    header("Location: ../create_task.php?error=$em");
 	    exit();
-	}else if ($leader_id == 0) {
+	}else if ($assignment_mode === 'group' && $group_id == 0) {
+		$em = "Select Group";
+	    header("Location: ../create_task.php?error=$em");
+	    exit();
+	}else if ($assignment_mode === 'manual' && $leader_id == 0) {
 		$em = "Select Leader";
 	    header("Location: ../create_task.php?error=$em");
 	    exit();
@@ -36,6 +42,23 @@ if (isset($_POST['title']) && isset($_POST['description']) && isset($_POST['lead
     
        include_once "model/Task.php";
        include_once "model/Notification.php";
+       include_once "model/Group.php";
+
+       if ($assignment_mode === 'group') {
+           $leader_id = (int)get_group_leader_id($pdo, $group_id);
+           if ($leader_id <= 0) {
+               $em = "Selected group has no leader";
+               header("Location: ../create_task.php?error=$em");
+               exit();
+           }
+           $member_ids = [];
+           $members = get_group_members($pdo, $group_id);
+           foreach ($members as $m) {
+               if ($m['role'] === 'member') {
+                   $member_ids[] = (int)$m['user_id'];
+               }
+           }
+       }
 
        // Handle template file upload (optional)
        $template_file_path = null;
@@ -94,6 +117,10 @@ if (isset($_POST['title']) && isset($_POST['description']) && isset($_POST['lead
            $notif_data = array("'$title' has been assigned to you. Please review and start working on it", $member_id, 'New Task Assigned', $task_id);
            insert_notification($pdo, $notif_data);
        }
+
+       // Auto-create a task group chat (admin + leader + members)
+       $created_by = (int)$_SESSION['id'];
+       create_group($pdo, $title, $leader_id, $member_ids, $created_by);
 
        $em = "Task created successfully";
 	    header("Location: ../tasks.php?success=$em");

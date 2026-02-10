@@ -4,9 +4,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     include "DB_connection.php";
     include "app/model/user.php";
     include "app/model/Task.php";
+    include "app/model/Group.php";
 
     // Only get employees (exclude admin)
     $users = get_all_users($pdo, 'employee');
+    $groups = get_all_groups($pdo);
  ?>
 <!DOCTYPE html>
 <html>
@@ -88,8 +90,47 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                               style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; resize: vertical; transition: border-color 0.2s;"></textarea>
                 </div>
 
+                <!-- Assignment Mode -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Assignment Mode</label>
+                    <div style="display: flex; gap: 12px;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+                            <input type="radio" name="assignment_mode" value="manual" checked onchange="toggleAssignmentMode()"> Manual (Leader + Members)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+                            <input type="radio" name="assignment_mode" value="group" onchange="toggleAssignmentMode()"> Select Group/Team
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Group Selection -->
+                <div id="groupSection" style="margin-bottom: 20px; display: none;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Group/Team</label>
+                    <select name="group_id" id="groupSelect" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
+                        <option value="0">Select Group</option>
+                        <?php if (!empty($groups)) { foreach ($groups as $group) { 
+                            $members = get_group_members($pdo, $group['id']);
+                            $leaderName = '';
+                            $memberNames = [];
+                            foreach ($members as $m) {
+                                if ($m['role'] === 'leader') {
+                                    $leaderName = $m['full_name'];
+                                } else {
+                                    $memberNames[] = $m['full_name'];
+                                }
+                            }
+                            $memberText = !empty($memberNames) ? implode(', ', $memberNames) : 'No members';
+                        ?>
+                            <option value="<?=$group['id']?>" data-leader="<?=htmlspecialchars($leaderName)?>" data-members="<?=htmlspecialchars($memberText)?>">
+                                <?=htmlspecialchars($group['name'])?>
+                            </option>
+                        <?php } } ?>
+                    </select>
+                    <div id="groupInfo" style="margin-top: 8px; font-size: 13px; color: #6B7280;"></div>
+                </div>
+
                 <!-- Project Leader -->
-                 <div style="margin-bottom: 20px;">
+                 <div id="manualLeaderSection" style="margin-bottom: 20px;">
                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Project Leader (Optional)</label>
                     <select name="leader_id" id="leaderSelect" onchange="onLeaderChange()" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
                         <option value="0">None</option>
@@ -103,7 +144,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 </div>
 
                 <!-- Team Members -->
-                <div style="margin-bottom: 20px;">
+                <div id="manualMembersSection" style="margin-bottom: 20px;">
                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Team Members (Optional)</label>
                     
                     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -155,6 +196,45 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <script>
         var selectedMembers = {};
         var currentLeaderId = "0";
+
+        function toggleAssignmentMode() {
+            var mode = document.querySelector('input[name="assignment_mode"]:checked').value;
+            var groupSection = document.getElementById('groupSection');
+            var leaderSection = document.getElementById('manualLeaderSection');
+            var membersSection = document.getElementById('manualMembersSection');
+            if (mode === 'group') {
+                groupSection.style.display = 'block';
+                leaderSection.style.display = 'none';
+                membersSection.style.display = 'none';
+                // Reset manual selections
+                document.getElementById('leaderSelect').value = "0";
+                currentLeaderId = "0";
+                clearMembers();
+            } else {
+                groupSection.style.display = 'none';
+                leaderSection.style.display = 'block';
+                membersSection.style.display = 'block';
+                document.getElementById('groupSelect').value = "0";
+                document.getElementById('groupInfo').textContent = "";
+            }
+        }
+
+        document.getElementById('groupSelect').addEventListener('change', function() {
+            var opt = this.options[this.selectedIndex];
+            if (!opt || this.value === "0") {
+                document.getElementById('groupInfo').textContent = "";
+                return;
+            }
+            var leader = opt.getAttribute('data-leader') || 'Not set';
+            var members = opt.getAttribute('data-members') || 'No members';
+            document.getElementById('groupInfo').textContent = "Leader: " + leader + " | Members: " + members;
+        });
+
+        function clearMembers() {
+            selectedMembers = {};
+            document.getElementById('membersList').innerHTML = "";
+            document.getElementById('memberInputs').innerHTML = "";
+        }
         
         // Function called when project leader is changed
         function onLeaderChange() {
@@ -243,6 +323,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             if (badgeEl) badgeEl.remove();
             if (span) span.parentElement.remove();
         }
+
+        // Initialize mode on load
+        toggleAssignmentMode();
     </script>
 
 </body>

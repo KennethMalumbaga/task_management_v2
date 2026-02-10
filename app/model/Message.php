@@ -27,6 +27,9 @@ function insertChat($sender_id, $receiver_id, $message, $conn){
 }
 
 function insertAttachment($chat_id, $attachment_name, $conn){
+    if (!table_exists($conn, 'chat_attachments')) {
+        return;
+    }
     $sql = "INSERT INTO chat_attachments (chat_id, attachment_name)
             VALUES (?, ?)";
     $stmt = $conn->prepare($sql);
@@ -34,6 +37,9 @@ function insertAttachment($chat_id, $attachment_name, $conn){
 }
 
 function getAttachments($chat_id, $conn){
+    if (!table_exists($conn, 'chat_attachments')) {
+        return [];
+    }
     $sql = "SELECT attachment_name FROM chat_attachments WHERE chat_id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->execute([$chat_id]);
@@ -42,6 +48,19 @@ function getAttachments($chat_id, $conn){
         return $stmt->fetchAll(PDO::FETCH_COLUMN); // Returns array of filenames
     }else{
         return [];
+    }
+}
+
+if (!function_exists('table_exists')) {
+    function table_exists($conn, $table_name){
+        try {
+            $sql = "SELECT 1 FROM information_schema.tables WHERE table_name = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([$table_name]);
+            return (bool)$stmt->fetchColumn();
+        } catch (PDOException $e) {
+            return false;
+        }
     }
 }
 

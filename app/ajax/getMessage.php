@@ -54,32 +54,34 @@ if (isset($_SESSION['id'])) {
         </div>
     <?php } else { // Received message (Incoming) ?>
         <div class="message-incoming">
-             <div class="message-bubble-incoming">
-                <?=$chat['message']?>
-                <?php 
-                if (!empty($attachments)) { 
-                    foreach($attachments as $attachment) {
-                        $fileParts = explode('.', $attachment);
-                        $ext = strtolower(end($fileParts));
-                        $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
-                ?>
-                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1);">
-                        <?php if ($isImage) { ?>
-                            <a href="uploads/<?=$attachment?>" target="_blank">
-                                <img src="uploads/<?=$attachment?>" style="max-width: 200px; max-height: 200px; border-radius: 4px;">
-                            </a>
-                        <?php } else { ?>
-                            <a href="uploads/<?=$attachment?>" target="_blank" style="color: #4B5563; text-decoration: underline; display: flex; align-items: center; gap: 5px;">
-                                <i class="fa fa-paperclip"></i> <?=$attachment?>
-                            </a>
-                        <?php } ?>
-                    </div>
-                <?php 
-                    }
-                } 
-                ?>
+             <div class="message-structure">
+                 <div class="message-bubble-incoming">
+                    <?=$chat['message']?>
+                    <?php 
+                    if (!empty($attachments)) { 
+                        foreach($attachments as $attachment) {
+                            $fileParts = explode('.', $attachment);
+                            $ext = strtolower(end($fileParts));
+                            $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
+                    ?>
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1);">
+                            <?php if ($isImage) { ?>
+                                <a href="uploads/<?=$attachment?>" target="_blank">
+                                    <img src="uploads/<?=$attachment?>" style="max-width: 200px; max-height: 200px; border-radius: 4px;">
+                                </a>
+                            <?php } else { ?>
+                                <a href="uploads/<?=$attachment?>" target="_blank" style="color: #4B5563; text-decoration: underline; display: flex; align-items: center; gap: 5px;">
+                                    <i class="fa fa-paperclip"></i> <?=$attachment?>
+                                </a>
+                            <?php } ?>
+                        </div>
+                    <?php 
+                        }
+                    } 
+                    ?>
+                 </div>
+                 <div class="message-time"><?=formatChatTime($chat['created_at'])?></div>
              </div>
-             <div class="message-time"><?=formatChatTime($chat['created_at'])?></div>
         </div>
     <?php } } }
 	}
