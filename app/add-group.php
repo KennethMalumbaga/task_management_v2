@@ -23,8 +23,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             exit();
         }
         if (check_group_exists($pdo, $group_name)) {
-            $em = "Group name already exists";
-            header("Location: ../groups.php?error=$em");
+            header("Location: ../groups.php?duplicate_group=1");
             exit();
         }
         if ($leader_id <= 0) {

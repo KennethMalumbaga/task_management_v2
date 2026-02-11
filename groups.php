@@ -7,6 +7,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
     $users = get_all_users($pdo, 'employee');
     $groups = get_all_groups($pdo);
+    $show_duplicate_modal = isset($_GET['duplicate_group']) && $_GET['duplicate_group'] == '1';
 ?>
 <!DOCTYPE html>
 <html>
@@ -249,6 +250,51 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         .chip span.close { cursor: pointer; font-size: 14px; opacity: 0.6; }
         .chip span.close:hover { opacity: 1; }
 
+        /* Upstream Modal Styles */
+        .custom-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 16px;
+        }
+        .custom-modal {
+            width: 100%;
+            max-width: 420px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        .custom-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 18px;
+            font-weight: 600;
+            color: #991b1b;
+        }
+        .custom-modal-body {
+            padding: 18px 20px;
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .custom-modal-actions {
+            padding: 0 20px 18px;
+            text-align: right;
+        }
+        .custom-modal-actions button {
+            border: none;
+            background: #6366F1;
+            color: #fff;
+            border-radius: 8px;
+            padding: 9px 14px;
+            font-size: 14px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -506,6 +552,18 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         </div>
     </div>
 
+    <?php if ($show_duplicate_modal) { ?>
+    <div id="duplicateGroupModal" class="custom-modal-overlay">
+        <div class="custom-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-group-heading">
+            <div id="duplicate-group-heading" class="custom-modal-header">Duplicate Group Name</div>
+            <div class="custom-modal-body">This group name is already created. Please use a different group name.</div>
+            <div class="custom-modal-actions">
+                <button type="button" onclick="closeDuplicateGroupModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    <?php } ?>
+
     <script>
         // --- View Switching ---
         const container = document.getElementById('groupsContainer');
@@ -685,6 +743,18 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             });
         });
 
+        // Upstream: Duplicate modal functionality
+        function closeDuplicateGroupModal() {
+            var modal = document.getElementById('duplicateGroupModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        <?php if ($show_duplicate_modal) { ?>
+        document.getElementById('duplicateGroupModal').style.display = 'flex';
+        document.getElementById('duplicateGroupModal').addEventListener('click', function(e){
+            if (e.target === this) closeDuplicateGroupModal();
+        });
+        <?php } ?>
     </script>
     
     <!-- CSS Injection for View Switching Support -->

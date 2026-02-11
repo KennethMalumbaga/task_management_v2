@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Employee Screenshot Monitor",
+  "name": "Task Flow Monitoring",
   "version": "1.1.0",
   "description": "Automatically captures screenshots for employee monitoring (persistent)",
   "permissions": [
