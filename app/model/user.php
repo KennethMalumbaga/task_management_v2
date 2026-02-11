@@ -195,3 +195,23 @@ function is_user_clocked_in($pdo, $user_id)
 
     return $stmt->fetch(PDO::FETCH_ASSOC) ? true : false;
 }
+
+function get_top_rated_users($pdo, $limit = 5)
+{
+    $sql = "SELECT u.id, u.full_name, u.profile_image,
+                   COUNT(t.id) as rated_task_count,
+                   ROUND(AVG(t.rating)::numeric, 1) as avg_rating
+            FROM users u
+            JOIN task_assignees ta ON u.id = ta.user_id
+            JOIN tasks t ON t.id = ta.task_id
+            WHERE u.role = 'employee'
+              AND t.status = 'completed'
+              AND t.rating > 0
+            GROUP BY u.id, u.full_name, u.profile_image
+            HAVING COUNT(t.id) > 0
+            ORDER BY avg_rating DESC, rated_task_count DESC
+            LIMIT ?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$limit]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}

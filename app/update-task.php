@@ -36,6 +36,7 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
     
        include "model/Task.php";
        include "model/Notification.php";
+       include "model/Group.php";
 
        // Handle template file upload (optional)
        $template_file_path = null;
@@ -93,10 +94,15 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
            }
        }
 
+       $old_title = $current_task != 0 && isset($current_task['title']) ? $current_task['title'] : $title;
+
        // Persist task changes + review info
        $admin_id = $_SESSION['id'];
        $data = array($title, $description, $assigned_to, $due_date, $status, $review_comment, $admin_id, $template_file_path, $id);
        update_task($pdo, $data);
+
+       // Keep related task_chat group linked and renamed when task title changes.
+       sync_task_chat_group_link_and_name($pdo, (int)$id, $old_title, $title);
 
        // Update Assignees (Leader + Members)
        $team_members = isset($_POST['team_members']) ? $_POST['team_members'] : [];

@@ -34,6 +34,14 @@ function insert_task($pdo, $data){
     return $pdo->lastInsertId();
 }
 
+function task_title_exists($pdo, $title){
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM tasks WHERE LOWER(TRIM(title)) = LOWER(TRIM(?))"
+    );
+    $stmt->execute([$title]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
 function update_task($pdo, $data){
     $has_template_file = column_exists($pdo, 'tasks', 'template_file');
 

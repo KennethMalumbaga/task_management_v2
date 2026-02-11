@@ -51,6 +51,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             include_once "model/Notification.php";
             include_once "model/Group.php";
 
+            if (task_title_exists($pdo, $title)) {
+                header("Location: ../create_task.php?duplicate_title=1");
+                exit();
+            }
+
             if ($assignment_mode === 'group') {
                 $leader_id = (int)get_group_leader_id($pdo, $group_id);
                 if ($leader_id <= 0) {
@@ -133,7 +138,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             if (!in_array($created_by, $chat_member_ids) && $created_by !== $leader_id) {
                 $chat_member_ids[] = $created_by;
             }
-            create_group($pdo, $title, $leader_id, $chat_member_ids, $created_by, 'task_chat');
+            create_group($pdo, $title, $leader_id, $chat_member_ids, $created_by, 'task_chat', $task_id);
 
             $em = "Task created successfully";
             header("Location: ../tasks.php?success=$em");

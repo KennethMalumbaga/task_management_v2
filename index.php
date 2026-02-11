@@ -6,6 +6,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "app/model/Task.php";
     include "app/model/user.php";
     include "app/model/Subtask.php";
+    include "app/model/Group.php";
 
     // --- DATA FETCHING FOR DASHBOARD ---
     
@@ -15,6 +16,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $completed = count_completed_tasks($pdo);
         $num_users = count_users($pdo); // Employees
         $avg_rating = "4.3"; // Mock data as per design
+        $top_users = get_top_rated_users($pdo, 5);
+        $top_groups = get_top_rated_groups($pdo, 5);
     } else {
         $num_task = count_my_tasks($pdo, $_SESSION['id']);
         $completed = count_my_completed_tasks($pdo, $_SESSION['id']);
@@ -54,8 +57,71 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/task_redesign.css">
     <style>
+        .admin-leaderboard-compact {
+            padding: 16px 18px;
+            max-height: 290px;
+            overflow: hidden;
+        }
+        .leaderboard-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            height: 100%;
+        }
+        .leaderboard-pane {
+            border: 1px solid #E5E7EB;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .leaderboard-pane .leaderboard-header {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #F3F4F6;
+        }
+        .leaderboard-pane .leaderboard-list {
+            gap: 6px;
+            overflow-y: auto;
+            max-height: 220px;
+            padding-right: 4px;
+        }
+        .leaderboard-pane .leaderboard-item {
+            padding: 6px 8px;
+            border-radius: 8px;
+        }
+        .leaderboard-pane .leaderboard-name {
+            font-size: 12px;
+        }
+        .leaderboard-pane .leaderboard-meta {
+            font-size: 10px;
+        }
+        .leaderboard-pane .leaderboard-rating {
+            font-size: 13px;
+        }
+        .leaderboard-pane .leaderboard-avatar {
+            width: 28px;
+            height: 28px;
+        }
+        .leaderboard-pane .rank-badge {
+            width: 22px;
+            height: 22px;
+            font-size: 10px;
+        }
+
         /* Mobile Dashboard Optimizations */
         @media (max-width: 768px) {
+            .admin-leaderboard-compact {
+                max-height: none;
+            }
+            .leaderboard-split {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .leaderboard-pane .leaderboard-list {
+                max-height: 150px;
+            }
             .tasks-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
                 gap: 10px !important;
@@ -196,18 +262,84 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         <div class="dash-top-grid">
             
             <!-- Time Tracker Card -->
-            <div class="dash-card">
-                <div class="time-tracker-header">
-                    <div class="time-tracker-title">
-                        <i class="fa fa-clock-o" style="color: #4F46E5;"></i> 
-                        Time Tracker
-                    </div>
-                    <div style="color: #9CA3AF;">
-                        <i class="fa fa-camera"></i>
-                    </div>
-                </div>
+            <div class="dash-card <?= $_SESSION['role'] == 'admin' ? 'admin-leaderboard-compact' : '' ?>">
+                <?php if ($_SESSION['role'] == 'admin') { ?>
+                    <div class="leaderboard-split">
+                        <div class="leaderboard-pane">
+                            <div class="leaderboard-header">
+                                <div class="leaderboard-title">
+                                    <i class="fa fa-sitemap" style="color: #10B981;"></i>
+                                    Top Groups
+                                </div>
+                            </div>
+                            <?php if (!empty($top_groups)) { ?>
+                                <div class="leaderboard-list">
+                                    <?php foreach ($top_groups as $idx => $g) { 
+                                        $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#6366F1' : '#10B981');
+                                    ?>
+                                    <div class="leaderboard-item">
+                                        <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
+                                        <div class="leaderboard-info">
+                                            <div class="leaderboard-name"><?= htmlspecialchars($g['group_name']) ?></div>
+                                            <div class="leaderboard-meta"><?= (int)$g['member_count'] ?> member<?= ((int)$g['member_count'] !== 1 ? 's' : '') ?> • <?= (int)$g['rated_task_count'] ?> rated task<?= ((int)$g['rated_task_count'] !== 1 ? 's' : '') ?></div>
+                                        </div>
+                                        <div class="leaderboard-rating">
+                                            <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($g['avg_rating']) ?>
+                                        </div>
+                                    </div>
+                                    <?php } ?>
+                                </div>
+                            <?php } else { ?>
+                                <div class="leaderboard-empty">
+                                    <i class="fa fa-info-circle"></i> No group ratings yet.
+                                </div>
+                            <?php } ?>
+                        </div>
 
-                <?php if ($_SESSION['role'] !== 'admin') { ?>
+                        <div class="leaderboard-pane">
+                            <div class="leaderboard-header">
+                                <div class="leaderboard-title">
+                                    <i class="fa fa-users" style="color: #4F46E5;"></i>
+                                    Top Employees
+                                </div>
+                            </div>
+                            <?php if (!empty($top_users)) { ?>
+                                <div class="leaderboard-list">
+                                    <?php foreach ($top_users as $idx => $u) { 
+                                        $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#6366F1' : '#10B981');
+                                        $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
+                                    ?>
+                                    <div class="leaderboard-item">
+                                        <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
+                                        <img src="<?= $avatar ?>" class="leaderboard-avatar" alt="User">
+                                        <div class="leaderboard-info">
+                                            <div class="leaderboard-name"><?= htmlspecialchars($u['full_name']) ?></div>
+                                            <div class="leaderboard-meta"><?= (int)$u['rated_task_count'] ?> rated task<?= ((int)$u['rated_task_count'] !== 1 ? 's' : '') ?></div>
+                                        </div>
+                                        <div class="leaderboard-rating">
+                                            <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($u['avg_rating']) ?>
+                                        </div>
+                                    </div>
+                                    <?php } ?>
+                                </div>
+                            <?php } else { ?>
+                                <div class="leaderboard-empty">
+                                    <i class="fa fa-info-circle"></i> No user ratings yet.
+                                </div>
+                            <?php } ?>
+                        </div>
+                    </div>
+                <?php } else { ?>
+                    <div class="time-tracker-header">
+                        <div class="time-tracker-title">
+                            <i class="fa fa-clock-o" style="color: #4F46E5;"></i> 
+                            Time Tracker
+                        </div>
+                        <div style="color: #9CA3AF;">
+                            <i class="fa fa-camera"></i>
+                        </div>
+                    </div>
+
                     <!-- Employee Clock In/Out -->
                     <div style="margin-bottom: 20px;">
                         <button id="btnTimeIn" class="btn-clock-in" style="display: flex;">
@@ -220,15 +352,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div class="screenshot-info">
                         <i class="fa fa-camera"></i>
                         <span id="attendanceStatus">Screen captures are taken randomly for activity tracking</span>
-                    </div>
-                <?php } else { ?>
-                     <!-- Admin View -->
-                     <button class="btn-clock-in" style="opacity: 0.5; cursor: default;">
-                        <i class="fa fa-play"></i> Admin View Only
-                    </button>
-                     <div class="screenshot-info">
-                        <i class="fa fa-info-circle"></i>
-                        <span>Tracking is active for employees.</span>
                     </div>
                 <?php } ?>
             </div>
