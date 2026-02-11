@@ -80,7 +80,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="chat-search">
                     <div class="chat-search-input-wrapper">
                         <i class="fa fa-search chat-search-icon"></i>
-                        <input type="text" id="searchText" placeholder="Search users...">
+                        <input type="text" id="searchText" placeholder="Search users or groups...">
                     </div>
                 </div>
                 
@@ -253,8 +253,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                }
                
                $.post('app/ajax/search.php', { key: searchText }, function(data, status){
-                   $("#chatList").html(data);
+                   var res = JSON.parse(data);
+                   $("#chatList").html(res.users);
+                   $("#groupList").html(res.groups);
                    bindChatClicks(); // Rebind clicks on new elements
+                   bindGroupClicks(); // Rebind group clicks on new elements
                });
             });
 
