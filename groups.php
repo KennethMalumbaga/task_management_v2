@@ -24,7 +24,26 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
         .pill { background: #EEF2FF; color: #4F46E5; padding: 4px 10px; border-radius: 999px; font-size: 12px; }
-        .member-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .member-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+        .member-picker { border: 1px solid #d1d5db; border-radius: 10px; overflow: hidden; background: #fff; }
+        .member-search { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+        .member-search i { color: #9ca3af; }
+        .member-search input { border: none; outline: none; width: 100%; font-size: 14px; }
+        .member-list { max-height: 260px; overflow-y: auto; display: none; }
+        .member-picker.open .member-list { display: block; }
+        .member-picker.open .member-search { border-bottom: 1px solid #e5e7eb; box-shadow: inset 0 0 0 2px #6366f1; border-radius: 10px 10px 0 0; }
+        .user-option { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background 0.15s ease; }
+        .user-option:last-child { border-bottom: none; }
+        .user-option:hover { background: #f8fafc; }
+        .user-option.selected { background: #eef2ff; }
+        .user-option.disabled { opacity: 0.5; cursor: not-allowed; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: #e5e7eb; color: #374151; display: flex; align-items: center; justify-content: center; font-weight: 600; overflow: hidden; flex-shrink: 0; }
+        .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .user-name { font-size: 14px; font-weight: 600; color: #111827; }
+        .user-meta { font-size: 12px; color: #6b7280; }
+        .user-action { color: #4f46e5; font-size: 18px; font-weight: 600; padding: 2px 6px; border-radius: 6px; }
+        .user-option.selected .user-action { color: #10b981; }
     </style>
 </head>
 <body>
@@ -54,27 +73,72 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                     </div>
                     <div style="margin-bottom: 15px;">
                         <label style="display:block; font-size:14px; font-weight:500; color:#374151; margin-bottom:6px;">Team Leader</label>
-                        <select name="leader_id" id="groupLeaderSelect" required style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:6px; background:white;">
-                            <option value="">Select Leader</option>
-                            <?php if (!empty($users)) { foreach ($users as $user) { ?>
-                                <option value="<?=$user['id']?>"><?=htmlspecialchars($user['full_name'])?></option>
-                            <?php } } ?>
-                        </select>
+                        <input type="hidden" name="leader_id" id="groupLeaderId" value="">
+                        <div class="member-picker" id="groupLeaderPicker">
+                            <div class="member-search">
+                                <i class="fa fa-search"></i>
+                                <input type="text" id="groupLeaderSearch" placeholder="Select Leader">
+                            </div>
+                            <div class="member-list" id="groupLeaderList">
+                                <?php if (!empty($users)) { foreach ($users as $user) { 
+                                    $roleText = ucfirst($user['role']);
+                                    $profileImage = $user['profile_image'] ?? '';
+                                    $hasImage = !empty($profileImage) && $profileImage !== 'default.png' && file_exists('uploads/' . $profileImage);
+                                ?>
+                                    <div class="user-option" data-id="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>" data-role="<?=htmlspecialchars($roleText)?>">
+                                        <div class="user-info">
+                                            <div class="user-avatar">
+                                                <?php if ($hasImage): ?>
+                                                    <img src="uploads/<?=$profileImage?>" alt="Avatar">
+                                                <?php else: ?>
+                                                    <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div>
+                                                <div class="user-name"><?=htmlspecialchars($user['full_name'])?></div>
+                                                <div class="user-meta"><?=$roleText?></div>
+                                            </div>
+                                        </div>
+                                        <div class="user-action">+</div>
+                                    </div>
+                                <?php } } ?>
+                            </div>
+                        </div>
+                        <div id="groupLeaderSelected" class="member-badges"></div>
                     </div>
                     <div style="margin-bottom: 15px;">
                         <label style="display:block; font-size:14px; font-weight:500; color:#374151; margin-bottom:6px;">Team Members</label>
-                        <div style="display:flex; gap:10px; margin-bottom:10px;">
-                            <select id="groupMemberSelect" style="flex:1; padding:10px; border:1px solid #d1d5db; border-radius:6px; background:white;">
-                                <option value="0">Add Team Member</option>
-                                <?php if (!empty($users)) { foreach ($users as $user) { ?>
-                                    <option value="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>"><?=htmlspecialchars($user['full_name'])?></option>
+                        <div class="member-picker" id="groupMemberPicker">
+                            <div class="member-search">
+                                <i class="fa fa-search"></i>
+                                <input type="text" id="groupMemberSearch" placeholder="Search and add members...">
+                            </div>
+                            <div class="member-list" id="groupMemberList">
+                                <?php if (!empty($users)) { foreach ($users as $user) { 
+                                    $roleText = ucfirst($user['role']);
+                                    $profileImage = $user['profile_image'] ?? '';
+                                    $hasImage = !empty($profileImage) && $profileImage !== 'default.png' && file_exists('uploads/' . $profileImage);
+                                ?>
+                                    <div class="user-option" data-id="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>" data-role="<?=htmlspecialchars($roleText)?>">
+                                        <div class="user-info">
+                                            <div class="user-avatar">
+                                                <?php if ($hasImage): ?>
+                                                    <img src="uploads/<?=$profileImage?>" alt="Avatar">
+                                                <?php else: ?>
+                                                    <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div>
+                                                <div class="user-name"><?=htmlspecialchars($user['full_name'])?></div>
+                                                <div class="user-meta"><?=$roleText?></div>
+                                            </div>
+                                        </div>
+                                        <div class="user-action">+</div>
+                                    </div>
                                 <?php } } ?>
-                            </select>
-                            <button type="button" id="addGroupMemberBtn" style="background:white; border:1px solid #d1d5db; border-radius:6px; padding:0 15px; cursor:pointer;">
-                                <i class="fa fa-plus"></i>
-                            </button>
+                            </div>
                         </div>
-                        <div id="groupMembersList" class="member-list"></div>
+                        <div id="groupMembersList" class="member-badges"></div>
                         <div id="groupMemberInputs"></div>
                     </div>
                     <button type="submit" style="padding:10px 16px; border:none; border-radius:8px; background:#6366F1; color:white; font-weight:500;">Create Group</button>
@@ -105,7 +169,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                         </form>
                         <div style="font-size:13px; color:#6B7280; margin-top:4px;">Leader: <?=htmlspecialchars($leader ?: 'Not set')?></div>
                         <?php if (!empty($memberNames)) { ?>
-                            <div class="member-list" style="margin-top:8px;">
+                            <div class="member-badges" style="margin-top:8px;">
                                 <?php foreach ($memberNames as $mn) { ?>
                                     <span class="pill"><?=htmlspecialchars($mn)?></span>
                                 <?php } ?>
@@ -123,18 +187,75 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
     <script>
         var selectedGroupMembers = {};
-        document.getElementById('addGroupMemberBtn').addEventListener('click', function() {
-            var select = document.getElementById('groupMemberSelect');
-            var id = select.value;
-            var name = select.options[select.selectedIndex].getAttribute('data-name');
-            var leaderId = document.getElementById('groupLeaderSelect').value;
-            if (id == "0") return;
-            if (selectedGroupMembers[id]) return;
-            if (leaderId && id === leaderId) {
-                alert('Leader already selected.');
-                select.value = "0";
-                return;
+        var currentGroupLeaderId = "";
+        var groupLeaderIdInput = document.getElementById('groupLeaderId');
+        var groupLeaderList = document.getElementById('groupLeaderList');
+        var groupMemberList = document.getElementById('groupMemberList');
+        var groupLeaderPicker = document.getElementById('groupLeaderPicker');
+        var groupMemberPicker = document.getElementById('groupMemberPicker');
+        var groupLeaderSelected = document.getElementById('groupLeaderSelected');
+
+        function updateGroupMemberLeaderState() {
+            var memberOptions = groupMemberList.querySelectorAll('.user-option');
+            memberOptions.forEach(function(opt){
+                var id = opt.getAttribute('data-id');
+                if (currentGroupLeaderId && id === currentGroupLeaderId) {
+                    opt.classList.add('disabled');
+                } else {
+                    opt.classList.remove('disabled');
+                }
+            });
+        }
+
+        function selectGroupLeader(optionEl) {
+            if (!optionEl) return;
+            var newLeaderId = optionEl.getAttribute('data-id');
+            var leaderName = optionEl.getAttribute('data-name') || '';
+            if (!newLeaderId) return;
+
+            var leaderOptions = groupLeaderList.querySelectorAll('.user-option');
+            leaderOptions.forEach(function(opt){
+                opt.classList.remove('selected');
+            });
+            optionEl.classList.add('selected');
+            groupLeaderIdInput.value = newLeaderId;
+            if (groupLeaderSelected) {
+                groupLeaderSelected.innerHTML = '';
+                var badge = document.createElement('div');
+                badge.className = 'pill';
+                badge.id = 'group_leader_badge_' + newLeaderId;
+                badge.innerHTML = leaderName + ' <span style="margin-left:6px; cursor:pointer;" onclick="clearGroupLeader()">&times;</span>';
+                groupLeaderSelected.appendChild(badge);
             }
+
+            if (selectedGroupMembers[newLeaderId]) {
+                removeGroupMember(newLeaderId);
+            }
+
+            currentGroupLeaderId = newLeaderId;
+            updateGroupMemberLeaderState();
+            closePicker(groupLeaderPicker);
+        }
+
+        function clearGroupLeader() {
+            currentGroupLeaderId = "";
+            groupLeaderIdInput.value = "";
+            if (groupLeaderSelected) groupLeaderSelected.innerHTML = "";
+            var leaderOptions = groupLeaderList.querySelectorAll('.user-option');
+            leaderOptions.forEach(function(opt){
+                opt.classList.remove('selected');
+            });
+            updateGroupMemberLeaderState();
+        }
+
+        function addGroupMember(optionEl) {
+            if (!optionEl || optionEl.classList.contains('disabled')) return;
+            var id = optionEl.getAttribute('data-id');
+            var name = optionEl.getAttribute('data-name');
+            if (!id || id === "0") return;
+            if (selectedGroupMembers[id]) return;
+            if (currentGroupLeaderId && id === currentGroupLeaderId) return;
+
             var badge = document.createElement('span');
             badge.className = 'pill';
             badge.id = 'group_badge_' + id;
@@ -148,8 +269,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             input.value = id;
             input.id = 'group_input_' + id;
             document.getElementById('groupMemberInputs').appendChild(input);
-            select.value = "0";
-        });
+
+            optionEl.classList.add('selected');
+        }
 
         function removeGroupMember(id) {
             delete selectedGroupMembers[id];
@@ -157,7 +279,80 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             if (input) input.remove();
             var badge = document.getElementById('group_badge_' + id);
             if (badge) badge.remove();
+            var optionEl = groupMemberList.querySelector('.user-option[data-id="' + id + '"]');
+            if (optionEl) optionEl.classList.remove('selected');
         }
+
+        function filterOptions(searchInput, listEl) {
+            var query = searchInput.value.toLowerCase();
+            var items = listEl.querySelectorAll('.user-option');
+            items.forEach(function(item){
+                var name = (item.getAttribute('data-name') || '').toLowerCase();
+                var role = (item.getAttribute('data-role') || '').toLowerCase();
+                if (name.indexOf(query) !== -1 || role.indexOf(query) !== -1) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        function openPicker(pickerEl) {
+            if (pickerEl) pickerEl.classList.add('open');
+        }
+        function closePicker(pickerEl) {
+            if (pickerEl) pickerEl.classList.remove('open');
+        }
+
+        document.getElementById('groupLeaderSearch').addEventListener('focus', function(){
+            openPicker(groupLeaderPicker);
+        });
+        document.getElementById('groupLeaderSearch').addEventListener('click', function(){
+            openPicker(groupLeaderPicker);
+        });
+        document.getElementById('groupLeaderSearch').addEventListener('input', function(){
+            openPicker(groupLeaderPicker);
+            filterOptions(this, groupLeaderList);
+        });
+
+        document.getElementById('groupMemberSearch').addEventListener('focus', function(){
+            openPicker(groupMemberPicker);
+        });
+        document.getElementById('groupMemberSearch').addEventListener('click', function(){
+            openPicker(groupMemberPicker);
+        });
+        document.getElementById('groupMemberSearch').addEventListener('input', function(){
+            openPicker(groupMemberPicker);
+            filterOptions(this, groupMemberList);
+        });
+
+        groupLeaderList.querySelectorAll('.user-option').forEach(function(opt){
+            opt.addEventListener('click', function(){
+                selectGroupLeader(opt);
+            });
+        });
+
+        groupMemberList.querySelectorAll('.user-option').forEach(function(opt){
+            opt.addEventListener('click', function(){
+                addGroupMember(opt);
+            });
+            var action = opt.querySelector('.user-action');
+            if (action) {
+                action.addEventListener('click', function(e){
+                    e.stopPropagation();
+                    addGroupMember(opt);
+                });
+            }
+        });
+
+        document.addEventListener('click', function(e){
+            if (groupLeaderPicker && !groupLeaderPicker.contains(e.target)) {
+                closePicker(groupLeaderPicker);
+            }
+            if (groupMemberPicker && !groupMemberPicker.contains(e.target)) {
+                closePicker(groupMemberPicker);
+            }
+        });
     </script>
 </body>
 </html>
