@@ -149,8 +149,6 @@
     margin-right: 8px; /* Space for badge */
     text-align: left;
 }
-    line-height: 1.5;
-}
 
 .chat-item.unread .chat-user-name {
     font-weight: 700;
@@ -438,12 +436,36 @@
     width: 280px;
     border-left: 1px solid #F3F4F6;
     background: #fff;
-    display: none; /* Toggled by JS */
+    display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    transition: all 0.3s ease;
 }
-.chat-info-sidebar.active {
-    display: flex;
+
+/* On desktop, we still use display: none when not active to save layout space */
+@media (min-width: 901px) {
+    .chat-info-sidebar:not(.active) {
+        display: none;
+    }
+}
+
+.chat-info-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+.chat-info-overlay.active {
+    display: block;
+    opacity: 1;
 }
 
 .chat-info-header {
@@ -452,6 +474,19 @@
     font-weight: 600;
     color: #111827;
     font-size: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-close-info {
+    display: none;
+    background: none;
+    border: none;
+    color: #6B7280;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
 }
 
 .chat-info-content {
@@ -499,7 +534,25 @@
 /* Mobile Responsive Chat */
 @media (max-width: 900px) {
     .chat-info-sidebar {
-        display: none !important; /* Force hide right sidebar on smaller screens for now */
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        z-index: 1000;
+        width: 280px;
+        box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+        transform: translateX(100%);
+        visibility: hidden;
+        border-left: none;
+    }
+
+    .chat-info-sidebar.active {
+        transform: translateX(0);
+        visibility: visible;
+    }
+
+    .btn-close-info {
+        display: block;
     }
 }
 

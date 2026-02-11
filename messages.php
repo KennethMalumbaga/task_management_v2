@@ -225,8 +225,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             </div>
 
             <!-- Right Sidebar (Group Info) -->
+            <div class="chat-info-overlay" id="chatInfoOverlay"></div>
             <div class="chat-info-sidebar" id="rightSidebar">
-                <div class="chat-info-header">Group Info</div>
+                <div class="chat-info-header">
+                    <span>Group Info</span>
+                    <button class="btn-close-info" id="closeInfoSidebar"><i class="fa fa-times"></i></button>
+                </div>
                 <div class="chat-info-content" id="rightSidebarContent">
                     <!-- Loaded via AJAX -->
                 </div>
@@ -393,25 +397,29 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     
                     // UI Set for Group Chat
                     $("#chatInfoToggle").show();
-                    if($(window).width() > 900) {
-                        $("#rightSidebar").addClass("active");
-                    }
-                    loadGroupDetails(groupId);
-                    $("#chatInfoToggle").show(); // Show toggle for groups
                     
-                    // Open sidebar by default for groups if desktop
-                    if($(window).width() > 900) {
-                        $("#rightSidebar").addClass("active");
-                    }
-                    loadGroupDetails(groupId);
-
+                    // Reset attachment
                     resetAttachment();
                     loadMessages();
+                    
+                    // Clean up loading state if already active
+                    if($(window).width() > 900) {
+                        $("#rightSidebar").addClass("active");
+                    }
+                    loadGroupDetails(groupId);
                 });
             }
 
             $("#chatInfoToggle").click(function(){
                 $("#rightSidebar").toggleClass("active");
+                if($(window).width() <= 900) {
+                    $("#chatInfoOverlay").toggleClass("active");
+                }
+            });
+
+            $("#closeInfoSidebar, #chatInfoOverlay").click(function(){
+                $("#rightSidebar").removeClass("active");
+                $("#chatInfoOverlay").removeClass("active");
             });
 
             function loadGroupDetails(groupId){

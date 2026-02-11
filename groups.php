@@ -124,47 +124,40 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         .view-grid .card-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid #F3F4F6; }
         .view-grid .created-at { font-size: 12px; color: #9CA3AF; font-style: italic; }
         
-        /* List View Specifics */
         .view-list .group-card { padding: 12px 16px; display: flex; align-items: center; }
+        .view-list .grid-content { width: 100%; display: flex; align-items: center; }
+        
         .view-list .group-icon { 
             width: 40px; height: 40px; border-radius: 10px; color: white; 
             display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; margin-right: 16px;
         }
         
-        /* Keep card-top horizontal but constrain width */
-        .view-list .card-top { gap: 12px; min-width: 280px; max-width: 320px; flex-shrink: 0; }
-        .view-list .group-details { flex: 1; min-width: 0; }
+        .view-list .card-top { gap: 16px; min-width: 320px; max-width: 450px; flex-shrink: 0; margin-bottom: 0; display: flex; align-items: center; }
+        .view-list .group-details { flex: 0 1 auto; min-width: 0; }
         .view-list .group-name { 
-            font-size: 14px; font-weight: 600; color: #111827; 
+            font-size: 15px; font-weight: 600; color: #111827; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .view-list .group-leader-section { 
-            display: flex; align-items: center; gap: 4px; margin-top: 2px;
-            max-width: 200px;
+            display: flex; align-items: center; gap: 6px; margin-top: 2px;
+            max-width: 100%; white-space: nowrap;
         }
         .view-list .group-leader-section span:first-child { flex-shrink: 0; }
-        .view-list .group-leader-section .leader-avatar-sm { flex-shrink: 0; margin-left: 4px; }
         .view-list .group-leader-section span:last-child {
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; 
-            flex-shrink: 1; min-width: 0;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         
-        /* Members section in list view */
         .view-list .members-label { display: none; }
         .view-list .member-list-grid { 
             flex: 1; display: flex; align-items: center; gap: 4px; margin-bottom: 0; 
-            flex-wrap: nowrap; overflow: hidden; padding-left: 12px;
+            flex-wrap: nowrap; overflow: hidden; padding-left: 40px;
         }
         
-        /* Card bottom becomes actions in list view */
         .view-list .card-bottom { 
             margin-top: 0; padding-top: 0; border-top: none; 
-            margin-left: auto; flex-shrink: 0;
+            margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 12px;
         }
         .view-list .created-at { display: none; }
-        
-        .view-list .members-col { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; }
-        .view-list .members-count-text { font-size: 12px; color: #6B7280; }
         
         .view-list .actions-col { margin-left: auto; display: flex; gap: 10px; }
         
@@ -224,7 +217,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .action-icon { color: #9CA3AF; font-size: 16px; background: none; border: none; cursor: pointer; transition: color 0.1s; }
         .action-icon:hover { color: var(--primary); }
-        .action-icon.delete:hover { color: #EF4444; }
+        .action-icon.delete { color: #EF4444; }
+        .action-icon.delete:hover { color: #DC2626; }
 
         /* Member Picker Dropdowns */
         .member-dropdown-container { position: relative; }
@@ -294,6 +288,76 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             padding: 9px 14px;
             font-size: 14px;
             cursor: pointer;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .page-wrap { padding: 16px; }
+            .section-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .section-header > div:last-child { width: 100%; justify-content: space-between; display: flex; }
+            .search-groups { width: 100%; flex: 1; margin-right: 8px; }
+
+            /* Overlapping Avatars & Single Row Layout */
+            .view-list .grid-content { 
+                flex-wrap: nowrap !important; 
+                display: flex; 
+                align-items: center; 
+                gap: 8px !important;
+            }
+            .view-list .card-top, .view-list .group-details { display: contents; }
+            
+            .view-list .group-icon { 
+                order: 1; margin-bottom: 0 !important; 
+                width: 36px !important; height: 36px !important; 
+                font-size: 16px !important;
+            }
+            .view-list .group-name { 
+                order: 2; flex: 0 1 auto; min-width: 0 !important; 
+                margin-bottom: 0 !important; font-size: 14px !important;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                max-width: 100px;
+            }
+            
+            .view-list .group-leader-section { 
+                order: 3; width: auto; margin-top: 0 !important; 
+                display: flex; align-items: center;
+                margin-right: -4px;
+            }
+            .view-list .group-leader-section span { display: none; }
+            .view-list .leader-avatar-sm { 
+                margin-left: 0; width: 28px !important; height: 28px !important; 
+                border: 2px solid #F59E0B !important; /* Golden border for leader */
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
+                z-index: 10;
+            }
+            
+            .view-list .member-list-grid { 
+                order: 4; flex: 0 1 auto; width: auto; 
+                padding-left: 0 !important; margin-top: 0 !important; 
+                gap: 0 !important; /* Forces overlap */
+                display: flex;
+            }
+            .view-list .member-chip { 
+                margin-left: -10px !important; 
+                position: relative;
+            }
+            .view-list .member-chip:not(.more) { z-index: 5; }
+            .view-list .member-chip.more { 
+                z-index: 1; background: #EEF2FF !important; 
+                border: 2px solid white;
+            }
+            .view-list .member-chip .member-avatar-xs {
+                width: 28px !important; height: 28px !important;
+            }
+            
+            .view-list .card-bottom { 
+                order: 5; margin-left: auto !important; 
+                flex-shrink: 0; gap: 10px !important;
+                display: flex;
+            }
+            .view-list .action-icon { font-size: 18px !important; }
+            .view-list .action-icon.chat-btn { color: #6366F1 !important; }
+            .view-list .action-icon.delete { color: #EF4444 !important; }
         }
     </style>
 </head>
@@ -526,7 +590,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                                 <div class="card-bottom">
                                     <div class="created-at">Created <?= $createdAt ?></div>
                                     <div style="display: flex; gap: 10px;">
-                                        <button class="action-icon" title="Chat"><i class="fa fa-comment-o"></i></button>
                                         <form action="app/delete-group.php" method="POST" style="display:inline;" onsubmit="return confirm('Delete this group?');">
                                             <input type="hidden" name="id" value="<?=$group['id']?>">
                                             <button type="submit" class="action-icon delete" title="Delete"><i class="fa fa-trash-o"></i></button>
@@ -757,32 +820,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         <?php } ?>
     </script>
     
-    <!-- CSS Injection for View Switching Support -->
     <style>
-        /* This handles the DOM structure transformation via CSS flex/grid */
-        
-        /* GRID VIEW (Default) - Structure handled by main CSS block above */
-        
-        /* LIST VIEW overrides */
-        .view-list .card-top { margin-bottom: 0; display: flex; align-items: center; width: 220px; flex-shrink: 0; }
-        .view-list .group-icon { width: 42px; height: 42px; font-size: 18px; margin-right: 12px; }
-        .view-list .group-details { flex: 1; }
-        .view-list .group-name { font-size: 14px; margin-bottom: 2px; }
-        .view-list .group-leader { font-size: 12px; }
-        
-        .view-list .members-label { display: none; } /* Hide label in list view */
-        .view-list .member-avatars { margin-bottom: 0; flex: 1; display: flex; align-items: center; }
-        
-        .view-list .card-bottom { 
-             margin-top: 0; padding-top: 0; border-top: none; 
-             margin-left: auto; width: auto; 
-             display: flex; align-items: center; gap: 20px;
-        }
-        .view-list .created-at { display: none; } /* Hide date in list view for compactness, or keep? Image 3 shows just icons. */
-        
-        .grid-content { width: 100%; }
-        /* When in list view, grid-content acts as flex row */
-        .view-list .grid-content { display: flex; align-items: center; }
+        /* Placeholder for potential dynamic injections */
     </style>
 </body>
 </html>
