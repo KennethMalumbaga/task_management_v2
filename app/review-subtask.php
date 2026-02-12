@@ -26,10 +26,20 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
             exit();
         }
 
+        $is_self_review = ((int)$subtask['member_id'] === (int)$_SESSION['id']);
+        if ($is_self_review) {
+            // Prevent leaders from inflating collaborative score on their own subtasks.
+            $score = null;
+        }
+
         if ($action == 'accept') {
             $status = 'completed';
             $score_msg = ($score !== null) ? " Score: $score/5." : "";
-            $msg = "Your subtask submission has been ACCEPTED.$score_msg";
+            if ($is_self_review) {
+                $msg = "Your subtask submission has been ACCEPTED. Self-rating is disabled.";
+            } else {
+                $msg = "Your subtask submission has been ACCEPTED.$score_msg";
+            }
             // Only allow score on accept
         } else if ($action == 'revise') {
             $status = 'revise';

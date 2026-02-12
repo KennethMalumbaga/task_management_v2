@@ -5,6 +5,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "app/model/Task.php";
     include "app/model/user.php";
     include "app/model/Subtask.php"; // Include subtask model
+    include "app/model/LeaderFeedback.php";
 
     $tasks = get_all_tasks_by_user($pdo, $_SESSION['id']);
     $users = get_all_users($pdo); // For assigning subtasks
@@ -336,6 +337,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
               <?= stripcslashes($_GET['success']); ?>
             </div>
         <?php } ?>
+        <?php if (isset($_GET['error'])) {?>
+            <div style="background: #FEE2E2; color: #991B1B; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+              <?= stripcslashes($_GET['error']); ?>
+            </div>
+        <?php } ?>
 
         <div class="tasks-grid">
             <?php if ($tasks != 0) { 
@@ -537,6 +543,73 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     </div>
                     <?php } ?>
 
+                    <?php
+                        $isCurrentUserMember = false;
+                        foreach ($members as $memberCheck) {
+                            if ((int)$memberCheck['user_id'] === (int)$_SESSION['id']) {
+                                $isCurrentUserMember = true;
+                                break;
+                            }
+                        }
+
+                        $canRateLeader = !$isLeader
+                            && $isCurrentUserMember
+                            && $leader
+                            && $task['status'] == 'completed';
+
+                        $myLeaderRating = null;
+                        if ($canRateLeader) {
+                            $myLeaderRating = get_member_leader_feedback($pdo, $task['id'], $leader['user_id'], $_SESSION['id']);
+                        }
+                    ?>
+
+                    <?php if ($canRateLeader) { ?>
+                    <div style="margin-bottom: 24px; border: 1px solid #DBEAFE; background: #EFF6FF; border-radius: 10px; padding: 14px;">
+                        <div style="font-size: 12px; font-weight: 700; color: #1D4ED8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">
+                            Rate Your Leader
+                        </div>
+                        <?php if ($myLeaderRating) { ?>
+                            <div style="font-size: 12px; color: #1E3A8A; margin-bottom: 10px;">
+                                Your current rating: <strong><?= (int)$myLeaderRating['rating'] ?>/5</strong>
+                                <?php if (!empty($myLeaderRating['updated_at'])) { ?>
+                                    (updated <?= date("M j, Y g:i A", strtotime($myLeaderRating['updated_at'])) ?>)
+                                <?php } ?>
+                            </div>
+                        <?php } ?>
+                        <form action="app/rate-leader.php" method="POST">
+                            <input type="hidden" name="task_id" value="<?= (int)$task['id'] ?>">
+                            <input type="hidden" name="rating" id="leader-rating-<?= (int)$task['id'] ?>" value="<?= $myLeaderRating ? (int)$myLeaderRating['rating'] : 0 ?>">
+                            <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center;">
+                                <label style="font-size: 13px; font-weight: 600; color: #1F2937;">Score</label>
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <?php for ($r = 1; $r <= 5; $r++) { ?>
+                                            <?php $active = ($myLeaderRating && (int)$myLeaderRating['rating'] >= $r); ?>
+                                            <i class="fa fa-star leader-star-<?= (int)$task['id'] ?>"
+                                               data-value="<?= $r ?>"
+                                               style="cursor: pointer; font-size: 22px; color: <?= $active ? '#F59E0B' : '#D1D5DB' ?>;"
+                                               onmouseover="previewLeaderStars(<?= (int)$task['id'] ?>, <?= $r ?>)"
+                                               onmouseout="restoreLeaderStars(<?= (int)$task['id'] ?>)"
+                                               onclick="setLeaderScore(<?= (int)$task['id'] ?>, <?= $r ?>)"></i>
+                                        <?php } ?>
+                                        <span id="leader-rating-label-<?= (int)$task['id'] ?>" style="margin-left: 4px; font-size: 12px; color: #6B7280;">
+                                            <?= $myLeaderRating ? ((int)$myLeaderRating['rating'] . '/5') : 'Not rated' ?>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <label style="font-size: 13px; font-weight: 600; color: #1F2937;">Comment</label>
+                                <textarea name="comment" class="form-input-v2" rows="2" placeholder="Optional feedback about leadership/collaboration..."><?= $myLeaderRating && !empty($myLeaderRating['comment']) ? htmlspecialchars($myLeaderRating['comment']) : '' ?></textarea>
+                            </div>
+                            <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                                <button type="submit" class="btn-v2 btn-indigo">
+                                    <i class="fa fa-paper-plane"></i> <?= $myLeaderRating ? 'Update Rating' : 'Submit Rating' ?>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <?php } ?>
+
                     <?php if (!empty($members)) { ?>
                     <div class="section-label">Team Members</div>
                     <div style="background: #F0FDFA; border: 1px solid #CCFBF1; border-radius: 8px; padding: 12px; margin-bottom: 24px;">
@@ -660,20 +733,27 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                         
                                         <textarea name="feedback" class="form-input-v2" rows="2" placeholder="Review feedback..." style="width: 100%; margin-bottom: 10px; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px;"></textarea>
                                         
-                                        <div style="margin-bottom: 15px;">
-                                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Performance Score (for Accept)</label>
-                                            <div class="star-rating-<?=$sub['id']?>" style="display: flex; align-items: center; gap: 5px;">
-                                                <?php for($i=1; $i<=5; $i++) { ?>
-                                                    <label style="cursor: pointer; font-size: 24px; color: #D1D5DB; transition: color 0.15s;"
-                                                           onmouseover="highlightStars(<?=$sub['id']?>, <?=$i?>)"
-                                                           onmouseout="resetStars(<?=$sub['id']?>)">
-                                                        <input type="radio" name="score" value="<?=$i?>" style="display: none;" onclick="setScore(<?=$sub['id']?>, <?=$i?>)">
-                                                        <i class="fa fa-star star-<?=$sub['id']?>-<?=$i?>"></i>
-                                                    </label>
-                                                <?php } ?>
-                                                <span id="score-label-<?=$sub['id']?>" style="margin-left: 8px; font-size: 13px; color: #6B7280;">Not rated</span>
+                                        <?php $canScoreSubtask = ((int)$sub['member_id'] !== (int)$_SESSION['id']); ?>
+                                        <?php if ($canScoreSubtask) { ?>
+                                            <div style="margin-bottom: 15px;">
+                                                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Performance Score (for Accept)</label>
+                                                <div class="star-rating-<?=$sub['id']?>" style="display: flex; align-items: center; gap: 5px;">
+                                                    <?php for($i=1; $i<=5; $i++) { ?>
+                                                        <label style="cursor: pointer; font-size: 24px; color: #D1D5DB; transition: color 0.15s;"
+                                                               onmouseover="highlightStars(<?=$sub['id']?>, <?=$i?>)"
+                                                               onmouseout="resetStars(<?=$sub['id']?>)">
+                                                            <input type="radio" name="score" value="<?=$i?>" style="display: none;" onclick="setScore(<?=$sub['id']?>, <?=$i?>)">
+                                                            <i class="fa fa-star star-<?=$sub['id']?>-<?=$i?>"></i>
+                                                        </label>
+                                                    <?php } ?>
+                                                    <span id="score-label-<?=$sub['id']?>" style="margin-left: 8px; font-size: 13px; color: #6B7280;">Not rated</span>
+                                                </div>
                                             </div>
-                                        </div>
+                                        <?php } else { ?>
+                                            <div style="margin-bottom: 15px; background: #FEF3C7; border: 1px solid #FDE68A; color: #92400E; border-radius: 8px; padding: 10px; font-size: 12px;">
+                                                <i class="fa fa-info-circle"></i> Self-scoring is disabled for leader-assigned subtasks.
+                                            </div>
+                                        <?php } ?>
                                         
                                         <div style="display: flex; gap: 8px;">
                                             <button name="action" value="accept" class="btn-v2 btn-green">
@@ -931,6 +1011,43 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             document.getElementById('score-label-' + subId).innerText = score + "/5";
             resetStars(subId); // Force color update
         }
+
+        // Leader rating stars
+        function paintLeaderStars(taskId, score) {
+            var stars = document.querySelectorAll('.leader-star-' + taskId);
+            for (var i = 0; i < stars.length; i++) {
+                var val = parseInt(stars[i].getAttribute('data-value'), 10);
+                stars[i].style.color = (val <= score) ? '#F59E0B' : '#D1D5DB';
+            }
+        }
+
+        function setLeaderScore(taskId, score) {
+            var input = document.getElementById('leader-rating-' + taskId);
+            var label = document.getElementById('leader-rating-label-' + taskId);
+            if (input) input.value = score;
+            if (label) label.innerText = score + '/5';
+            paintLeaderStars(taskId, score);
+        }
+
+        function previewLeaderStars(taskId, score) {
+            paintLeaderStars(taskId, score);
+        }
+
+        function restoreLeaderStars(taskId) {
+            var input = document.getElementById('leader-rating-' + taskId);
+            var current = input ? parseInt(input.value, 10) : 0;
+            paintLeaderStars(taskId, isNaN(current) ? 0 : current);
+        }
+
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form || form.getAttribute('action') !== 'app/rate-leader.php') return;
+            var hidden = form.querySelector('input[name="rating"]');
+            if (!hidden || parseInt(hidden.value, 10) < 1) {
+                e.preventDefault();
+                alert('Please select a star rating.');
+            }
+        });
     </script>
 </body>
 </html>

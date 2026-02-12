@@ -5,6 +5,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
     require_once "app/model/Task.php";
     require_once "app/model/Subtask.php";
     require_once "app/model/user.php";
+    require_once "app/model/LeaderFeedback.php";
 
     $text = "Tasks";
     // Filter Logic
@@ -397,6 +398,27 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         </div>
     </div>
 
+    <?php
+        $taskLeaderMap = [];
+        if (!empty($tasks)) {
+            foreach ($tasks as $taskForLeaderMap) {
+                $taskLeaderMap[(int)$taskForLeaderMap['id']] = null;
+                $taskAssignees = get_task_assignees($pdo, $taskForLeaderMap['id']);
+                if ($taskAssignees != 0) {
+                    foreach ($taskAssignees as $taskAssignee) {
+                        if (($taskAssignee['role'] ?? '') === 'leader') {
+                            $taskLeaderMap[(int)$taskForLeaderMap['id']] = [
+                                'user_id' => (int)$taskAssignee['user_id'],
+                                'full_name' => $taskAssignee['full_name']
+                            ];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    ?>
+
     <!-- MODALS GENERATED OUTSIDE GRID for Layout Safety -->
     <?php if (!empty($tasks)) { 
         foreach ($tasks as $task) { 
@@ -415,11 +437,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             $assignees = get_task_assignees($pdo, $task['id']);
             $leader = null;
             $members = [];
+            $leaderFeedbackRows = [];
             if ($assignees != 0) {
                 foreach ($assignees as $a) {
                     if ($a['role'] == 'leader') $leader = $a;
                     else $members[] = $a;
                 }
+            }
+            if ($leader) {
+                $leaderFeedbackRows = get_leader_feedback_for_task($pdo, $task['id'], $leader['user_id']);
             }
             $subtasks = [];
             try { $subtasks = get_subtasks_by_task($pdo, $task['id']); } catch (Throwable $e) {}
@@ -545,6 +571,69 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                 </div>
             <?php } ?>
 
+            <?php if ($leader) { ?>
+                <div class="section-label">Member Feedback for Leader</div>
+                <div style="background: #EFF6FF; border: 1px solid #DBEAFE; border-radius: 10px; padding: 12px; margin-bottom: 24px;">
+                    <?php if (!empty($leaderFeedbackRows)) { ?>
+                        <?php
+                            $feedbackCount = count($leaderFeedbackRows);
+                            $feedbackSum = 0;
+                            foreach ($leaderFeedbackRows as $fbRow) {
+                                $feedbackSum += (int)$fbRow['rating'];
+                            }
+                            $feedbackRawAvg = $feedbackCount > 0 ? ($feedbackSum / $feedbackCount) : null;
+                            $feedbackAvgSmoothed = smooth_peer_rating($feedbackRawAvg, $feedbackCount);
+                            $feedbackAvg = $feedbackAvgSmoothed !== null ? number_format($feedbackAvgSmoothed, 1) : "0.0";
+                            $feedbackRawLabel = $feedbackRawAvg !== null ? number_format($feedbackRawAvg, 1) : "0.0";
+                        ?>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #BFDBFE;">
+                            <div style="font-size: 12px; font-weight: 600; color: #1E40AF;">
+                                <?= $feedbackCount ?> member rating<?= $feedbackCount > 1 ? 's' : '' ?>
+                            </div>
+                            <div style="font-size: 12px; font-weight: 700; color: #1D4ED8;">
+                                <i class="fa fa-star" style="color:#F59E0B;"></i> <?= $feedbackAvg ?>/5
+                                <span style="font-size: 10px; color: #64748B; font-weight: 500;">
+                                    (raw <?= $feedbackRawLabel ?>)
+                                </span>
+                            </div>
+                        </div>
+                        <div style="display: grid; gap: 10px;">
+                            <?php foreach ($leaderFeedbackRows as $fb) { 
+                                $memberImg = !empty($fb['member_profile_image']) ? 'uploads/' . $fb['member_profile_image'] : 'img/user.png';
+                                $displayWhen = !empty($fb['updated_at']) ? $fb['updated_at'] : $fb['created_at'];
+                            ?>
+                                <div style="background: white; border: 1px solid #DBEAFE; border-radius: 8px; padding: 10px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <img src="<?= $memberImg ?>" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">
+                                            <div>
+                                                <div style="font-size: 13px; font-weight: 600; color: #1F2937;"><?= htmlspecialchars($fb['member_name']) ?></div>
+                                                <div style="font-size: 11px; color: #6B7280;">
+                                                    <?= !empty($displayWhen) ? date("M j, Y g:i A", strtotime($displayWhen)) : 'No date' ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style="font-size: 12px; color: #F59E0B; font-weight: 700; white-space: nowrap;">
+                                            <?php for ($i = 1; $i <= 5; $i++) { echo ($i <= (int)$fb['rating']) ? '<i class="fa fa-star"></i>' : '<i class="fa fa-star-o"></i>'; } ?>
+                                            <span style="color:#374151; margin-left: 4px;"><?= (int)$fb['rating'] ?>/5</span>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($fb['comment'])) { ?>
+                                        <div style="margin-top: 8px; font-size: 13px; color: #374151; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 6px; padding: 8px;">
+                                            <?= nl2br(htmlspecialchars($fb['comment'])) ?>
+                                        </div>
+                                    <?php } ?>
+                                </div>
+                            <?php } ?>
+                        </div>
+                    <?php } else { ?>
+                        <div style="font-size: 13px; color: #64748B;">
+                            No member feedback submitted for this leader yet.
+                        </div>
+                    <?php } ?>
+                </div>
+            <?php } ?>
+
             <!-- Subtasks Accordion -->
             <div class="subtasks-section">
                     <div class="subtasks-header" onclick="$('#subtaskList-<?=$task['id']?>').slideToggle();" style="cursor: pointer;">
@@ -615,8 +704,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                 <input type="hidden" name="action" value="accept">
                 
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 5px;">Performance Rating</label>
-                    <div class="rating-input" id="ratingStars">
+                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 5px;">Task Rating</label>
+                    <div class="rating-input task-rating-input" id="taskRatingStars">
                         <i class="fa fa-star" data-value="1"></i>
                         <i class="fa fa-star" data-value="2"></i>
                         <i class="fa fa-star" data-value="3"></i>
@@ -624,6 +713,23 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         <i class="fa fa-star" data-value="5"></i>
                     </div>
                     <input type="hidden" name="rating" id="ratingValue" value="0">
+                </div>
+
+                <div style="margin-bottom: 15px;" id="leaderRatingBlock">
+                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 5px;">
+                        Leader Rating: <span id="acceptLeaderName" style="font-weight: 600;"></span>
+                    </label>
+                    <div class="rating-input leader-rating-input" id="leaderRatingStars">
+                        <i class="fa fa-star" data-value="1"></i>
+                        <i class="fa fa-star" data-value="2"></i>
+                        <i class="fa fa-star" data-value="3"></i>
+                        <i class="fa fa-star" data-value="4"></i>
+                        <i class="fa fa-star" data-value="5"></i>
+                    </div>
+                    <input type="hidden" name="leader_rating" id="leaderRatingValue" value="0">
+                    <div style="font-size: 11px; color: #6B7280; margin-top: 5px;">
+                        This rates the leader's collaboration and responsibility.
+                    </div>
                 </div>
 
                 <div style="margin-bottom: 15px;">
@@ -690,6 +796,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
     </div>
 
     <script>
+        const taskLeaderMap = <?= json_encode($taskLeaderMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+
         function openTaskModal(taskId) {
             var modal = document.getElementById("modal-task-" + taskId);
             if(modal) {
@@ -711,6 +819,22 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             $("#acceptTaskId").val(id);
             $("#acceptTaskTitle").text(title);
             $("#acceptSubtaskCount").text(subCount);
+
+            $("#ratingValue").val(0);
+            highlightTaskStars(0);
+
+            const leader = taskLeaderMap[String(id)] || null;
+            if (leader && leader.user_id) {
+                $("#acceptLeaderName").text(leader.full_name);
+                $("#leaderRatingBlock").show();
+                $("#leaderRatingValue").val(0);
+                highlightLeaderStars(0);
+            } else {
+                $("#acceptLeaderName").text("N/A");
+                $("#leaderRatingBlock").hide();
+                $("#leaderRatingValue").val(0);
+            }
+
             $("#acceptModal").css("display", "flex").hide().fadeIn(200);
         }
 
@@ -737,32 +861,72 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             $("#deleteTaskModal").fadeOut(200);
         }
 
-         // Rating Star Logic
-        $(".rating-input i").hover(function() {
-            let val = $(this).data('value');
-            highlightStars(val);
+        // Task rating stars
+        $(".task-rating-input i").hover(function() {
+            const val = $(this).data('value');
+            highlightTaskStars(val);
         }, function() {
-            let current = $("#ratingValue").val();
-            highlightStars(current);
+            const current = $("#ratingValue").val();
+            highlightTaskStars(current);
         });
 
-        $(".rating-input i").click(function() {
-            let val = $(this).data('value');
+        $(".task-rating-input i").click(function() {
+            const val = $(this).data('value');
             $("#ratingValue").val(val);
-            highlightStars(val);
+            highlightTaskStars(val);
         });
 
-        function highlightStars(val) {
-            $(".rating-input i").each(function() {
+        function highlightTaskStars(val) {
+            $(".task-rating-input i").each(function() {
                 if ($(this).data('value') <= val) {
-                    $(this).addClass('active');
-                    $(this).css('color', '#F59E0B');
+                    $(this).addClass('active').css('color', '#F59E0B');
                 } else {
-                    $(this).removeClass('active');
-                    $(this).css('color', '#D1D5DB');
+                    $(this).removeClass('active').css('color', '#D1D5DB');
                 }
             });
         }
+
+        // Leader rating stars
+        $(".leader-rating-input i").hover(function() {
+            const val = $(this).data('value');
+            highlightLeaderStars(val);
+        }, function() {
+            const current = $("#leaderRatingValue").val();
+            highlightLeaderStars(current);
+        });
+
+        $(".leader-rating-input i").click(function() {
+            const val = $(this).data('value');
+            $("#leaderRatingValue").val(val);
+            highlightLeaderStars(val);
+        });
+
+        function highlightLeaderStars(val) {
+            $(".leader-rating-input i").each(function() {
+                if ($(this).data('value') <= val) {
+                    $(this).addClass('active').css('color', '#F59E0B');
+                } else {
+                    $(this).removeClass('active').css('color', '#D1D5DB');
+                }
+            });
+        }
+
+        $("#acceptModal form").on("submit", function(e) {
+            const taskRating = parseInt($("#ratingValue").val(), 10) || 0;
+            if (taskRating < 1 || taskRating > 5) {
+                e.preventDefault();
+                alert("Please provide a task rating.");
+                return;
+            }
+
+            if ($("#leaderRatingBlock").is(":visible")) {
+                const leaderRating = parseInt($("#leaderRatingValue").val(), 10) || 0;
+                if (leaderRating < 1 || leaderRating > 5) {
+                    e.preventDefault();
+                    alert("Please provide a leader rating.");
+                }
+            }
+        });
     </script>
     <script>
         $(document).ready(function() {
