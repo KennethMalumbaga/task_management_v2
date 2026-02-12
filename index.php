@@ -18,12 +18,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $avg_rating = "4.3"; // Mock data as per design
         $top_users = get_top_rated_users($pdo, 5);
         $top_groups = get_top_rated_groups($pdo, 5);
+        $collab_stmt = $pdo->query("SELECT AVG(score) FROM subtasks WHERE score IS NOT NULL AND score > 0");
+        $collab_avg = $collab_stmt->fetchColumn();
+        $collaborative_rate = $collab_avg ? number_format($collab_avg, 1) : "0.0";
     } else {
         $num_task = count_my_tasks($pdo, $_SESSION['id']);
         $completed = count_my_completed_tasks($pdo, $_SESSION['id']);
         $num_users = count_users($pdo); // Show total team members
         $stats = get_user_rating_stats($pdo, $_SESSION['id']);
-        $avg_rating = $stats['avg']; 
+        $avg_rating = $stats['avg'];
+        $top_users = get_top_rated_users($pdo, 5);
+        $top_groups = get_top_rated_groups($pdo, 5);
+        $collab_stats = get_collaborative_scores_by_user($pdo, $_SESSION['id']);
+        $collaborative_rate = $collab_stats['avg'];
     }
 
     // 2. Recent Tasks (List 2-3 items)
@@ -109,11 +116,115 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             height: 22px;
             font-size: 10px;
         }
+        .welcome-role-badge {
+            display: inline-block;
+            background: #EEF2FF;
+            color: #4F46E5;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 999px;
+            margin-left: 6px;
+        }
+        .overview-divider {
+            margin: 14px 0;
+            border: none;
+            border-top: 1px solid #E5E7EB;
+        }
+        .employee-overview-card {
+            padding: 24px 28px;
+        }
+        .employee-attendance-box {
+            margin-top: 10px;
+            background: #E9EEFA;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid #D8E2FF;
+        }
+        .employee-attendance-note {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #6B7280;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .employee-right-panels {
+            display: grid;
+            grid-template-columns: 1.25fr 1fr;
+            gap: 12px;
+            min-height: 100%;
+        }
+        .employee-leaderboard-card {
+            padding: 16px;
+            max-height: 460px;
+            overflow: hidden;
+        }
+        .employee-leaderboard-card .leaderboard-list {
+            max-height: 360px;
+            overflow-y: auto;
+        }
+        .employee-leaderboard-card.groups .leaderboard-list {
+            max-height: 360px;
+            overflow-y: visible;
+        }
+        .employee-leaderboard-card .leaderboard-header {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #EEF2FF;
+            padding-bottom: 8px;
+        }
+        .employee-leaderboard-card .leaderboard-item {
+            background: #F3F4F6;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+        }
+        .employee-leaderboard-card .leaderboard-rating {
+            min-width: 42px;
+            justify-content: flex-end;
+        }
+        .employee-leaderboard-card .rank-badge {
+            width: 26px;
+            height: 26px;
+            font-size: 12px;
+        }
+        .employee-leaderboard-card .leaderboard-name {
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .employee-leaderboard-card .leaderboard-meta {
+            font-size: 12px;
+            color: #6B7280;
+        }
+        .employee-leaderboard-card .meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 3px;
+        }
+        .employee-time-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #111827;
+            line-height: 1.1;
+        }
 
         /* Mobile Dashboard Optimizations */
         @media (max-width: 768px) {
             .admin-leaderboard-compact {
                 max-height: none;
+            }
+            .employee-right-panels {
+                grid-template-columns: 1fr;
+            }
+            .employee-leaderboard-card {
+                max-height: none;
+            }
+            .employee-leaderboard-card .leaderboard-list {
+                max-height: 180px;
             }
             .leaderboard-split {
                 grid-template-columns: 1fr;
@@ -262,7 +373,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         <div class="dash-top-grid">
             
             <!-- Time Tracker Card -->
-            <div class="dash-card <?= $_SESSION['role'] == 'admin' ? 'admin-leaderboard-compact' : '' ?>">
+            <div class="dash-card <?= $_SESSION['role'] == 'admin' ? 'admin-leaderboard-compact' : 'employee-overview-card' ?>">
                 <?php if ($_SESSION['role'] == 'admin') { ?>
                     <div class="leaderboard-split">
                         <div class="leaderboard-pane">
@@ -334,6 +445,17 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         </div>
                     </div>
                 <?php } else { ?>
+                    <?php $attStats = get_todays_attendance_stats($pdo, $_SESSION['id']); ?>
+                    <div>
+                        <h3 style="margin-top:0;">Welcome, <?= htmlspecialchars($_SESSION['full_name'] ?? 'User') ?>!</h3>
+                        <div class="welcome-role">Role: <span class="welcome-role-badge"><?= ucfirst($_SESSION['role']) ?></span></div>
+                        <div style="margin-top: 14px; font-size: 13px; color: #6B7280; line-height: 1.6;">
+                            You have <b><?= $num_task - $completed ?></b> active tasks remaining effectively. Keep up the good work!
+                        </div>
+                    </div>
+
+                    <hr class="overview-divider">
+
                     <div class="time-tracker-header">
                         <div class="time-tracker-title">
                             <i class="fa fa-clock-o" style="color: #4F46E5;"></i> 
@@ -344,73 +466,120 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         </div>
                     </div>
 
-                    <!-- Employee Clock In/Out -->
-                    <div style="margin-bottom: 20px;">
-                        <button id="btnTimeIn" class="btn-clock-in" style="display: flex;">
+                    <div style="margin-bottom: 6px;">
+                        <button id="btnTimeIn" class="btn-clock-in" style="display: flex; padding: 9px 12px; font-size: 16px;">
                             <i class="fa fa-play"></i> Clock In
                         </button>
-                        <button id="btnTimeOut" class="btn-clock-out" disabled style="display: none;">
+                        <button id="btnTimeOut" class="btn-clock-out" disabled style="display: none; padding: 9px 12px; font-size: 16px;">
                             <i class="fa fa-pause"></i> Clock Out/Pause
                         </button>
                     </div>
-                    <div class="screenshot-info">
+                    <div class="employee-attendance-note">
                         <i class="fa fa-camera"></i>
-                        <span id="attendanceStatus">Screen captures are taken randomly for activity tracking</span>
-                    </div>
-                <?php } ?>
-            </div>
-
-            <!-- Welcome Card -->
-            <div class="dash-card welcome-card">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <h3>Welcome, <?= htmlspecialchars($_SESSION['full_name'] ?? 'User') ?>!</h3>
-                        <div class="welcome-role">Role: <?= ucfirst($_SESSION['role']) ?></div>
-                        <div style="margin-top: 20px; font-size: 13px; color: #6B7280; line-height: 1.6;">
-                            You have <b><?= $num_task - $completed ?></b> active tasks remaining effectively. <br>
-                            Keep up the good work!
-                        </div>
+                        <span id="attendanceStatus">Screen captures taken randomly</span>
                     </div>
 
-                    <!-- Attendance Stats Display -->
-                    <?php if ($_SESSION['role'] !== 'admin') { 
-                        $attStats = get_todays_attendance_stats($pdo, $_SESSION['id']);
-                    ?>
-                    <div style="text-align: right; background: #EEF2FF; padding: 15px; border-radius: 12px; border: 1px solid #E0E7FF; min-width: 140px;">
-                        <!-- Time In -->
-                        <div style="margin-bottom: 8px;">
-                            <div style="font-size: 10px; color: #6366F1; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Time In</div>
-                            <div style="font-size: 18px; font-weight: 700; color: #1F2937;">
-                                <i class="fa fa-clock-o" style="color: #6B7280; font-size: 14px; margin-right: 4px;"></i>
+                    <div class="employee-attendance-box">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 6px;">
+                            <div class="employee-time-title">
+                                <i class="fa fa-clock-o" style="color: #6B7280; font-size: 16px; margin-right: 4px;"></i>
                                 <span id="statTimeIn"><?= $attStats['time_in'] ?></span>
                             </div>
-                            <!-- Time Out -->
-                             <div style="font-size: 12px; color: #6B7280; margin-top: 2px;">
-                                <span id="statTimeOutWrapper"><span style="font-size: 10px; opacity: 0.7;">OUT:</span> <span id="statTimeOut"><?= $attStats['time_out'] ?></span></span>
-                            </div>
+                            <div style="font-size: 11px; color: #4F46E5; font-weight:700;">TIME IN</div>
                         </div>
-
-                        <!-- Total Duration: Split Layout -->
-                        <div style="border-top: 1px solid #C7D2FE; padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; gap: 10px;">
-                             <!-- Left: Today -->
+                        <div style="font-size: 12px; color: #6B7280; margin-bottom: 6px;">
+                            OUT: <span id="statTimeOut"><?= $attStats['time_out'] ?></span>
+                        </div>
+                        <div style="border-top: 1px solid #C7D2FE; padding-top: 6px; margin-top: 6px; display: flex; justify-content: space-between; gap: 8px;">
                              <div style="text-align: left;">
-                                 <div style="font-size: 9px; color: #6366F1; text-transform: uppercase; font-weight: 700;">Today</div>
-                                 <div style="font-size: 16px; font-weight: 800; color: #4F46E5;">
+                                 <div style="font-size: 10px; color: #6B7280; text-transform: uppercase; font-weight: 700;">Today</div>
+                                 <div style="font-size: 24px; font-weight: 800; color: #4F46E5; line-height: 1;">
                                     <?= $attStats['daily_duration'] ?>
                                  </div>
                              </div>
-                             <!-- Right: Overall -->
                              <div style="text-align: right;">
-                                 <div style="font-size: 9px; color: #6B7280; text-transform: uppercase; font-weight: 700;">All Time</div>
-                                 <div style="font-size: 16px; font-weight: 800; color: #374151;">
+                                 <div style="font-size: 10px; color: #6B7280; text-transform: uppercase; font-weight: 700;">All Time</div>
+                                 <div style="font-size: 24px; font-weight: 800; color: #4F46E5; line-height: 1;">
                                     <?= $attStats['overall_duration'] ?>
                                  </div>
                              </div>
                         </div>
                     </div>
+                <?php } ?>
+            </div>
+
+            <?php if ($_SESSION['role'] == 'admin') { ?>
+            <div class="dash-card welcome-card">
+                <div>
+                    <h3>Welcome, <?= htmlspecialchars($_SESSION['full_name'] ?? 'User') ?>!</h3>
+                    <div class="welcome-role">Role: <?= ucfirst($_SESSION['role']) ?></div>
+                    <div style="margin-top: 20px; font-size: 13px; color: #6B7280; line-height: 1.6;">
+                        You have <b><?= $num_task - $completed ?></b> active tasks remaining effectively. <br>
+                        Keep up the good work!
+                    </div>
+                </div>
+            </div>
+            <?php } else { ?>
+            <div class="employee-right-panels">
+                <div class="dash-card employee-leaderboard-card groups">
+                    <div class="leaderboard-header">
+                        <div class="leaderboard-title"><i class="fa fa-sitemap" style="color: #10B981;"></i> Top Groups</div>
+                        <a href="groups.php" style="font-size:12px; color:#4F46E5; text-decoration:none; font-weight:600;">View All</a>
+                    </div>
+                    <?php if (!empty($top_groups)) { ?>
+                        <div class="leaderboard-list">
+                            <?php foreach (array_slice($top_groups, 0, 4) as $idx => $g) { 
+                                $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#6366F1' : '#10B981');
+                            ?>
+                            <div class="leaderboard-item">
+                                <div class="rank-badge" style="background: <?= $rankColor ?>;"><?= $idx + 1 ?></div>
+                                <div class="leaderboard-info">
+                                    <div class="leaderboard-name"><?= htmlspecialchars($g['group_name']) ?></div>
+                                    <div class="meta-row">
+                                        <div class="leaderboard-meta"><?= (int)$g['member_count'] ?> members</div>
+                                        <div class="leaderboard-meta"><?= (int)$g['rated_task_count'] ?> tasks</div>
+                                    </div>
+                                </div>
+                                <div class="leaderboard-rating">
+                                    <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($g['avg_rating']) ?>
+                                </div>
+                            </div>
+                            <?php } ?>
+                        </div>
+                    <?php } else { ?>
+                        <div class="leaderboard-empty"><i class="fa fa-info-circle"></i> No group ratings yet.</div>
+                    <?php } ?>
+                </div>
+
+                <div class="dash-card employee-leaderboard-card">
+                    <div class="leaderboard-header">
+                        <div class="leaderboard-title"><i class="fa fa-crown" style="color: #D4A017;"></i> Top Users</div>
+                    </div>
+                    <?php if (!empty($top_users)) { ?>
+                        <div class="leaderboard-list">
+                            <?php foreach ($top_users as $idx => $u) { 
+                                $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#6366F1' : '#10B981');
+                                $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
+                            ?>
+                            <div class="leaderboard-item">
+                                <div class="rank-badge" style="background: <?= $rankColor ?>;"><?= $idx + 1 ?></div>
+                                <img src="<?= $avatar ?>" class="leaderboard-avatar" alt="User">
+                                <div class="leaderboard-info">
+                                    <div class="leaderboard-name"><?= htmlspecialchars($u['full_name']) ?></div>
+                                    <div class="leaderboard-meta"><?= (int)$u['rated_task_count'] ?> tasks</div>
+                                </div>
+                                <div class="leaderboard-rating">
+                                    <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($u['avg_rating']) ?>
+                                </div>
+                            </div>
+                            <?php } ?>
+                        </div>
+                    <?php } else { ?>
+                        <div class="leaderboard-empty"><i class="fa fa-info-circle"></i> No employee ratings yet.</div>
                     <?php } ?>
                 </div>
             </div>
+            <?php } ?>
         </div>
 
             <!-- Stats Section (Moved Up) -->
@@ -437,11 +606,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     </div>
                 </div>
 
-                <!-- Team Members -->
+                <!-- Collaborative Rate -->
                 <div class="stat-card">
                     <div class="stat-info">
-                        <h4>Team Members</h4>
-                        <span><?= $num_users ?></span>
+                        <h4>Collaborative Rate</h4>
+                        <span><?= $collaborative_rate ?></span>
                     </div>
                     <div class="stat-icon icon-purple">
                         <i class="fa fa-users"></i>

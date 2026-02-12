@@ -164,7 +164,7 @@ body.auth-body {
 
 .form-control {
     width: 100%;
-    padding: 12px 12px 12px 40px; /* Space for icon */
+    padding: 12px;
     border: 1px solid #D1D5DB;
     border-radius: 8px;
     font-size: 14px;
