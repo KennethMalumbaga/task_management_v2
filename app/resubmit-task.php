@@ -6,6 +6,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         include "../DB_connection.php";
         include "model/Notification.php";
         include "model/Task.php";
+        include "model/LeaderFeedback.php";
 
         function validate_input($data) {
             $data = trim($data);
@@ -47,6 +48,10 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$note, $task_id]);
         }
+
+        // Clear any previous per-assignee ratings for the new review cycle.
+        clear_task_assignee_ratings($pdo, $task_id);
+        clear_leader_feedback_for_task($pdo, $task_id);
 
         // Notify Admin(s)
         $stmt2 = $pdo->prepare("SELECT id FROM users WHERE role = 'admin'");

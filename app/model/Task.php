@@ -179,10 +179,20 @@ function get_all_tasks_completed($pdo){
 }
 
 function get_task_assignees($pdo, $task_id){
-    $sql = "SELECT u.full_name, ta.role, ta.user_id, u.profile_image 
-            FROM users u 
-            JOIN task_assignees ta ON u.id = ta.user_id 
-            WHERE ta.task_id = ?";
+    $has_rating = column_exists($pdo, 'task_assignees', 'performance_rating');
+    $has_comment = column_exists($pdo, 'task_assignees', 'rating_comment');
+
+    if ($has_rating && $has_comment) {
+        $sql = "SELECT u.full_name, ta.role, ta.user_id, u.profile_image, ta.performance_rating, ta.rating_comment 
+                FROM users u 
+                JOIN task_assignees ta ON u.id = ta.user_id 
+                WHERE ta.task_id = ?";
+    } else {
+        $sql = "SELECT u.full_name, ta.role, ta.user_id, u.profile_image, NULL AS performance_rating, NULL AS rating_comment
+                FROM users u 
+                JOIN task_assignees ta ON u.id = ta.user_id 
+                WHERE ta.task_id = ?";
+    }
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$task_id]);
     
@@ -191,6 +201,44 @@ function get_task_assignees($pdo, $task_id){
     }else{
         return 0; // Keeping 0 to match tasks.php check: if ($assignees != 0)
     }
+}
+
+function task_assignee_rating_columns_exist($pdo){
+    return column_exists($pdo, 'task_assignees', 'performance_rating')
+        && column_exists($pdo, 'task_assignees', 'rated_by')
+        && column_exists($pdo, 'task_assignees', 'rated_at')
+        && column_exists($pdo, 'task_assignees', 'rating_comment');
+}
+
+function update_task_assignee_ratings($pdo, $task_id, $ratings, $rated_by, $comments = []){
+    if (!task_assignee_rating_columns_exist($pdo)) {
+        return false;
+    }
+
+    $sql = "UPDATE task_assignees 
+            SET performance_rating = ?, rating_comment = ?, rated_by = ?, rated_at = NOW()
+            WHERE task_id = ? AND user_id = ?";
+    $stmt = $pdo->prepare($sql);
+
+    foreach ($ratings as $user_id => $rating) {
+        $comment = isset($comments[$user_id]) ? $comments[$user_id] : null;
+        $stmt->execute([(int)$rating, $comment, (int)$rated_by, (int)$task_id, (int)$user_id]);
+    }
+
+    return true;
+}
+
+function clear_task_assignee_ratings($pdo, $task_id){
+    if (!task_assignee_rating_columns_exist($pdo)) {
+        return false;
+    }
+
+    $sql = "UPDATE task_assignees
+            SET performance_rating = NULL, rating_comment = NULL, rated_by = NULL, rated_at = NULL
+            WHERE task_id = ?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([(int)$task_id]);
+    return true;
 }
 
 /* ---------------------------------------------

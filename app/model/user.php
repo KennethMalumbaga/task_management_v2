@@ -198,50 +198,65 @@ function is_user_clocked_in($pdo, $user_id)
 
 function get_top_rated_users($pdo, $limit = 5)
 {
-    $sql = "SELECT u.id,
-                   u.full_name,
-                   u.profile_image,
-                   COALESCE(ts.rated_task_count, 0) AS rated_task_count,
-                   COALESCE(cs.collab_score_count, 0) AS collab_score_count,
-                   ROUND(COALESCE(ts.avg_task_rating, 0)::numeric, 1) AS avg_task_rating,
-                   ROUND(COALESCE(cs.avg_collab_rating, 0)::numeric, 1) AS avg_collab_rating,
-                   ROUND(
-                       COALESCE(
-                           (
-                               COALESCE(ts.avg_task_rating, 0) + COALESCE(cs.avg_collab_rating, 0)
-                           ) / NULLIF(
-                               (CASE WHEN ts.avg_task_rating IS NOT NULL THEN 1 ELSE 0 END) +
-                               (CASE WHEN cs.avg_collab_rating IS NOT NULL THEN 1 ELSE 0 END),
-                               0
-                           ),
-                           0
-                       )::numeric,
-                       1
-                   ) AS avg_rating
-            FROM users u
-            LEFT JOIN (
-                SELECT ta.user_id,
-                       COUNT(t.id) AS rated_task_count,
-                       AVG(t.rating) AS avg_task_rating
-                FROM task_assignees ta
-                JOIN tasks t ON t.id = ta.task_id
-                WHERE t.status = 'completed' AND t.rating > 0
-                GROUP BY ta.user_id
-            ) ts ON ts.user_id = u.id
-            LEFT JOIN (
-                SELECT s.member_id AS user_id,
-                       COUNT(s.id) AS collab_score_count,
-                       AVG(s.score) AS avg_collab_rating
-                FROM subtasks s
-                WHERE s.score IS NOT NULL AND s.score > 0
-                GROUP BY s.member_id
-            ) cs ON cs.user_id = u.id
-            WHERE u.role = 'employee'
-              AND (COALESCE(ts.rated_task_count, 0) > 0 OR COALESCE(cs.collab_score_count, 0) > 0)
-            ORDER BY avg_rating DESC,
-                     (COALESCE(ts.rated_task_count, 0) + COALESCE(cs.collab_score_count, 0)) DESC
-            LIMIT ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$limit]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare("SELECT id, full_name, profile_image FROM users WHERE role = 'employee'");
+    $stmt->execute();
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $rows = [];
+    foreach ($users as $u) {
+        $task_stats = get_user_rating_stats($pdo, $u['id']);
+        $rated_task_count = (int)($task_stats['count'] ?? 0);
+        $avg_task_rating = $rated_task_count > 0 ? (float)$task_stats['avg'] : null;
+
+        $collab_score_count = 0;
+        $avg_collab_rating = null;
+        if (function_exists('get_collaborative_scores_by_user')) {
+            $collab_stats = get_collaborative_scores_by_user($pdo, $u['id']);
+            $collab_score_count = (int)($collab_stats['count'] ?? 0);
+            $avg_collab_rating = $collab_score_count > 0 ? (float)$collab_stats['avg'] : null;
+        }
+
+        if ($rated_task_count === 0 && $collab_score_count === 0) {
+            continue;
+        }
+
+        $parts = 0;
+        $sum = 0.0;
+        if ($avg_task_rating !== null) {
+            $sum += $avg_task_rating;
+            $parts++;
+        }
+        if ($avg_collab_rating !== null) {
+            $sum += $avg_collab_rating;
+            $parts++;
+        }
+        $avg_rating = $parts > 0 ? $sum / $parts : 0.0;
+
+        $rows[] = [
+            'id' => (int)$u['id'],
+            'full_name' => $u['full_name'],
+            'profile_image' => $u['profile_image'],
+            'rated_task_count' => $rated_task_count,
+            'collab_score_count' => $collab_score_count,
+            'avg_task_rating' => number_format($avg_task_rating ?? 0, 1),
+            'avg_collab_rating' => number_format($avg_collab_rating ?? 0, 1),
+            'avg_rating' => number_format($avg_rating, 1)
+        ];
+    }
+
+    usort($rows, function ($a, $b) {
+        $a_avg = (float)$a['avg_rating'];
+        $b_avg = (float)$b['avg_rating'];
+        if ($a_avg !== $b_avg) {
+            return $a_avg < $b_avg ? 1 : -1;
+        }
+        $a_total = (int)$a['rated_task_count'] + (int)$a['collab_score_count'];
+        $b_total = (int)$b['rated_task_count'] + (int)$b['collab_score_count'];
+        if ($a_total !== $b_total) {
+            return $a_total < $b_total ? 1 : -1;
+        }
+        return strcmp((string)$a['full_name'], (string)$b['full_name']);
+    });
+
+    return array_slice($rows, 0, (int)$limit);
 }
