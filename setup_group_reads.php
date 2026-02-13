@@ -1,5 +1,8 @@
 <?php
+include "maintenance_guard.php";
 include "DB_connection.php";
+
+enforce_maintenance_script_access();
 
 try {
     $sql = "CREATE TABLE IF NOT EXISTS group_message_reads (

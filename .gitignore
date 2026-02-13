@@ -1,1 +1,7 @@
+.env
 .env.local
+.env.*.local
+uploads/
+screenshots/
+*.backup
+screenshot_debug.log

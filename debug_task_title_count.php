@@ -1,5 +1,8 @@
 <?php
+include "maintenance_guard.php";
 include "DB_connection.php";
+
+enforce_maintenance_script_access();
 
 $title = "Fireguard";
 $stmt = $pdo->prepare("SELECT id, title, status, created_at FROM tasks WHERE LOWER(title) = LOWER(?) ORDER BY id DESC");

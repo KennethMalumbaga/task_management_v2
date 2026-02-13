@@ -1,5 +1,8 @@
 <?php
+include "maintenance_guard.php";
 include "DB_connection.php";
+
+enforce_maintenance_script_access();
 
 $sql = "SELECT COALESCE(type, 'NULL') AS grp_type, COUNT(*) AS cnt
         FROM groups

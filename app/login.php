@@ -36,6 +36,8 @@ if (isset($_POST['user_name']) && isset($_POST['password'])) {
 
        	   if ($user_name === $usernameDb) {
 	       	   	if (password_verify($password, $passwordDb)) {
+                    // Prevent session fixation after successful authentication.
+                    session_regenerate_id(true);
 	       	   		if ($role == "admin") {
 	       	   			$_SESSION['role'] = $role;
 	       	   			$_SESSION['id'] = $id;

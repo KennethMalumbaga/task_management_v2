@@ -12,24 +12,33 @@
  * Usage: Visit http://localhost/task_management_v2/reset_database.php in your browser
  */
 
+include "maintenance_guard.php";
 include "DB_connection.php";
+
+enforce_maintenance_script_access();
 
 try {
     echo "<h2>Resetting Database...</h2>";
     echo "<ul>";
     
-    // Disable foreign key checks
-    $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
-    
-    // Truncate all tables
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
     $tables = ['screenshots', 'attendance', 'notifications', 'tasks', 'users'];
-    foreach ($tables as $table) {
-        $pdo->exec("TRUNCATE TABLE `$table`");
-        echo "<li>✓ Cleared table: $table</li>";
+
+    if ($driver === 'pgsql') {
+        $tableList = implode(', ', $tables);
+        $pdo->exec("TRUNCATE TABLE {$tableList} RESTART IDENTITY CASCADE");
+        foreach ($tables as $table) {
+            echo "<li>✓ Cleared table: $table</li>";
+        }
+    } else {
+        // Legacy MySQL fallback
+        $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
+        foreach ($tables as $table) {
+            $pdo->exec("TRUNCATE TABLE `$table`");
+            echo "<li>✓ Cleared table: $table</li>";
+        }
+        $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
     }
-    
-    // Re-enable foreign key checks
-    $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
     
     // Generate password hash and insert admin user
     $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
@@ -51,7 +60,14 @@ try {
 } catch(PDOException $e) {
     echo "<h2 style='color: red;'>Error occurred:</h2>";
     echo "<p>" . htmlspecialchars($e->getMessage()) . "</p>";
-    $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
+    try {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver !== 'pgsql') {
+            $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
+        }
+    } catch (Throwable $ignored) {
+        // no-op
+    }
 }
 
 

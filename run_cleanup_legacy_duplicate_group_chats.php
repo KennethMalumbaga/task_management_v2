@@ -1,6 +1,9 @@
 <?php
+include "maintenance_guard.php";
 include "DB_connection.php";
 include "app/model/Group.php";
+
+enforce_maintenance_script_access();
 
 $sql = "SELECT name
         FROM groups

@@ -8,7 +8,10 @@
  * Usage: Visit http://localhost/task_management_v2/run_migration_task_assignees.php in your browser
  */
 
+include "maintenance_guard.php";
 include "DB_connection.php";
+
+enforce_maintenance_script_access();
 
 try {
     echo "<h2>Running Migration: Add Task Assignees Support</h2>";
@@ -30,7 +33,7 @@ try {
     CREATE INDEX IF NOT EXISTS idx_task_assignees_task_id ON task_assignees (task_id);
     CREATE INDEX IF NOT EXISTS idx_task_assignees_user_id ON task_assignees (user_id);";
     
-    $conn->exec($sql);
+    $pdo->exec($sql);
     echo "<li>✓ Created table: task_assignees</li>";
     echo "</ul>";
     

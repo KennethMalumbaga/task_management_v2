@@ -11,6 +11,11 @@ require '../lib/PHPMailer/src/SMTP.php';
 include "mail_config.php";
 
 function send_confirmation_email($to_email, $full_name, $password) {
+    if (MAIL_USERNAME === '' || MAIL_PASSWORD === '') {
+        error_log('Mail not configured: set MAIL_USERNAME and MAIL_PASSWORD environment variables.');
+        return false;
+    }
+
     $mail = new PHPMailer(true);
 
     try {
@@ -31,13 +36,14 @@ function send_confirmation_email($to_email, $full_name, $password) {
         //Content
         $mail->isHTML(true);                                  //Set email format to HTML
         $mail->Subject = 'Welcome to Task Management System';
+        $login_url = APP_URL . '/login.php';
         $mail->Body    = "
             <h1>Welcome, $full_name!</h1>
             <p>Thank you for registering with the Task Management System.</p>
             <p>Your account has been successfully created.</p>
             <p><strong>Your Password is:</strong> <span style='font-size: 1.2em; color: #333;'>$password</span></p>
             <p>Please keep this password secure. You can change it after logging in.</p>
-            <p>You can now <a href='http://localhost/task_management_v2/login.php'>login</a> to your account.</p>
+            <p>You can now <a href='{$login_url}'>login</a> to your account.</p>
             <br>
             <p>Regards,<br>The Team</p>
         ";
@@ -53,6 +59,11 @@ function send_confirmation_email($to_email, $full_name, $password) {
 
 
 function send_password_reset_email($to_email, $full_name, $token) {
+    if (MAIL_USERNAME === '' || MAIL_PASSWORD === '') {
+        error_log('Mail not configured: set MAIL_USERNAME and MAIL_PASSWORD environment variables.');
+        return false;
+    }
+
     $mail = new PHPMailer(true);
 
     try {
@@ -72,7 +83,7 @@ function send_password_reset_email($to_email, $full_name, $token) {
 
         //Content
         $mail->isHTML(true);
-        $url = "http://localhost/task_management_v2/reset-password.php?token=$token";
+        $url = APP_URL . "/reset-password.php?token=$token";
         
         $mail->Subject = 'Password Reset Request';
         $mail->Body    = "

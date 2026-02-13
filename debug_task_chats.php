@@ -1,5 +1,8 @@
 <?php
+include "maintenance_guard.php";
 include "DB_connection.php";
+
+enforce_maintenance_script_access();
 
 $sql = "SELECT g.id, g.name, g.type, g.task_id, g.created_at,
                EXISTS(SELECT 1 FROM tasks t WHERE t.id = g.task_id) AS task_exists_by_id,

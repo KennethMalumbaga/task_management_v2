@@ -1,5 +1,8 @@
 <?php
+include "maintenance_guard.php";
 include "DB_connection.php";
+
+enforce_maintenance_script_access();
 
 $sql = "SELECT conname, pg_get_constraintdef(c.oid) AS def
         FROM pg_constraint c

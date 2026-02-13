@@ -5,6 +5,9 @@
  */
 
 include "DB_connection.php";
+include "maintenance_guard.php";
+
+enforce_maintenance_script_access();
 
 try {
     $sql = "CREATE TABLE IF NOT EXISTS leader_feedback (

@@ -1,4 +1,8 @@
 <?php
+include "maintenance_guard.php";
+
+enforce_maintenance_script_access();
+
 /**
  * Get password hash for admin123
  * Visit this file in your browser: http://localhost/task_management_v2/get_password_hash.php
