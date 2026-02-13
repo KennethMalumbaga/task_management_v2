@@ -81,7 +81,7 @@
             <a href="profile.php" class="dash-nav-item <?= isActive('profile.php') ?>">
                 <i class="fa fa-user-o"></i> Profile
             </a>
-            <a href="logout.php" class="dash-nav-item">
+            <a href="logout.php" class="dash-nav-item js-logout-link">
                 <i class="fa fa-sign-out"></i> Logout
             </a>
         <?php } else { ?>
@@ -114,9 +114,66 @@
             <a href="profile.php" class="dash-nav-item <?= isActive('profile.php') ?>">
                 <i class="fa fa-user-o"></i> Profile
             </a>
-            <a href="logout.php" class="dash-nav-item">
+            <a href="logout.php" class="dash-nav-item js-logout-link">
                 <i class="fa fa-sign-out"></i> Logout
             </a>
         <?php } ?>
     </nav>
 </div>
+
+<div id="logoutConfirmModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1200; align-items:center; justify-content:center;">
+    <div style="background:#fff; width:min(92vw, 360px); border-radius:12px; padding:22px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.15);">
+        <div style="width:46px; height:46px; margin:0 auto 12px; border-radius:50%; background:#FEF3C7; color:#B45309; display:flex; align-items:center; justify-content:center; font-size:18px;">
+            <i class="fa fa-sign-out"></i>
+        </div>
+        <h3 style="margin:0 0 8px; font-size:20px; color:#111827;">Logout?</h3>
+        <p style="margin:0 0 16px; font-size:14px; color:#6B7280;">Are you sure you want to logout?</p>
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button type="button" id="logoutCancelBtn" style="border:none; border-radius:8px; background:#F3F4F6; color:#374151; padding:10px 16px; font-weight:600; cursor:pointer;">Cancel</button>
+            <button type="button" id="logoutConfirmBtn" style="border:none; border-radius:8px; background:#EF4444; color:#fff; padding:10px 16px; font-weight:600; cursor:pointer;">Yes, Logout</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var links = document.querySelectorAll('a.js-logout-link');
+        if (!links.length) return;
+
+        var modal = document.getElementById('logoutConfirmModal');
+        var cancelBtn = document.getElementById('logoutCancelBtn');
+        var confirmBtn = document.getElementById('logoutConfirmBtn');
+        var pendingHref = 'logout.php';
+
+        function openModal(href) {
+            pendingHref = href || 'logout.php';
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            if (modal) modal.style.display = 'none';
+        }
+
+        links.forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                openModal(link.getAttribute('href'));
+            });
+        });
+
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function () {
+                try {
+                    localStorage.setItem('taskflow_force_stop_capture', String(Date.now()));
+                } catch (e) {}
+                window.location.href = pendingHref;
+            });
+        }
+        if (modal) {
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) closeModal();
+            });
+        }
+    })();
+</script>

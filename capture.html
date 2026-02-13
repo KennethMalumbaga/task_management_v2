@@ -125,13 +125,16 @@
             attendanceCheckInterval = setInterval(async () => {
                 try {
                     const res = await fetch('check_attendance.php', { cache: 'no-store' });
-                    if (!res.ok) return;
+                    if (!res.ok) {
+                        stopCaptureAndClose('Session ended.');
+                        return;
+                    }
                     const data = await res.json();
-                    if (data.status === 'success' && data.has_active_attendance === false) {
+                    if ((data.status === 'success' && data.has_active_attendance === false) || data.status === 'error') {
                         stopCaptureAndClose('Session ended.');
                     }
                 } catch (e) {
-                    // Ignore transient errors
+                    stopCaptureAndClose('Session ended.');
                 }
             }, 15000);
         }
@@ -222,6 +225,12 @@
         }
 
         // Auto-start
+        window.addEventListener('storage', function (event) {
+            if (event.key === 'taskflow_force_stop_capture' && event.newValue) {
+                stopCaptureAndClose('Logged out. Screen sharing stopped.');
+            }
+        });
+
         if (attendanceId) {
             startCapture();
         } else {
