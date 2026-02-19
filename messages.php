@@ -47,6 +47,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             return strtotime($b['last_msg_time'] ?? '1970-01-01 00:00:00') - strtotime($a['last_msg_time'] ?? '1970-01-01 00:00:00');
         });
     }
+    $dashboardCssVersion = @filemtime(__DIR__ . "/css/dashboard.css") ?: time();
+    $chatCssVersion = @filemtime(__DIR__ . "/css/chat.css") ?: time();
+    $chatAttachmentsCssVersion = @filemtime(__DIR__ . "/css/chat_attachments.css") ?: time();
 ?>
 <!DOCTYPE html>
 <html>
@@ -59,9 +62,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Icons -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/chat.css">
-    <link rel="stylesheet" href="css/chat_attachments.css">
+    <link rel="stylesheet" href="css/dashboard.css?v=<?= $dashboardCssVersion ?>">
+    <link rel="stylesheet" href="css/chat.css?v=<?= $chatCssVersion ?>">
+    <link rel="stylesheet" href="css/chat_attachments.css?v=<?= $chatAttachmentsCssVersion ?>">
     
     <!-- jQuery for AJAX -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
