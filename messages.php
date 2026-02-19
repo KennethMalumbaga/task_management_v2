@@ -485,9 +485,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                          totalSize += selectedFiles[i].size;
                      }
                      
-                     // Warning if > 100MB
-                     if(totalSize > 100 * 1024 * 1024) {
-                         html += `<div style="color: red; font-size: 12px; margin-top: 5px;">Total size exceeds 100MB!</div>`;
+                     // Warning if > 50MB
+                     if(totalSize > 50 * 1024 * 1024) {
+                         html += `<div style="color: red; font-size: 12px; margin-top: 5px;">Total size exceeds 50MB!</div>`;
                      }
 
                      $("#fileName").html(html); // We are replacing the simple span with list
@@ -590,8 +590,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 for(var i=0; i<selectedFiles.length; i++){
                     totalSize += selectedFiles[i].size;
                 }
-                if(totalSize > 100 * 1024 * 1024) {
-                    alert("Total file size exceeds 100MB limit.");
+                if(totalSize > 50 * 1024 * 1024) {
+                    alert("Total file size exceeds 50MB limit.");
                     return;
                 }
 
@@ -904,5 +904,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
 ?>
+
 
 

@@ -43,11 +43,53 @@ if (!function_exists('tm_load_env_file')) {
 tm_load_env_file(dirname(__DIR__) . '/.env.local');
 tm_load_env_file(dirname(__DIR__) . '/.env');
 
+if (!function_exists('tm_detect_app_url')) {
+    function tm_detect_app_url()
+    {
+        $scheme = 'http';
+        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+            $forwarded = strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']);
+            if ($forwarded === 'https' || $forwarded === 'http') {
+                $scheme = $forwarded;
+            }
+        } elseif (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off') {
+            $scheme = 'https';
+        }
+
+        $host = trim((string)($_SERVER['HTTP_HOST'] ?? 'localhost'));
+        if ($host === '') {
+            $host = 'localhost';
+        }
+
+        $scriptDir = str_replace('\\', '/', (string)dirname((string)($_SERVER['SCRIPT_NAME'] ?? '')));
+        if ($scriptDir === '.' || $scriptDir === '/') {
+            $scriptDir = '';
+        }
+        if ($scriptDir !== '' && str_ends_with($scriptDir, '/app')) {
+            $scriptDir = substr($scriptDir, 0, -4);
+        }
+
+        if ($scriptDir === '') {
+            $projectDirName = basename(dirname(__DIR__));
+            if ($projectDirName !== '') {
+                $scriptDir = '/' . $projectDirName;
+            }
+        }
+
+        return rtrim($scheme . '://' . $host . $scriptDir, '/');
+    }
+}
+
+$appUrl = trim((string)(getenv('APP_URL') ?: ''));
+if ($appUrl === '') {
+    $appUrl = tm_detect_app_url();
+}
+
 define('MAIL_HOST', getenv('MAIL_HOST') ?: 'smtp.gmail.com');
 define('MAIL_USERNAME', getenv('MAIL_USERNAME') ?: 'taskflowcore@gmail.com');
 define('MAIL_PASSWORD', getenv('MAIL_PASSWORD') ?: '');
 define('MAIL_PORT', (int)(getenv('MAIL_PORT') ?: 587));
 define('MAIL_FROM_ADDRESS', getenv('MAIL_FROM_ADDRESS') ?: MAIL_USERNAME);
 define('MAIL_FROM_NAME', getenv('MAIL_FROM_NAME') ?: 'Task Management System');
-define('APP_URL', rtrim(getenv('APP_URL') ?: 'http://localhost/task_management_v2', '/'));
+define('APP_URL', rtrim($appUrl !== '' ? $appUrl : 'http://localhost/task_management', '/'));
 ?>

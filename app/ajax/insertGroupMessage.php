@@ -44,7 +44,7 @@ if (isset($_SESSION['id'])) {
                     $file_size = $_FILES['files']['size'][$i];
                     $ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
-                    if (in_array($ext, $allowed) && $file_size <= 100 * 1024 * 1024) {
+                    if (in_array($ext, $allowed) && $file_size <= 50 * 1024 * 1024) {
                         $new_filename = "group_chat_" . time() . "_" . $i . "_" . $from_id . "." . $ext;
                         if (move_uploaded_file($file_tmp, "$upload_dir/$new_filename")) {
                             insert_group_attachment($pdo, $msg_id, $new_filename);
@@ -55,3 +55,4 @@ if (isset($_SESSION['id'])) {
         }
     }
 }
+

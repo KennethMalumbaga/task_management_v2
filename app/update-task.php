@@ -53,9 +53,9 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
                exit();
            }
            
-           // Max 100MB
-           if ($file['size'] > 100 * 1024 * 1024) {
-               $em = "Template file is too large. Maximum allowed size is 100MB.";
+           // Max 50MB
+           if ($file['size'] > 50 * 1024 * 1024) {
+               $em = "Template file is too large. Maximum allowed size is 50MB.";
                header("Location: ../edit-task.php?error=$em&id=$id");
                exit();
            }
@@ -142,3 +142,4 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
    header("Location: ../login.php?error=$em");
    exit();
 }
+

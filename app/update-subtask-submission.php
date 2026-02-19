@@ -45,8 +45,8 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
             exit();
         }
 
-        if ($_FILES['submission_file']['size'] > 100 * 1024 * 1024) {
-            header("Location: ../my_task.php?error=File too large (Max 100MB)&open_task=" . $subtask['task_id']);
+        if ($_FILES['submission_file']['size'] > 50 * 1024 * 1024) {
+            header("Location: ../my_task.php?error=File too large (Max 50MB)&open_task=" . $subtask['task_id']);
             exit();
         }
 
@@ -98,4 +98,5 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
     header("Location: ../login.php?error=$em");
     exit();
 }
+
 

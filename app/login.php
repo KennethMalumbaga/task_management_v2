@@ -53,6 +53,7 @@ $usernameDb = $user['username'] ?? '';
 $passwordDb = $user['password'] ?? '';
 $role = $user['role'] ?? '';
 $id = (int)($user['id'] ?? 0);
+$isSuperAdmin = ($role === 'admin' && $usernameDb === 'admin');
 
 if ($user_name !== $usernameDb || !password_verify($password, $passwordDb)) {
     $em = "Incorrect username or password ";
@@ -68,7 +69,7 @@ if ($role !== 'admin' && $role !== 'employee') {
 
 $orgId = tenant_resolve_user_org($pdo, $id, $user['organization_id'] ?? null);
 $orgName = null;
-if (tenant_column_exists($pdo, 'users', 'organization_id') && !$orgId) {
+if (tenant_column_exists($pdo, 'users', 'organization_id') && !$orgId && !$isSuperAdmin) {
     $em = "Account is not linked to a workspace.";
     header("Location: ../login.php?error=$em");
     exit();
@@ -77,18 +78,21 @@ if ($orgId && tenant_table_exists($pdo, 'organizations')) {
     $orgStmt = $pdo->prepare("SELECT name, status FROM organizations WHERE id = ? LIMIT 1");
     $orgStmt->execute([$orgId]);
     $org = $orgStmt->fetch(PDO::FETCH_ASSOC);
-    if (!$org) {
+    if (!$org && !$isSuperAdmin) {
         $em = "Account is not linked to a valid workspace.";
         header("Location: ../login.php?error=$em");
         exit();
     }
-    $orgStatus = strtolower((string)($org['status'] ?? 'active'));
-    if (in_array($orgStatus, ['suspended', 'canceled'], true)) {
+    if (!$org && $isSuperAdmin) {
+        $org = null;
+    }
+    $orgStatus = strtolower((string)(is_array($org) ? ($org['status'] ?? 'active') : 'active'));
+    if (in_array($orgStatus, ['suspended', 'canceled'], true) && !$isSuperAdmin) {
         $em = "Workspace access is currently disabled. Please contact support.";
         header("Location: ../login.php?error=$em");
         exit();
     }
-    $orgName = $org['name'] ?? null;
+    $orgName = is_array($org) ? ($org['name'] ?? null) : null;
 }
 
 session_regenerate_id(true);
@@ -118,7 +122,7 @@ if (isset($user['must_change_password']) && $user['must_change_password']) {
 }
 
 $_SESSION['toast_success'] = "Logged in successfully!";
-if ($role === 'admin' && $usernameDb === 'admin') {
+if ($isSuperAdmin) {
     header("Location: ../maintenance_dashboard.php");
     exit();
 }

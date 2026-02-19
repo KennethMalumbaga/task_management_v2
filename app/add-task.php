@@ -94,9 +94,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     exit();
                 }
 
-                // Max 100MB
-                if ($file['size'] > 100 * 1024 * 1024) {
-                    $em = "Template file is too large. Maximum allowed size is 100MB.";
+                // Max 50MB
+                if ($file['size'] > 50 * 1024 * 1024) {
+                    $em = "Template file is too large. Maximum allowed size is 50MB.";
                     header("Location: ../create_task.php?error=$em");
                     exit();
                 }
@@ -166,3 +166,4 @@ else {
     header("Location: ../create_task.php?error=$em");
     exit();
 }
+

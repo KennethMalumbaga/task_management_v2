@@ -387,7 +387,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
                  <!-- File -->
                  <div style="margin-bottom: 30px;">
-                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Attachment (Optional) <span style="font-size: 12px; color: #6b7280; font-weight: normal;">(up to 100MB)</span></label>
+                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Attachment (Optional) <span style="font-size: 12px; color: #6b7280; font-weight: normal;">(up to 50MB)</span></label>
                      <input type="file" name="template_file" style="width: 100%; font-size: 14px;">
                 </div>
 
@@ -655,4 +655,5 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
    exit();
 }
 ?>
+
 

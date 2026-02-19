@@ -31,7 +31,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
              $allowed = ['pdf','doc','docx','xls','xlsx','png','jpg','jpeg','zip','json'];
              $ext = strtolower(pathinfo($_FILES['submission_file']['name'], PATHINFO_EXTENSION));
              
-             if (in_array($ext, $allowed) && $_FILES['submission_file']['size'] <= 100 * 1024 * 1024) {
+             if (in_array($ext, $allowed) && $_FILES['submission_file']['size'] <= 50 * 1024 * 1024) {
                  $upload_dir = "../uploads";
                  if (!is_dir($upload_dir)) {
                     mkdir($upload_dir, 0777, true);
@@ -99,4 +99,5 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
     header("Location: ../login.php?error=$em");
     exit();
 }
+
 

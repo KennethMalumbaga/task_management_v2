@@ -33,7 +33,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
              $ext = strtolower(pathinfo($_FILES['submission_file']['name'], PATHINFO_EXTENSION));
              
              // Basic validation (can add more robust checks)
-             if (in_array($ext, $allowed) && $_FILES['submission_file']['size'] <= 100 * 1024 * 1024) {
+             if (in_array($ext, $allowed) && $_FILES['submission_file']['size'] <= 50 * 1024 * 1024) {
                  $upload_dir = "../uploads";
                  if (!is_dir($upload_dir)) {
                     mkdir($upload_dir, 0777, true);
@@ -106,4 +106,5 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
     header("Location: ../login.php?error=$em");
     exit();
 }
+
 

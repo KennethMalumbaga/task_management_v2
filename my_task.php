@@ -781,7 +781,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
                                         <div style="display: flex; gap: 10px; align-items: center;">
                                             <input type="file" name="submission_file" class="form-input-v2" style="width: auto;" required>
-                                            <div style="font-size: 11px; color: #6B7280; margin-top: 4px;">(up to 100MB)</div>
+                                            <div style="font-size: 11px; color: #6B7280; margin-top: 4px;">(up to 50MB)</div>
                                             <button class="btn-v2 btn-indigo">Submit</button>
                                         </div>
                                     </form>
@@ -873,7 +873,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <?= csrf_field('submit_task_review_form') ?>
                 <input type="hidden" name="task_id" id="modal_task_id">
                  <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 5px;">Attach New File (Optional) <span style="font-size: 11px; color: #6B7280; font-weight: normal;">(up to 100MB)</span></label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 5px;">Attach New File (Optional) <span style="font-size: 11px; color: #6B7280; font-weight: normal;">(up to 50MB)</span></label>
                     <input type="file" name="submission_file" class="form-input-v2" style="width: 100%;">
                 </div>
                 
@@ -906,7 +906,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <input type="hidden" name="task_id" id="resubmit_task_id">
                 
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 5px;">Attach New File (Optional) <span style="font-size: 11px; color: #6B7280; font-weight: normal;">(up to 100MB)</span></label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 5px;">Attach New File (Optional) <span style="font-size: 11px; color: #6B7280; font-weight: normal;">(up to 50MB)</span></label>
                     <input type="file" name="submission_file" class="form-input-v2" style="width: 100%;">
                 </div>
 
@@ -1103,4 +1103,5 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
 ?>
+
 

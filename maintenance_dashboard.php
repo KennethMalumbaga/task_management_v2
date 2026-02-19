@@ -679,6 +679,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
     </style>
 </head>
 <body>
+<?php include "inc/toast.php"; ?>
 <div class="container">
     <div class="panel hero">
         <div class="panel-body">
@@ -772,6 +773,11 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                         <td class="actions">
                             <?php foreach ($tenantScripts as $script) {
                                 $href = maintenance_build_link($script['path'], (int)$org['id']);
+                                $linkTarget = '_blank';
+                                if ($script['path'] === 'reset_database.php') {
+                                    $href .= '&return_to=maintenance_dashboard';
+                                    $linkTarget = '_self';
+                                }
                                 $confirm = '';
                                 if (!empty($script['destructive'])) {
                                     $confirm = "return confirm('Run {$script['label']} for workspace ID {$org['id']}? This can delete data.');";
@@ -780,7 +786,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                                 <a
                                     href="<?= htmlspecialchars($href) ?>"
                                     title="<?= htmlspecialchars($script['description']) ?>"
-                                    target="_blank"
+                                    target="<?= htmlspecialchars($linkTarget) ?>"
                                     rel="noopener noreferrer"
                                     data-action-label="<?= htmlspecialchars($script['label']) ?>"
                                     data-action-workspace="<?= htmlspecialchars((string)$org['name']) ?>"
