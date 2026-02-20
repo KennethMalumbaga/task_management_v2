@@ -2,6 +2,29 @@
 
 require_once __DIR__ . '/../../inc/tenant.php';
 
+function notification_is_pgsql($pdo)
+{
+    try {
+        return strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME)) === 'pgsql';
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+function notification_unread_sql($pdo)
+{
+    if (notification_is_pgsql($pdo)) {
+        return "(is_read IS NULL OR is_read = FALSE)";
+    }
+
+    return "(is_read IS NULL OR is_read = 0 OR is_read = '0' OR is_read = 'f' OR is_read = 'false')";
+}
+
+function notification_read_sql_value($pdo)
+{
+    return notification_is_pgsql($pdo) ? 'TRUE' : '1';
+}
+
 function notification_append_scope($pdo, $sql, $params, $joinWord = 'AND')
 {
     $scope = tenant_get_scope($pdo, 'notifications', '', $joinWord);
@@ -23,7 +46,7 @@ function get_all_my_notifications($pdo, $id){
 
 
 function count_notification($pdo, $id){
-	$sql = "SELECT COUNT(*) FROM notifications WHERE recipient=? AND is_read='f'";
+	$sql = "SELECT COUNT(*) FROM notifications WHERE recipient=? AND " . notification_unread_sql($pdo);
 	[$sql, $params] = notification_append_scope($pdo, $sql, [$id]);
 	$stmt = $pdo->prepare($sql);
 	$stmt->execute($params);
@@ -82,8 +105,15 @@ function insert_notification($pdo, $data){
 }
 
 function notification_make_read($pdo, $recipient_id, $notification_id){
-	$sql = "UPDATE notifications SET is_read='t' WHERE id=? AND recipient=?";
+	$sql = "UPDATE notifications SET is_read=" . notification_read_sql_value($pdo) . " WHERE id=? AND recipient=?";
 	[$sql, $params] = notification_append_scope($pdo, $sql, [$notification_id, $recipient_id]);
+	$stmt = $pdo->prepare($sql);
+	$stmt->execute($params);
+}
+
+function notification_make_all_read($pdo, $recipient_id){
+	$sql = "UPDATE notifications SET is_read=" . notification_read_sql_value($pdo) . " WHERE recipient=?";
+	[$sql, $params] = notification_append_scope($pdo, $sql, [$recipient_id]);
 	$stmt = $pdo->prepare($sql);
 	$stmt->execute($params);
 }

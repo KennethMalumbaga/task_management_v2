@@ -8,13 +8,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         require_once "model/Subtask.php";
         require_once "model/Notification.php";
         require_once "model/Task.php"; // Include this at the top
-
-        function validate_input($data) {
-            $data = trim($data);
-            $data = stripslashes($data);
-            $data = htmlspecialchars($data);
-            return $data;
-        }
+        require_once __DIR__ . "/helpers/input.php";
 
         if (!csrf_verify('update_subtask_submission_form', $_POST['csrf_token'] ?? null, true)) {
             $em = "Invalid or expired request. Please refresh and try again.";

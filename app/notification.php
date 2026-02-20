@@ -3,33 +3,13 @@ session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "../DB_connection.php";
     require_once "../inc/csrf.php";
+    require_once __DIR__ . "/helpers/notification.php";
     include "model/Notification.php";
     include "model/Task.php";
     $notificationReadCsrfToken = csrf_token('notification_read_action');
 
     $notifications = get_all_my_notifications($pdo, $_SESSION['id']);
     $user_role = $_SESSION['role'];
-
-    // Helper function to get task_id from notification
-    function get_notification_task_id($pdo, $notification) {
-        // First try to get task_id from notification record (if column exists)
-        if (isset($notification['task_id']) && $notification['task_id'] !== null) {
-            return $notification['task_id'];
-        }
-        
-        // Otherwise, try to extract task title from message and find task
-        $message = $notification['message'];
-        // Extract task title from messages like: "'Task Title' has been assigned..."
-        if (preg_match("/'([^']+)'/", $message, $matches)) {
-            $task_title = $matches[1];
-            $task = get_task_by_title($pdo, $task_title);
-            if ($task != 0) {
-                return $task['id'];
-            }
-        }
-        
-        return null;
-    }
 
     if ($notifications == 0) { ?>
         <li>
@@ -40,12 +20,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
        
     <?php }else{
     foreach ($notifications as $notification) {
-        $task_id = get_notification_task_id($pdo, $notification);
+        $task_id = tm_get_notification_task_id($pdo, $notification);
  ?>
     <li>
     <a href="app/notification-read.php?notification_id=<?=$notification['id']?><?=$task_id ? '&task_id=' . $task_id : ''?>&csrf_token=<?=urlencode($notificationReadCsrfToken)?>">
         
-        <?php if ($notification['is_read'] == 0) {
+        <?php if (tm_notification_is_unread($notification)) {
             echo "<mark>".$notification['type']."</mark>: ";
         }else echo $notification['type'].": " ?>
         <?=$notification['message']?>

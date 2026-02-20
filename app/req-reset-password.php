@@ -5,20 +5,13 @@ include "../DB_connection.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 include "send_email.php";
+require_once __DIR__ . "/helpers/input.php";
 
 if (isset($_POST['email'])) {
     if (!csrf_verify('req_reset_password_form', $_POST['csrf_token'] ?? null, true)) {
         header("Location: ../forgot-password.php?error=" . urlencode("Invalid or expired request. Please refresh and try again."));
         exit();
     }
-    
-    function validate_input($data) {
-        $data = trim($data);
-        $data = stripslashes($data);
-        $data = htmlspecialchars($data);
-        return $data;
-    }
-
     $email = validate_input($_POST['email']);
 
     if (empty($email)) {

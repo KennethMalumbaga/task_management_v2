@@ -367,7 +367,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
     <div class="dash-main page-wrap">
         <div class="page-header">
-            <h2 class="page-title"><i class="fa fa-users"></i> Groups / Teams</h2>
             <div class="page-subtitle">Manage your project teams and group chats</div>
         </div>
 

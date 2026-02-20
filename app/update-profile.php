@@ -5,13 +5,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 if (isset($_POST['full_name']) && isset($_SESSION['role'])) {
 	include "../DB_connection.php";
     require_once "../inc/csrf.php";
-
-    function validate_input($data) {
-	  $data = trim($data);
-	  $data = stripslashes($data);
-	  $data = htmlspecialchars($data);
-	  return $data;
-	}
+    require_once __DIR__ . "/helpers/input.php";
 
     if (!csrf_verify('update_profile_form', $_POST['csrf_token'] ?? null, true)) {
         $em = "Invalid or expired request. Please refresh and try again.";

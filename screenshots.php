@@ -67,7 +67,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         
         <!-- Page Header -->
         <div style="margin-bottom: 20px;">
-            <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0 0 8px 0;">Captures</h2>
             <span style="color: var(--text-gray); font-size: 14px;">Monitor employee activity</span>
         </div>
         

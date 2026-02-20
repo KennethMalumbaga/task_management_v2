@@ -64,7 +64,6 @@
        
        // List of pages where back button should be shown
        var showBackOnPages = [
-           'edit-task.php',
            'edit-task-employee.php',
            'create_task.php',
            'notifications.php',

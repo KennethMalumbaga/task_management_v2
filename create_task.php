@@ -227,11 +227,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <div class="dash-main" style="background: #f3f4f6; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
         
         <div style="background: white; width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); overflow: hidden;">
-            
-            <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-                <h2 style="margin: 0; font-size: 20px; font-weight: 600; color: #111827;">Create Task</h2>
-            </div>
-            
             <form action="app/add-task.php" method="POST" enctype="multipart/form-data" style="padding: 24px;">
                 <?= csrf_field('create_task_form') ?>
                 

@@ -4,19 +4,13 @@ date_default_timezone_set('Asia/Manila');
 include "../DB_connection.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
+require_once __DIR__ . "/helpers/input.php";
 
 if (isset($_POST['new_password']) && isset($_POST['confirm_password']) && isset($_POST['token'])) {
     $rawToken = trim((string)($_POST['token'] ?? ''));
     if (!csrf_verify('do_reset_password_form', $_POST['csrf_token'] ?? null, true)) {
         header("Location: ../reset-password.php?token=" . urlencode($rawToken) . "&error=" . urlencode("Invalid or expired request. Please refresh and try again."));
         exit();
-    }
-    
-    function validate_input($data) {
-        $data = trim($data);
-        $data = stripslashes($data);
-        $data = htmlspecialchars($data);
-        return $data;
     }
 
     $new_password = validate_input($_POST['new_password']);

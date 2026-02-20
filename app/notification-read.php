@@ -22,8 +22,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
        if ($task_id) {
            $user_role = $_SESSION['role'];
            if ($user_role === 'admin') {
-               // Admin: redirect to edit-task.php to see submitted file
-               header("Location: ../edit-task.php?id=" . $task_id);
+               // Admin: open the task in the current task management page
+               header("Location: ../tasks.php?open_task=" . $task_id);
            } else if ($user_role === 'employee') {
                // Employee: redirect to edit-task-employee.php to see task details
                header("Location: ../edit-task-employee.php?id=" . $task_id);

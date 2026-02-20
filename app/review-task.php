@@ -5,23 +5,28 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     if (isset($_POST['task_id']) && isset($_POST['action']) && isset($_POST['feedback'])) {
         include "../DB_connection.php";
         require_once "../inc/tenant.php";
+        require_once "../inc/csrf.php";
         include "model/Task.php";
         include "model/Notification.php";
-
-        function validate_input($data) {
-            $data = trim($data);
-            $data = stripslashes($data);
-            $data = htmlspecialchars($data);
-            return $data;
-        }
+        require_once __DIR__ . "/helpers/input.php";
 
         $task_id = validate_input($_POST['task_id']);
+        $submittedToken = $_POST['csrf_token'] ?? null;
+        $validReviewToken = csrf_verify('review_task_form', $submittedToken, false);
+        $validAdminToken = csrf_verify('admin_review_task_form', $submittedToken, false);
+        if (!$validReviewToken && !$validAdminToken) {
+            $em = "Invalid or expired request. Please refresh and try again.";
+            header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$task_id));
+            exit();
+        }
+        csrf_verify($validReviewToken ? 'review_task_form' : 'admin_review_task_form', $submittedToken, true);
+
         $action = validate_input($_POST['action']);
         $feedback = validate_input($_POST['feedback']);
 
         $task = get_task_by_id($pdo, $task_id);
         if ($task == 0) {
-            header("Location: ../edit-task.php?error=Task not found&id=$task_id");
+            header("Location: ../tasks.php?error=" . urlencode("Task not found") . "&open_task=" . urlencode((string)$task_id));
             exit();
         }
 
@@ -32,7 +37,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             $status = 'revise';
             $msg = "'{$task['title']}' requires REVISION. feedback: $feedback";
         } else {
-             header("Location: ../edit-task.php?error=Invalid action&id=$task_id");
+             header("Location: ../tasks.php?error=" . urlencode("Invalid action") . "&open_task=" . urlencode((string)$task_id));
              exit();
         }
 
@@ -51,7 +56,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
 
         $em = "Task updated successfully";
-        header("Location: ../edit-task.php?success=$em&id=$task_id");
+        header("Location: ../tasks.php?success=" . urlencode($em) . "&open_task=" . urlencode((string)$task_id));
         exit();
 
     }else {

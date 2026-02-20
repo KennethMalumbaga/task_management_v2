@@ -4,33 +4,38 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
 if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']) && isset($_POST['assigned_to']) && $_SESSION['role'] == 'admin'&& isset($_POST['due_date']) && isset($_POST['status'])) {
 	include "../DB_connection.php";
+    require_once "../inc/csrf.php";
+    require_once __DIR__ . "/helpers/input.php";
 
-    function validate_input($data) {
-	  $data = trim($data);
-	  $data = stripslashes($data);
-	  $data = htmlspecialchars($data);
-	  return $data;
-	}
+    $id = validate_input($_POST['id']);
+    $submittedToken = $_POST['csrf_token'] ?? null;
+    $validUpdateToken = csrf_verify('update_task_form', $submittedToken, false);
+    $validAdminToken = csrf_verify('admin_review_task_form', $submittedToken, false);
+    if (!$validUpdateToken && !$validAdminToken) {
+        $em = "Invalid or expired request. Please refresh and try again.";
+        header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
+        exit();
+    }
+    csrf_verify($validUpdateToken ? 'update_task_form' : 'admin_review_task_form', $submittedToken, true);
 
 	$title = validate_input($_POST['title']);
 	$description = validate_input($_POST['description']);
 	$assigned_to = validate_input($_POST['assigned_to']);
-	$id = validate_input($_POST['id']);
 	$due_date = validate_input($_POST['due_date']);
 	$status = validate_input($_POST['status']);
 	$review_comment = isset($_POST['review_comment']) ? validate_input($_POST['review_comment']) : "";
 
 	if (empty($title)) {
 		$em = "Title is required";
-	    header("Location: ../edit-task.php?error=$em&id=$id");
+	    header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
 	    exit();
 	}else if (empty($description)) {
 		$em = "Description is required";
-	    header("Location: ../edit-task.php?error=$em&id=$id");
+	    header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
 	    exit();
 	}else if ($assigned_to == 0) {
 		$em = "Select User";
-	    header("Location: ../edit-task.php?error=$em&id=$id");
+	    header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
 	    exit();
 	}else {
     
@@ -49,14 +54,14 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
            
            if (!in_array($file_ext, $allowed_extensions)) {
                $em = "Invalid template file type. Allowed: pdf, doc, docx, xls, xlsx, png, jpg, jpeg, zip, txt.";
-               header("Location: ../edit-task.php?error=$em&id=$id");
+               header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
                exit();
            }
            
            // Max 50MB
            if ($file['size'] > 50 * 1024 * 1024) {
                $em = "Template file is too large. Maximum allowed size is 50MB.";
-               header("Location: ../edit-task.php?error=$em&id=$id");
+               header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
                exit();
            }
            
@@ -83,7 +88,7 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
                $template_file_path = "uploads/" . $new_filename;
            } else {
                $em = "Failed to upload template file. Please try again.";
-               header("Location: ../edit-task.php?error=$em&id=$id");
+               header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
                exit();
            }
        } else {
@@ -126,14 +131,14 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
        }
 
        $em = "Task updated successfully";
-	    header("Location: ../edit-task.php?success=$em&id=$id");
+	    header("Location: ../tasks.php?success=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
 	    exit();
 
     
 	}
 }else {
    $em = "Unknown error occurred";
-   header("Location: ../edit-task.php?error=$em");
+   header("Location: ../tasks.php?error=" . urlencode($em));
    exit();
 }
 

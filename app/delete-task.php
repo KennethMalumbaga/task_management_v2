@@ -7,13 +7,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         require_once "../inc/csrf.php";
         include "model/Task.php";
         include "model/Group.php";
-
-        function validate_input($data) {
-            $data = trim($data);
-            $data = stripslashes($data);
-            $data = htmlspecialchars($data);
-            return $data;
-        }
+        require_once __DIR__ . "/helpers/input.php";
 
         if (!csrf_verify('delete_task_form', $_POST['csrf_token'] ?? null, true)) {
             $em = "Invalid or expired request. Please refresh and try again.";

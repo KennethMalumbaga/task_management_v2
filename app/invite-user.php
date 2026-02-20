@@ -11,14 +11,7 @@ include "model/user.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 include "send_email.php";
-
-function validate_input($data)
-{
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
-}
+require_once __DIR__ . "/helpers/input.php";
 
 if (!isset($_POST['email']) || !isset($_POST['full_name'])) {
     header("Location: ../invite-user.php?error=Missing invite data.");

@@ -5,14 +5,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     if (isset($_POST['title']) && isset($_POST['description']) && $_SESSION['role'] == 'admin' && isset($_POST['due_date'])) {
         include "../DB_connection.php";
         require_once "../inc/csrf.php";
-
-        function validate_input($data)
-        {
-            $data = trim($data);
-            $data = stripslashes($data);
-            $data = htmlspecialchars($data);
-            return $data;
-        }
+        require_once __DIR__ . "/helpers/input.php";
 
         if (!csrf_verify('create_task_form', $_POST['csrf_token'] ?? null, true)) {
             $em = "Invalid or expired request. Please refresh and try again.";

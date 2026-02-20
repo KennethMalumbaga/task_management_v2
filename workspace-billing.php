@@ -322,7 +322,6 @@ if (!$tenantEnabled) {
 
 <div class="dash-main">
     <div class="wb-card">
-        <h2 class="wb-title">Workspace Billing & Settings</h2>
         <p class="wb-sub">
             One place to see your plan status, seat usage, and renewal/trial dates.
         </p>

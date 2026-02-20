@@ -133,8 +133,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
     <!-- Main Content -->
     <div class="dash-main">
-        <h2 style="margin-bottom: 24px;">Task Calendar</h2>
-        
         <div class="dash-card calendar-layout">
             <div class="calendar-wrapper">
                 

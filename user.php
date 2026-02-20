@@ -2,9 +2,9 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "DB_connection.php";
-    include "app/Model/User.php";
-    include "app/Model/Task.php";
-    include "app/Model/Subtask.php";
+    include "app/model/user.php";
+    include "app/model/Task.php";
+    include "app/model/Subtask.php";
     require_once "inc/csrf.php";
     
     $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
@@ -392,22 +392,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
     <!-- Main Content -->
     <div class="dash-main">
-        
+        <?php if ($is_super_admin) { ?>
         <div class="header-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-                <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0;">Users Directory</h2>
-                
+            <div style="display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 20px;">
                 <div style="display: flex; gap: 10px; align-items: center;">
-                     <a href="invite-user.php" class="btn-primary" style="display:inline-flex; align-items:center; gap:6px;">
-                        <i class="fa fa-user-plus"></i> Invite User
-                     </a>
-                     <a href="user.php?role=employee" class="btn-outline <?= ($role_filter == 'employee') ? 'filter-active' : '' ?>">Employees</a>
-                     <?php if ($is_super_admin) { ?>
-                        <a href="user.php?role=admin" class="btn-outline <?= ($role_filter == 'admin') ? 'filter-active' : '' ?>">Admins</a>
-                     <?php } ?>
+                    <a href="user.php?role=admin" class="btn-outline <?= ($role_filter == 'admin') ? 'filter-active' : '' ?>">Admins</a>
                 </div>
             </div>
         </div>
+        <?php } ?>
 
         <?php if (!empty($users)) { ?>
         <div class="grid-container">

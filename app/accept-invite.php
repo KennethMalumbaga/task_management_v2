@@ -5,14 +5,7 @@ include "../DB_connection.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 require_once "invite_helpers.php";
-
-function validate_input($data)
-{
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
-}
+require_once __DIR__ . "/helpers/input.php";
 
 function generate_temporary_password($length = 10)
 {

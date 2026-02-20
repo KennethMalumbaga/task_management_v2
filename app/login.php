@@ -4,6 +4,7 @@ session_start();
 require_once "../DB_connection.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
+require_once __DIR__ . "/helpers/input.php";
 
 if (!isset($_POST['user_name']) || !isset($_POST['password'])) {
     $em = "Unknown error occurred";
@@ -15,14 +16,6 @@ if (!csrf_verify('login_form', $_POST['csrf_token'] ?? null, true)) {
     $em = "Invalid or expired request. Please refresh and try again.";
     header("Location: ../login.php?error=" . urlencode($em));
     exit();
-}
-
-function validate_input($data)
-{
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
 }
 
 $user_name = validate_input($_POST['user_name']);

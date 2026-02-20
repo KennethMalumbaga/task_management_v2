@@ -76,8 +76,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
     <!-- Main Content -->
     <div class="dash-main" style="height: 100vh; display: flex; flex-direction: column;">
-        <h2 style="margin-bottom: 20px; font-weight: 700; color: #111827;">Messages</h2>
-        
         <div class="chat-layout">
             
             <!-- Chat Sidebar (Users) -->

@@ -9,13 +9,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         include "model/Notification.php";
         include "model/Task.php";
         include "model/LeaderFeedback.php";
-
-        function validate_input($data) {
-            $data = trim($data);
-            $data = stripslashes($data);
-            $data = htmlspecialchars($data);
-            return $data;
-        }
+        require_once __DIR__ . "/helpers/input.php";
 
         if (!csrf_verify('admin_review_task_form', $_POST['csrf_token'] ?? null, true)) {
             $em = "Invalid or expired request. Please refresh and try again.";

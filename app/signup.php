@@ -3,6 +3,7 @@ session_start();
 include "../DB_connection.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
+require_once __DIR__ . "/helpers/input.php";
 
 if (!isset($_POST['user_name']) || !isset($_POST['full_name'])) {
     header("Location: ../signup.php?error=error");
@@ -12,14 +13,6 @@ if (!isset($_POST['user_name']) || !isset($_POST['full_name'])) {
 if (!csrf_verify('signup_form', $_POST['csrf_token'] ?? null, true)) {
     header("Location: ../signup.php?error=" . urlencode("Invalid or expired request. Please refresh and try again."));
     exit();
-}
-
-function validate_input($data)
-{
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
 }
 
 function build_org_slug($name)
