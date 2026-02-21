@@ -25,6 +25,16 @@ function notification_read_sql_value($pdo)
     return notification_is_pgsql($pdo) ? 'TRUE' : '1';
 }
 
+function notification_has_notified_at($pdo)
+{
+    static $cache = [];
+    $key = spl_object_hash($pdo);
+    if (!array_key_exists($key, $cache)) {
+        $cache[$key] = tenant_column_exists($pdo, 'notifications', 'notified_at');
+    }
+    return (bool)$cache[$key];
+}
+
 function notification_append_scope($pdo, $sql, $params, $joinWord = 'AND')
 {
     $scope = tenant_get_scope($pdo, 'notifications', '', $joinWord);
@@ -34,6 +44,11 @@ function notification_append_scope($pdo, $sql, $params, $joinWord = 'AND')
 function get_all_my_notifications($pdo, $id){
 	$sql = "SELECT * FROM notifications WHERE recipient=?";
 	[$sql, $params] = notification_append_scope($pdo, $sql, [$id]);
+    if (notification_has_notified_at($pdo)) {
+        $sql .= " ORDER BY notified_at DESC, id DESC";
+    } else {
+        $sql .= " ORDER BY date DESC, id DESC";
+    }
 	$stmt = $pdo->prepare($sql);
 	$stmt->execute($params);
 
@@ -55,7 +70,8 @@ function count_notification($pdo, $id){
 }
 
 function insert_notification($pdo, $data){
-	// Automatically set the current date when inserting a notification
+	// Automatically set the current date when inserting a notification.
+    // If `notified_at` exists, also store full timestamp for "x minutes/hours ago" UI.
 	// $data should be: [$message, $recipient, $type] or [$message, $recipient, $type, $task_id]
 	
 	// Check if task_id column exists in the table (PostgreSQL version)
@@ -70,38 +86,35 @@ function insert_notification($pdo, $data){
 	
 	// Check if task_id is provided
 	$task_id = (count($data) >= 4 && isset($data[3])) ? $data[3] : null;
-	
-	if ($has_task_id_column && $task_id !== null) {
-		if (tenant_column_exists($pdo, 'notifications', 'organization_id') && tenant_get_current_org_id()) {
-			$sql = "INSERT INTO notifications (message, recipient, type, date, task_id, organization_id) VALUES(?,?,?,CURRENT_DATE,?,?)";
-			$stmt = $pdo->prepare($sql);
-			$stmt->execute([$data[0], $data[1], $data[2], $task_id, tenant_get_current_org_id()]);
-		} else {
-			$sql = "INSERT INTO notifications (message, recipient, type, date, task_id) VALUES(?,?,?,CURRENT_DATE,?)";
-			$stmt = $pdo->prepare($sql);
-			$stmt->execute([$data[0], $data[1], $data[2], $task_id]);
-		}
-	} else if ($has_task_id_column) {
-		if (tenant_column_exists($pdo, 'notifications', 'organization_id') && tenant_get_current_org_id()) {
-			$sql = "INSERT INTO notifications (message, recipient, type, date, task_id, organization_id) VALUES(?,?,?,CURRENT_DATE,NULL,?)";
-			$stmt = $pdo->prepare($sql);
-			$stmt->execute([$data[0], $data[1], $data[2], tenant_get_current_org_id()]);
-		} else {
-			$sql = "INSERT INTO notifications (message, recipient, type, date, task_id) VALUES(?,?,?,CURRENT_DATE,NULL)";
-			$stmt = $pdo->prepare($sql);
-			$stmt->execute([$data[0], $data[1], $data[2]]);
-		}
-	} else {
-		if (tenant_column_exists($pdo, 'notifications', 'organization_id') && tenant_get_current_org_id()) {
-			$sql = "INSERT INTO notifications (message, recipient, type, date, organization_id) VALUES(?,?,?,CURRENT_DATE,?)";
-			$stmt = $pdo->prepare($sql);
-			$stmt->execute([$data[0], $data[1], $data[2], tenant_get_current_org_id()]);
-		} else {
-			$sql = "INSERT INTO notifications (message, recipient, type, date) VALUES(?,?,?,CURRENT_DATE)";
-			$stmt = $pdo->prepare($sql);
-			$stmt->execute([$data[0], $data[1], $data[2]]);
-		}
-	}
+
+    $columns = ['message', 'recipient', 'type', 'date'];
+    $values = ['?', '?', '?', 'CURRENT_DATE'];
+    $params = [$data[0], $data[1], $data[2]];
+
+    if ($has_task_id_column) {
+        $columns[] = 'task_id';
+        if ($task_id !== null) {
+            $values[] = '?';
+            $params[] = $task_id;
+        } else {
+            $values[] = 'NULL';
+        }
+    }
+
+    if (notification_has_notified_at($pdo)) {
+        $columns[] = 'notified_at';
+        $values[] = 'CURRENT_TIMESTAMP';
+    }
+
+    if (tenant_column_exists($pdo, 'notifications', 'organization_id') && tenant_get_current_org_id()) {
+        $columns[] = 'organization_id';
+        $values[] = '?';
+        $params[] = tenant_get_current_org_id();
+    }
+
+    $sql = "INSERT INTO notifications (" . implode(', ', $columns) . ") VALUES(" . implode(', ', $values) . ")";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
 }
 
 function notification_make_read($pdo, $recipient_id, $notification_id){

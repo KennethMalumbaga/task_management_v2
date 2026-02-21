@@ -8,6 +8,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "app/model/Task.php";
 
     $notifications = get_all_my_notifications($pdo, $_SESSION['id']);
+    $notificationNowTs = tm_notification_reference_now($pdo);
     $notificationReadCsrfToken = csrf_token('notification_read_action');
     $notificationReadAllCsrfToken = csrf_token('notification_read_all_action');
     $notificationReadAllLink = "app/notification-read-all.php?csrf_token="
@@ -54,7 +55,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <th style="padding: 12px 24px; text-align: left; font-size: 12px; font-weight: 600; color: #6B7280; text-transform: uppercase;">#</th>
                         <th style="padding: 12px 24px; text-align: left; font-size: 12px; font-weight: 600; color: #6B7280; text-transform: uppercase;">Message</th>
                         <th style="padding: 12px 24px; text-align: left; font-size: 12px; font-weight: 600; color: #6B7280; text-transform: uppercase;">Type</th>
-                        <th style="padding: 12px 24px; text-align: left; font-size: 12px; font-weight: 600; color: #6B7280; text-transform: uppercase;">Date</th>
+                        <th style="padding: 12px 24px; text-align: left; font-size: 12px; font-weight: 600; color: #6B7280; text-transform: uppercase;">Notified</th>
                     </tr>
 				</thead>
                 <tbody>
@@ -66,6 +67,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     }
                     $notificationLink .= "&csrf_token=" . urlencode($notificationReadCsrfToken);
                     $isUnread = tm_notification_is_unread($notification);
+                    $notificationWhen = tm_notification_time_ago($notification, $notificationNowTs);
 					$rowStyle = "border-bottom: 1px solid #E5E7EB; transition: background 0.2s;";
                     $rowStyle .= " cursor: pointer;";
                     if ($isUnread) {
@@ -88,7 +90,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             <?=$notification['type']?>
                         </span>
                     </td>
-					<td style="padding: 16px 24px; font-size: 14px; color: #6B7280;"><?=$notification['date']?></td>
+					<td style="padding: 16px 24px; font-size: 14px; color: #6B7280;"><?= htmlspecialchars($notificationWhen) ?></td>
 				</tr>
 			   <?php	} ?>
                </tbody>

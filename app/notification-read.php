@@ -25,8 +25,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                // Admin: open the task in the current task management page
                header("Location: ../tasks.php?open_task=" . $task_id);
            } else if ($user_role === 'employee') {
-               // Employee: redirect to edit-task-employee.php to see task details
-               header("Location: ../edit-task-employee.php?id=" . $task_id);
+               // Employee: open task modal in My Tasks page
+               header("Location: ../my_task.php?open_task=" . $task_id);
            } else {
                header("Location: ../notifications.php");
            }

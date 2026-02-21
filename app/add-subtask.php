@@ -51,10 +51,12 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
             $data = array($task_id, $member_id, $description, $due_date);
             insert_subtask($pdo, $data);
 
-            // Notify the member
-            $task = get_task_by_id($pdo, $task_id);
-            $notif_msg = "You have been assigned a subtask for: " . $task['title'];
-            insert_notification($pdo, [$notif_msg, $member_id, 'New Subtask', $task_id]);
+            // Notify the member, but avoid self-notification when leader assigns to self.
+            if ((int)$member_id !== (int)$_SESSION['id']) {
+                $task = get_task_by_id($pdo, $task_id);
+                $notif_msg = "You have been assigned a subtask for: " . $task['title'];
+                insert_notification($pdo, [$notif_msg, $member_id, 'New Subtask', $task_id]);
+            }
 
             $em = "Subtask created successfully";
             header("Location: ../my_task.php?success=$em");

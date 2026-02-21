@@ -446,6 +446,63 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             }
             $subtasks = [];
             try { $subtasks = get_subtasks_by_task($pdo, $task['id']); } catch (Throwable $e) {}
+
+            // Task-specific rating maps (used in People section below).
+            $taskScoreByMember = [];
+            if (!empty($subtasks)) {
+                foreach ($subtasks as $st) {
+                    $memberId = (int)($st['member_id'] ?? 0);
+                    $score = isset($st['score']) ? (float)$st['score'] : 0.0;
+                    if ($memberId <= 0 || $score <= 0) {
+                        continue;
+                    }
+                    if (!isset($taskScoreByMember[$memberId])) {
+                        $taskScoreByMember[$memberId] = ['sum' => 0.0, 'count' => 0];
+                    }
+                    $taskScoreByMember[$memberId]['sum'] += $score;
+                    $taskScoreByMember[$memberId]['count']++;
+                }
+            }
+
+            $memberFeedbackAvgForLeader = null;
+            if (!empty($leaderFeedbackRows)) {
+                $feedbackCountTmp = count($leaderFeedbackRows);
+                $feedbackSumTmp = 0.0;
+                foreach ($leaderFeedbackRows as $fbRowTmp) {
+                    $feedbackSumTmp += (float)($fbRowTmp['rating'] ?? 0);
+                }
+                if ($feedbackCountTmp > 0) {
+                    $memberFeedbackAvgForLeader = $feedbackSumTmp / $feedbackCountTmp;
+                }
+            }
+
+            $leaderTaskAdminRate = null;
+            if ($leader && isset($leader['performance_rating']) && (float)$leader['performance_rating'] > 0) {
+                $leaderTaskAdminRate = (float)$leader['performance_rating'];
+            }
+
+            $leaderTaskCollabRate = null;
+            if ($leader) {
+                if (function_exists('subtask_blend_leader_admin_member_50_50')) {
+                    $leaderTaskCollabRate = subtask_blend_leader_admin_member_50_50($leaderTaskAdminRate, $memberFeedbackAvgForLeader);
+                } else if ($leaderTaskAdminRate !== null && $memberFeedbackAvgForLeader !== null) {
+                    $leaderTaskCollabRate = ($leaderTaskAdminRate + $memberFeedbackAvgForLeader) / 2;
+                } else if ($leaderTaskAdminRate !== null) {
+                    $leaderTaskCollabRate = $leaderTaskAdminRate;
+                } else if ($memberFeedbackAvgForLeader !== null) {
+                    $leaderTaskCollabRate = $memberFeedbackAvgForLeader;
+                }
+            }
+
+            $leaderTaskRate = $leaderTaskAdminRate;
+            if ($leader && $leaderTaskRate === null) {
+                $leaderIdTmp = (int)$leader['user_id'];
+                if (isset($taskScoreByMember[$leaderIdTmp]) && (int)$taskScoreByMember[$leaderIdTmp]['count'] > 0) {
+                    $leaderTaskRate = $taskScoreByMember[$leaderIdTmp]['sum'] / $taskScoreByMember[$leaderIdTmp]['count'];
+                } else {
+                    $leaderTaskRate = $leaderTaskCollabRate;
+                }
+            }
     ?>
     <div class="modal-overlay" id="modal-task-<?=$task['id']?>" onclick="if(event.target === this) closeTaskModal(<?=$task['id']?>)">
         <div class="modal-content">
@@ -537,10 +594,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         <?= htmlspecialchars($leader['full_name']) ?>
                     </div>
                     <div style="font-size: 11px; color: #6B7280; display: flex; gap: 10px;">
-                        <?php $lStats = get_user_rating_stats($pdo, $leader['user_id']); ?>
-                        <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $lStats['avg'] ?>/5</span>
-                        <?php $lCollab = get_collaborative_scores_by_user($pdo, $leader['user_id']); ?>
-                        <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $lCollab['avg'] ?>/5</span>
+                        <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $leaderTaskRate !== null ? number_format($leaderTaskRate, 1) : '--' ?>/5</span>
+                        <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $leaderTaskCollabRate !== null ? number_format($leaderTaskCollabRate, 1) : '--' ?>/5</span>
                     </div>
                     </div>
             </div>
@@ -557,10 +612,23 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                             <div>
                             <div style="font-weight: 500; font-size: 13px; color: #1F2937;"><?= htmlspecialchars($member['full_name']) ?></div>
                              <div style="font-size: 11px; color: #6B7280; display: flex; gap: 10px;">
-                                <?php $mStats = get_user_rating_stats($pdo, $member['user_id']); ?>
-                                <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $mStats['avg'] ?>/5</span>
-                                 <?php $mCollab = get_collaborative_scores_by_user($pdo, $member['user_id']); ?>
-                                <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $mCollab['avg'] ?>/5</span>
+                                <?php
+                                    $memberIdTmp = (int)$member['user_id'];
+                                    $memberTaskRate = null;
+                                    if (isset($member['performance_rating']) && (float)$member['performance_rating'] > 0) {
+                                        $memberTaskRate = (float)$member['performance_rating'];
+                                    } else if (isset($taskScoreByMember[$memberIdTmp]) && (int)$taskScoreByMember[$memberIdTmp]['count'] > 0) {
+                                        $memberTaskRate = $taskScoreByMember[$memberIdTmp]['sum'] / $taskScoreByMember[$memberIdTmp]['count'];
+                                    }
+                                    $memberTaskCollabRate = null;
+                                    if (isset($taskScoreByMember[$memberIdTmp]) && (int)$taskScoreByMember[$memberIdTmp]['count'] > 0) {
+                                        $memberTaskCollabRate = $taskScoreByMember[$memberIdTmp]['sum'] / $taskScoreByMember[$memberIdTmp]['count'];
+                                    } else {
+                                        $memberTaskCollabRate = $memberTaskRate;
+                                    }
+                                ?>
+                                <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $memberTaskRate !== null ? number_format($memberTaskRate, 1) : '--' ?>/5</span>
+                                <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $memberTaskCollabRate !== null ? number_format($memberTaskCollabRate, 1) : '--' ?>/5</span>
                             </div>
                             </div>
                     </div>
@@ -579,9 +647,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                                 $feedbackSum += (int)$fbRow['rating'];
                             }
                             $feedbackRawAvg = $feedbackCount > 0 ? ($feedbackSum / $feedbackCount) : null;
-                            $feedbackAvgSmoothed = smooth_peer_rating($feedbackRawAvg, $feedbackCount);
-                            $feedbackAvg = $feedbackAvgSmoothed !== null ? number_format($feedbackAvgSmoothed, 1) : "0.0";
-                            $feedbackRawLabel = $feedbackRawAvg !== null ? number_format($feedbackRawAvg, 1) : "0.0";
+                            $feedbackAvg = $feedbackRawAvg !== null ? number_format($feedbackRawAvg, 1) : "0.0";
                         ?>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #BFDBFE;">
                             <div style="font-size: 12px; font-weight: 600; color: #1E40AF;">
@@ -589,9 +655,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                             </div>
                             <div style="font-size: 12px; font-weight: 700; color: #1D4ED8;">
                                 <i class="fa fa-star" style="color:#F59E0B;"></i> <?= $feedbackAvg ?>/5
-                                <span style="font-size: 10px; color: #64748B; font-weight: 500;">
-                                    (raw <?= $feedbackRawLabel ?>)
-                                </span>
                             </div>
                         </div>
                         <div style="display: grid; gap: 10px;">

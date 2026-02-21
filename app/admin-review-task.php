@@ -77,7 +77,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
             // Notify
             foreach($assigned_to_ids as $uid) {
-                insert_notification($pdo, ["Task Accepted & Rated ($rating/5): " . $task['title'], $uid, 'Task Verified', $task_id]);
+                insert_notification($pdo, ["Task is rated ($rating/5): " . $task['title'], $uid, 'Task Rated', $task_id]);
             }
             
             $em = "Task accepted and rated successfully";

@@ -60,11 +60,10 @@ function get_leader_peer_feedback_stats($pdo, $leader_id)
 
     $count = (int)($res['count'] ?? 0);
     $raw_avg = ($count > 0 && !empty($res['avg'])) ? (float)$res['avg'] : null;
-    $adj_avg = smooth_peer_rating($raw_avg, $count);
 
     return [
         'count' => $count,
-        'avg' => $adj_avg !== null ? number_format($adj_avg, 1) : '0.0',
+        'avg' => $raw_avg !== null ? number_format($raw_avg, 1) : '0.0',
         'raw_avg' => $raw_avg !== null ? number_format($raw_avg, 1) : '0.0'
     ];
 }

@@ -8,6 +8,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         require_once "model/Subtask.php";
         require_once "model/Notification.php";
         require_once "model/Task.php"; // Include this at the top
+        require_once "model/user.php";
         require_once __DIR__ . "/helpers/input.php";
 
         if (!csrf_verify('update_subtask_submission_form', $_POST['csrf_token'] ?? null, true)) {
@@ -63,12 +64,23 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         // Save relative path for database (so it works from root)
         update_subtask_submission($pdo, $id, "uploads/$filename", $note);
 
-        // Notify Leader
+        // Notify leader(s), but avoid self-notification.
+        $submitterName = trim((string)($_SESSION['full_name'] ?? ''));
+        if ($submitterName === '') {
+            $submitter = get_user_by_id($pdo, (int)$_SESSION['id']);
+            if ($submitter && isset($submitter['full_name'])) {
+                $submitterName = trim((string)$submitter['full_name']);
+            }
+        }
+        if ($submitterName === '') {
+            $submitterName = "User " . (int)$_SESSION['id'];
+        }
+
         $assignees = get_task_assignees($pdo, $subtask['task_id']);
         if ($assignees != 0) {
             foreach($assignees as $a) {
-                if ($a['role'] == 'leader') {
-                    insert_notification($pdo, ["Subtask submitted by User " . $_SESSION['id'], $a['user_id'], 'Subtask Submitted', $subtask['task_id']]);
+                if ($a['role'] == 'leader' && (int)$a['user_id'] !== (int)$_SESSION['id']) {
+                    insert_notification($pdo, ["Subtask submitted by " . $submitterName, $a['user_id'], 'Subtask Submitted', $subtask['task_id']]);
                 }
             }
         }

@@ -363,6 +363,11 @@ body {
     gap: 12px;
 }
 
+.dash-top-profile-head > div {
+    flex: 1;
+    min-width: 0;
+}
+
 .dash-top-profile-head img {
     width: 54px;
     height: 54px;
@@ -377,12 +382,18 @@ body {
     font-weight: 700;
     color: #111827;
     line-height: 1.2;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .dash-top-profile-email {
     font-size: 14px;
     color: #4B5563;
     line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .dash-top-profile-role {
@@ -1270,12 +1281,63 @@ body {
     line-height: 1;
 }
 
+.mobile-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mobile-icon-btn {
+    position: relative;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 21px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.mobile-profile-trigger {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.12);
+    padding: 0;
+    overflow: hidden;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-profile-trigger img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .mobile-toggle-btn {
     background: none;
     border: none;
     color: white;
     font-size: 20px;
     cursor: pointer;
+}
+
+.mobile-top-notif-dropdown,
+.mobile-top-profile-dropdown {
+    display: none;
+}
+
+.mobile-top-notif-dropdown.show,
+.mobile-top-profile-dropdown.show {
+    display: block;
 }
 
 .sidebar-overlay {
@@ -1315,6 +1377,8 @@ body {
     position: relative;
     color: white;
     font-size: 22px;
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1356,6 +1420,95 @@ body {
 
     .mobile-navbar {
         display: flex;
+    }
+
+    .mobile-top-notif-dropdown {
+        position: fixed;
+        top: 68px;
+        left: 10px;
+        right: 10px;
+        border: 1px solid #E5E7EB;
+        border-radius: 14px;
+        background: #FFFFFF;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.2);
+        overflow: hidden;
+        z-index: 2100;
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-head {
+        padding: 14px 16px;
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-title {
+        font-size: 17px;
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-sub,
+    .mobile-top-notif-dropdown .dash-top-notif-head-link {
+        font-size: 12px;
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-list {
+        max-height: min(56vh, 470px);
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-item {
+        padding: 14px 16px;
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-type {
+        font-size: 14px;
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-msg {
+        font-size: 13px;
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-meta {
+        font-size: 12px;
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-foot {
+        padding: 12px 16px;
+    }
+
+    .mobile-top-notif-dropdown .dash-top-notif-foot a {
+        font-size: 14px;
+    }
+
+    .mobile-top-profile-dropdown {
+        position: fixed;
+        top: 68px;
+        right: 10px;
+        width: min(86vw, 320px);
+        border: 1px solid #E5E7EB;
+        border-radius: 14px;
+        background: #FFFFFF;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.2);
+        overflow: hidden;
+        z-index: 2100;
+    }
+
+    .mobile-top-profile-dropdown .dash-top-profile-head {
+        padding: 14px;
+    }
+
+    .mobile-top-profile-dropdown .dash-top-profile-head img {
+        width: 46px;
+        height: 46px;
+    }
+
+    .mobile-top-profile-dropdown .dash-top-profile-name {
+        font-size: 20px;
+    }
+
+    .mobile-top-profile-dropdown .dash-top-profile-email {
+        font-size: 12px;
+    }
+
+    .mobile-top-profile-dropdown .dash-top-profile-link {
+        padding: 12px 14px;
+        font-size: 16px;
     }
 
     .dash-sidebar {
