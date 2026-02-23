@@ -1,9 +1,9 @@
 /* DASHBOARD VARIABLES & BASE */
 :root {
-    --primary: #4F46E5;
-    --primary-dark: #4338CA;
-    --sidebar-bg: #312E81;
-    --sidebar-active: #4338CA;
+    --primary: #6C3CE1;
+    --primary-dark: #8B5CF6;
+    --sidebar-bg: #6C3CE1;
+    --sidebar-active: #8B5CF6;
     --bg-light: #F3F4F6;
     --text-dark: #111827;
     --text-gray: #6B7280;
@@ -219,7 +219,7 @@ body {
 
 .dash-top-notif-head-link {
     font-size: 14px;
-    color: #4F46E5;
+    color: #6C3CE1;
     text-decoration: none;
     font-weight: 600;
 }
@@ -272,7 +272,7 @@ body {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #4F46E5;
+    background: #6C3CE1;
     display: inline-block;
 }
 
@@ -289,7 +289,7 @@ body {
 }
 
 .dash-top-notif-foot a {
-    color: #4F46E5;
+    color: #6C3CE1;
     text-decoration: none;
     font-size: 16px;
     font-weight: 600;
@@ -401,7 +401,7 @@ body {
     margin-top: 6px;
     padding: 3px 10px;
     background: #C7D2FE;
-    color: #4338CA;
+    color: #8B5CF6;
     border-radius: 999px;
     font-size: 12px;
     font-weight: 600;
@@ -470,7 +470,7 @@ body {
 
 .btn-clock-in {
     width: 100%;
-    background: var(--success);
+    background: linear-gradient(135deg, #6C3CE1 0%, #8B5CF6 100%);
     color: white;
     padding: 12px;
     border: none;
@@ -482,11 +482,13 @@ body {
     justify-content: center;
     align-items: center;
     gap: 10px;
-    transition: background 0.2s;
+    box-shadow: 0 4px 10px rgba(108, 60, 225, 0.25);
+    transition: all 0.2s;
 }
 
 .btn-clock-in:hover {
-    background-color: #059669;
+    background: linear-gradient(135deg, #5F35D9 0%, #8154F3 100%);
+    box-shadow: 0 6px 14px rgba(108, 60, 225, 0.3);
 }
 
 .btn-clock-out {
@@ -927,7 +929,7 @@ body {
 /* PROFILE PAGE */
 .profile-cover {
     height: 150px;
-    background: linear-gradient(135deg, #7C3AED 0%, #C084FC 100%);
+    background: linear-gradient(135deg, #8B5CF6 0%, #8B5CF6 100%);
     border-radius: 16px 16px 0 0;
 }
 
@@ -1103,7 +1105,7 @@ body {
 /* NEW PROFILE PAGE DESIGN */
 .profile-banner {
     height: 140px;
-    background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%);
+    background: linear-gradient(90deg, #6C3CE1 0%, #8B5CF6 100%);
     width: 100%;
 }
 
@@ -1143,7 +1145,7 @@ body {
     right: 0;
     width: 28px;
     height: 28px;
-    background: #4F46E5;
+    background: #6C3CE1;
     color: white;
     border-radius: 50%;
     display: flex;
@@ -1244,7 +1246,7 @@ body {
     left: 0;
     width: 100%;
     height: 60px;
-    background: #312E81;
+    background: var(--sidebar-bg);
     /* Dark Purple */
     z-index: 1100;
     align-items: center;
@@ -1405,7 +1407,7 @@ body {
     align-items: center;
     justify-content: center;
     padding: 0 4px;
-    border: 2px solid #312E81; /* Match headerbg */
+    border: 2px solid var(--sidebar-bg); /* Match headerbg */
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
@@ -1642,3 +1644,4 @@ body {
         padding: 12px !important;
     }
 }
+

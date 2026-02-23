@@ -46,9 +46,9 @@
 }
 
 .chat-search input:focus {
-    border-color: #6366F1;
+    border-color: #8B5CF6;
     background-color: #fff;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
 .chat-search-icon {
@@ -162,7 +162,7 @@
 
 /* Message Count Badge */
 .message-badge {
-    background: #6366F1;
+    background: #8B5CF6;
     /* Primary Brand Color */
     color: white;
     font-size: 11px;
@@ -178,7 +178,7 @@
     margin-left: auto;
     flex-shrink: 0;
     box-sizing: border-box;
-    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
 }
 
 /* Sidebar Global Badge */
@@ -287,8 +287,8 @@
 
 .chat-input-wrapper input:focus {
     background: #fff;
-    border-color: #6366F1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    border-color: #8B5CF6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
 .chat-input-wrapper input::placeholder {
@@ -371,11 +371,11 @@
 }
 
 .mention-suggestion-avatar.fallback {
-    background: #6366F1;
+    background: #8B5CF6;
 }
 
 .btn-send {
-    background: #6366F1;
+    background: #8B5CF6;
     /* Primary Brand */
     color: white;
     width: 50px;
@@ -387,13 +387,13 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.3);
 }
 
 .btn-send:hover {
-    background: #4F46E5;
+    background: #6C3CE1;
     transform: translateY(-1px);
-    box-shadow: 0 6px 8px -2px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 6px 8px -2px rgba(139, 92, 246, 0.3);
 }
 
 .btn-send:active {
@@ -470,7 +470,7 @@
 }
 
 .message-bubble-outgoing {
-    background: #6366F1;
+    background: #8B5CF6;
     /* Brand Color */
     color: white;
     padding: 14px 18px;
@@ -478,7 +478,7 @@
     /* Bottom-right sharp */
     font-size: 15px;
     line-height: 1.5;
-    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.2);
 }
 
 .message-time {
@@ -502,7 +502,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #6366F1;
+    color: #8B5CF6;
     font-weight: 700;
     font-size: 18px;
     border: 2px solid #fff;
@@ -749,9 +749,9 @@
 }
 
 .chat-search input:focus {
-    border-color: #6366F1;
+    border-color: #8B5CF6;
     background-color: #fff;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
 .chat-search-icon {
@@ -860,7 +860,7 @@
 
 /* Message Count Badge */
 .message-badge {
-    background: #6366F1;
+    background: #8B5CF6;
     /* Primary Brand Color */
     color: white;
     font-size: 11px;
@@ -876,7 +876,7 @@
     margin-left: auto;
     flex-shrink: 0;
     box-sizing: border-box;
-    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
 }
 
 /* Sidebar Global Badge */
@@ -965,8 +965,8 @@
 
 .chat-input-wrapper input:focus {
     background: #fff;
-    border-color: #6366F1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    border-color: #8B5CF6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
 .chat-input-wrapper input::placeholder {
@@ -974,7 +974,7 @@
 }
 
 .btn-send {
-    background: #6366F1;
+    background: #8B5CF6;
     /* Primary Brand */
     color: white;
     width: 50px;
@@ -986,13 +986,13 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.3);
 }
 
 .btn-send:hover {
-    background: #4F46E5;
+    background: #6C3CE1;
     transform: translateY(-1px);
-    box-shadow: 0 6px 8px -2px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 6px 8px -2px rgba(139, 92, 246, 0.3);
 }
 
 .btn-send:active {
@@ -1038,7 +1038,7 @@
 }
 
 .message-bubble-outgoing {
-    background: #6366F1;
+    background: #8B5CF6;
     /* Brand Color */
     color: white;
     padding: 14px 18px;
@@ -1046,7 +1046,7 @@
     /* Bottom-right sharp */
     font-size: 15px;
     line-height: 1.5;
-    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.2);
 }
 
 .message-time {
@@ -1070,7 +1070,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #6366F1;
+    color: #8B5CF6;
     font-weight: 700;
     font-size: 18px;
     border: 2px solid #fff;
@@ -1187,3 +1187,4 @@
     background: rgba(253, 230, 138, 0.95);
     color: #7C2D12;
 }
+

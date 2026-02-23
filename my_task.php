@@ -237,7 +237,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
 
         /* Subtask & Form Styles */
-        .btn-indigo-light { background: #EEF2FF; color: #4F46E5; border: 1px solid #C7D2FE; }
+        .btn-indigo-light { background: #EEF2FF; color: #6C3CE1; border: 1px solid #C7D2FE; }
         .btn-indigo-light:hover { background: #E0E7FF; }
         
         .subtask-card {
@@ -403,7 +403,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div class="leader-box-preview">
                         <img src="<?= $leaderImg ?>" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
                         <div>
-                            <div style="font-size: 10px; font-weight: 700; color: #6366F1; letter-spacing: 0.5px; text-transform: uppercase;">
+                            <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
                                 <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
                             </div>
                             <div style="font-weight: 600; color: #1F2937; font-size: 13px;">
@@ -521,7 +521,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div class="leader-box">
                         <img src="<?= $leaderImg ?>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">
                         <div>
-                            <div style="font-size: 10px; font-weight: 700; color: #6366F1; letter-spacing: 0.5px; text-transform: uppercase;">
+                            <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
                                 <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
                             </div>
                             <div style="font-weight: 600; color: #1F2937; font-size: 14px;">
@@ -701,7 +701,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <?php } ?>
                                     <div style="margin-top: 4px;">
                                         <?php if($sub['submission_file']) { ?>
-                                            <a href="<?=$sub['submission_file']?>" target="_blank" style="color: #4F46E5; font-size: 13px;"><i class="fa fa-paperclip"></i> View File</a>
+                                            <a href="<?=$sub['submission_file']?>" target="_blank" style="color: #6C3CE1; font-size: 13px;"><i class="fa fa-paperclip"></i> View File</a>
                                         <?php } else { ?>
                                             <span style="font-size: 13px; color: #6B7280;">Submitted (No file)</span>
                                         <?php } ?>

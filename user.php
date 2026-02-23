@@ -46,9 +46,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <link rel="stylesheet" href="css/dashboard.css">
     <style>
         .filter-active {
-            background: #4F46E5 !important;
+            background: #6C3CE1 !important;
             color: white !important;
-            border-color: #4F46E5 !important;
+            border-color: #6C3CE1 !important;
         }
         
         /* User Card Grid - 4 Columns on Desktop, 2 Columns on Mobile */
@@ -165,7 +165,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             width: 26px;
             height: 26px;
             background: #F3E8FF;
-            color: #7C3AED;
+            color: #8B5CF6;
             border: none;
             border-radius: 50%;
             display: flex;
@@ -177,7 +177,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
         
         .btn-edit-absolute:hover {
-            background: #7C3AED;
+            background: #8B5CF6;
             color: white;
         }
 
@@ -186,7 +186,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             height: 56px;
             margin: 0 auto 10px;
             background: #E0E7FF;
-            color: #4F46E5;
+            color: #6C3CE1;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -258,11 +258,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
 
         .btn-msg {
-            background: #4F46E5;
+            background: #6C3CE1;
             color: white;
-            border-color: #4F46E5;
+            border-color: #6C3CE1;
         }
-        .btn-msg:hover { background: #4338CA; border-color: #4338CA; }
+        .btn-msg:hover { background: #8B5CF6; border-color: #8B5CF6; }
 
         .btn-profile {
             background: white;
@@ -339,7 +339,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             margin-bottom: 20px;
         }
         .modal-header i {
-            color: #7C3AED;
+            color: #8B5CF6;
             font-size: 20px;
         }
         .modal-header h3 {
@@ -373,7 +373,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
         .btn-update-role {
             padding: 8px 16px;
-            background: #7C3AED;
+            background: #8B5CF6;
             color: white;
             border: none;
             border-radius: 6px;

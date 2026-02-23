@@ -19,7 +19,7 @@ if (!csrf_verify('login_form', $_POST['csrf_token'] ?? null, true)) {
 }
 
 $user_name = validate_input($_POST['user_name']);
-$password = validate_input($_POST['password']);
+$password = (string)($_POST['password'] ?? '');
 
 if (empty($user_name)) {
     $em = "User name is required";
@@ -27,7 +27,7 @@ if (empty($user_name)) {
     exit();
 }
 if (empty($password)) {
-    $em = "Password name is required";
+    $em = "Password is required";
     header("Location: ../login.php?error=$em");
     exit();
 }

@@ -139,7 +139,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         .welcome-role-badge {
             display: inline-block;
             background: #EEF2FF;
-            color: #4F46E5;
+            color: #6C3CE1;
             font-size: 12px;
             font-weight: 600;
             padding: 3px 9px;
@@ -406,7 +406,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             <?php if (!empty($top_groups)) { ?>
                                 <div class="leaderboard-list">
                                     <?php foreach ($top_groups as $idx => $g) { 
-                                        $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#6366F1' : '#10B981');
+                                        $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#8B5CF6' : '#10B981');
                                     ?>
                                     <div class="leaderboard-item">
                                         <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
@@ -430,14 +430,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <div class="leaderboard-pane">
                             <div class="leaderboard-header">
                                 <div class="leaderboard-title">
-                                    <i class="fa fa-users" style="color: #4F46E5;"></i>
+                                    <i class="fa fa-users" style="color: #6C3CE1;"></i>
                                     Top Employees
                                 </div>
                             </div>
                             <?php if (!empty($top_users)) { ?>
                                 <div class="leaderboard-list">
                                     <?php foreach ($top_users as $idx => $u) { 
-                                        $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#6366F1' : '#10B981');
+                                        $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#8B5CF6' : '#10B981');
                                         $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
                                     ?>
                                     <div class="leaderboard-item">
@@ -478,7 +478,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
                     <div class="time-tracker-header">
                         <div class="time-tracker-title">
-                            <i class="fa fa-clock-o" style="color: #4F46E5;"></i> 
+                            <i class="fa fa-clock-o" style="color: #6C3CE1;"></i> 
                             Time Tracker
                         </div>
                         <div style="color: #9CA3AF;">
@@ -505,7 +505,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                 <i class="fa fa-clock-o" style="color: #6B7280; font-size: 16px; margin-right: 4px;"></i>
                                 <span id="statTimeIn"><?= $attStats['time_in'] ?></span>
                             </div>
-                            <div style="font-size: 11px; color: #4F46E5; font-weight:700;">TIME IN</div>
+                            <div style="font-size: 11px; color: #6C3CE1; font-weight:700;">TIME IN</div>
                         </div>
                         <div style="font-size: 12px; color: #6B7280; margin-bottom: 6px;">
                             OUT: <span id="statTimeOut"><?= $attStats['time_out'] ?></span>
@@ -513,13 +513,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <div style="border-top: 1px solid #C7D2FE; padding-top: 6px; margin-top: 6px; display: flex; justify-content: space-between; gap: 8px;">
                              <div style="text-align: left;">
                                  <div style="font-size: 10px; color: #6B7280; text-transform: uppercase; font-weight: 700;">Today</div>
-                                 <div style="font-size: 24px; font-weight: 800; color: #4F46E5; line-height: 1;">
+                                 <div style="font-size: 24px; font-weight: 800; color: #6C3CE1; line-height: 1;">
                                     <?= $attStats['daily_duration'] ?>
                                  </div>
                              </div>
                              <div style="text-align: right;">
                                  <div style="font-size: 10px; color: #6B7280; text-transform: uppercase; font-weight: 700;">All Time</div>
-                                 <div style="font-size: 24px; font-weight: 800; color: #4F46E5; line-height: 1;">
+                                 <div style="font-size: 24px; font-weight: 800; color: #6C3CE1; line-height: 1;">
                                     <?= $attStats['overall_duration'] ?>
                                  </div>
                              </div>
@@ -544,12 +544,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="dash-card employee-leaderboard-card groups">
                     <div class="leaderboard-header">
                         <div class="leaderboard-title"><i class="fa fa-sitemap" style="color: #10B981;"></i> Top Groups</div>
-                        <a href="groups.php" style="font-size:12px; color:#4F46E5; text-decoration:none; font-weight:600;">View All</a>
+                        <a href="groups.php" style="font-size:12px; color:#6C3CE1; text-decoration:none; font-weight:600;">View All</a>
                     </div>
                     <?php if (!empty($top_groups)) { ?>
                         <div class="leaderboard-list">
                             <?php foreach (array_slice($top_groups, 0, 4) as $idx => $g) { 
-                                $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#6366F1' : '#10B981');
+                                $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#8B5CF6' : '#10B981');
                             ?>
                             <div class="leaderboard-item">
                                 <div class="rank-badge" style="background: <?= $rankColor ?>;"><?= $idx + 1 ?></div>
@@ -578,7 +578,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <?php if (!empty($top_users)) { ?>
                         <div class="leaderboard-list">
                             <?php foreach ($top_users as $idx => $u) { 
-                                $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#6366F1' : '#10B981');
+                                $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#8B5CF6' : '#10B981');
                                 $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
                             ?>
                             <div class="leaderboard-item">
@@ -715,7 +715,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <div class="leader-box-preview">
                             <img src="<?= $leaderImg ?>" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
                             <div>
-                                <div style="font-size: 10px; font-weight: 700; color: #6366F1; letter-spacing: 0.5px; text-transform: uppercase;">
+                                <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
                                     <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
                                 </div>
                                 <div style="font-weight: 600; color: #1F2937; font-size: 13px;">
@@ -762,7 +762,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             </div>
             
             <div style="margin-top: 15px; text-align: center;">
-                 <a href="<?= ($_SESSION['role']=='admin'?'tasks.php':'my_task.php') ?>" style="color: #4F46E5; text-decoration: none; font-size: 14px; font-weight: 500;">
+                 <a href="<?= ($_SESSION['role']=='admin'?'tasks.php':'my_task.php') ?>" style="color: #6C3CE1; text-decoration: none; font-size: 14px; font-weight: 500;">
                      View All Tasks <i class="fa fa-arrow-right"></i>
                  </a>
             </div>
@@ -1242,7 +1242,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         </p>
         <div style="display:flex; justify-content:center; gap:10px;">
             <button onclick="closeNavClockInModal()" style="background:#F3F4F6; color:#374151; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Dismiss</button>
-            <button onclick="continueNavAfterClockInWarning()" style="background:#4F46E5; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Continue</button>
+            <button onclick="continueNavAfterClockInWarning()" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Continue</button>
         </div>
     </div>
 </div>
@@ -1258,7 +1258,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             You were clocked out because screen sharing was canceled or stopped.
         </p>
         <div style="display:flex; justify-content:center;">
-            <button onclick="closeAutoClockOutModal()" style="background:#4F46E5; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Dismiss</button>
+            <button onclick="closeAutoClockOutModal()" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Dismiss</button>
         </div>
     </div>
 </div>
@@ -1274,7 +1274,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             You have been idle for 100 seconds on the dashboard.
         </p>
         <div style="display:flex; justify-content:center;">
-            <button onclick="closeIdleCheckModal()" style="background:#4F46E5; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>
+            <button onclick="closeIdleCheckModal()" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>
         </div>
     </div>
 </div>

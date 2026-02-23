@@ -83,10 +83,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 					<td style="padding: 16px 24px; font-size: 14px; color: #6B7280;"><?=++$i?></td>
 					<td style="padding: 16px 24px; font-size: 14px; color: #111827;">
                         <?=$notification['message']?>
-                        <i class="fa fa-chevron-right" style="color: #6366F1; margin-left: 8px; font-size: 12px;"></i>
+                        <i class="fa fa-chevron-right" style="color: #8B5CF6; margin-left: 8px; font-size: 12px;"></i>
                     </td>
 					<td style="padding: 16px 24px; font-size: 14px; color: #4B5563;">
-                        <span style="background: #EEF2FF; color: #4F46E5; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;">
+                        <span style="background: #EEF2FF; color: #6C3CE1; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;">
                             <?=$notification['type']?>
                         </span>
                     </td>

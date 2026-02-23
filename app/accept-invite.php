@@ -6,16 +6,33 @@ require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 require_once "invite_helpers.php";
 require_once __DIR__ . "/helpers/input.php";
+require_once __DIR__ . "/helpers/password_policy.php";
 
 function generate_temporary_password($length = 10)
 {
     $length = max(8, (int)$length);
-    $alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-    $max = strlen($alphabet) - 1;
-    $out = '';
-    for ($i = 0; $i < $length; $i++) {
-        $out .= $alphabet[random_int(0, $max)];
-    }
+    $upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    $lower = "abcdefghijkmnopqrstuvwxyz";
+    $digits = "23456789";
+    $symbols = "!@#$%&*";
+    $all = $upper . $lower . $digits . $symbols;
+
+    do {
+        $out = '';
+        $out .= $upper[random_int(0, strlen($upper) - 1)];
+        $out .= $lower[random_int(0, strlen($lower) - 1)];
+        $out .= $digits[random_int(0, strlen($digits) - 1)];
+        $out .= $symbols[random_int(0, strlen($symbols) - 1)];
+
+        for ($i = 4; $i < $length; $i++) {
+            $out .= $all[random_int(0, strlen($all) - 1)];
+        }
+
+        $chars = str_split($out);
+        shuffle($chars);
+        $out = implode('', $chars);
+    } while (!password_meets_policy($out));
+
     return $out;
 }
 
@@ -115,8 +132,8 @@ try {
         if ($password === '' || $confirmPassword === '') {
             throw new RuntimeException("Password fields are required.");
         }
-        if (strlen($password) < 8) {
-            throw new RuntimeException("Password must be at least 8 characters.");
+        if (!password_meets_policy($password)) {
+            throw new RuntimeException(password_policy_error());
         }
         if ($password !== $confirmPassword) {
             throw new RuntimeException("Passwords do not match.");

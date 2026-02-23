@@ -23,8 +23,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <style>
         * { box-sizing: border-box; }
         :root {
-            --primary: #4F46E5;
-            --primary-hover: #4338ca;
+            --primary: #6C3CE1;
+            --primary-hover: #8B5CF6;
             --text-dark: #111827;
             --text-gray: #6B7280;
             --bg-light: #F3F4F6;
@@ -50,7 +50,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             font-size: 14px; outline: none; transition: all 0.15s; color: #111827; background: #fff;
             box-sizing: border-box;
         }
-        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1); }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(108, 60, 225, 0.1); }
         .form-control::placeholder { color: #9CA3AF; }
         
         /* Select Leader Mockup */
@@ -239,7 +239,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         .user-item.disabled { opacity: 0.5; pointer-events: none; }
         
         .chip { 
-            display: inline-flex; align-items: center; gap: 6px; background: #EEF2FF; color: #4F46E5; 
+            display: inline-flex; align-items: center; gap: 6px; background: #EEF2FF; color: #6C3CE1; 
             padding: 4px 10px; border-radius: 100px; font-size: 12px; font-weight: 500; margin-top: 8px; margin-right: 6px;
         }
         .chip span.close { cursor: pointer; font-size: 14px; opacity: 0.6; }
@@ -283,7 +283,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
         .custom-modal-actions button {
             border: none;
-            background: #6366F1;
+            background: #8B5CF6;
             color: #fff;
             border-radius: 8px;
             padding: 9px 14px;
@@ -357,7 +357,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 display: flex;
             }
             .view-list .action-icon { font-size: 18px !important; }
-            .view-list .action-icon.chat-btn { color: #6366F1 !important; }
+            .view-list .action-icon.chat-btn { color: #8B5CF6 !important; }
             .view-list .action-icon.delete { color: #EF4444 !important; }
         }
     </style>

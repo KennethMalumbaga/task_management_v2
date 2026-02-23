@@ -46,7 +46,7 @@ if (isset($_SESSION['id'])) {
                     if (!empty($msg['profile_image']) && $msg['profile_image'] != 'default.png' && file_exists('../../uploads/' . $msg['profile_image'])) {
                         $avatarHtml = '<div class="message-avatar"><img src="uploads/'.$msg['profile_image'].'" alt="Profile"></div>';
                     } else {
-                        $avatarHtml = '<div class="message-avatar" style="display:flex; align-items:center; justify-content:center; font-weight:700; color:#6366F1;">' . strtoupper(substr($msg['full_name'], 0, 1)) . '</div>';
+                        $avatarHtml = '<div class="message-avatar" style="display:flex; align-items:center; justify-content:center; font-weight:700; color:#8B5CF6;">' . strtoupper(substr($msg['full_name'], 0, 1)) . '</div>';
                     }
                 }
 ?>

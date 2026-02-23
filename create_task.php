@@ -80,7 +80,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
         .member-picker.open .member-search {
             border-bottom: 1px solid #e5e7eb;
-            box-shadow: inset 0 0 0 2px #6366f1;
+            box-shadow: inset 0 0 0 2px #8B5CF6;
             border-radius: 10px 10px 0 0;
         }
         .user-option {
@@ -139,7 +139,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             color: #6b7280;
         }
         .user-action {
-            color: #4f46e5;
+            color: #6C3CE1;
             font-size: 18px;
             font-weight: 600;
             padding: 2px 6px;
@@ -159,7 +159,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             align-items: center;
             gap: 6px;
             background: #eef2ff;
-            color: #4f46e5;
+            color: #6C3CE1;
             padding: 4px 10px;
             border-radius: 999px;
             font-size: 13px;
@@ -209,7 +209,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
         .custom-modal-actions button {
             border: none;
-            background: #6366F1;
+            background: #8B5CF6;
             color: #fff;
             border-radius: 8px;
             padding: 9px 14px;
@@ -389,7 +389,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <!-- Actions -->
                 <div class="form-actions" style="display: flex; gap: 10px;">
                     <a href="tasks.php" style="flex: 1; text-align: center; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; color: #374151; text-decoration: none; font-weight: 500; background: white;">Cancel</a>
-                    <button type="submit" style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: #6366F1; color: white; font-weight: 500; cursor: pointer; font-size: 14px;">Create Task</button>
+                    <button type="submit" style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: #8B5CF6; color: white; font-weight: 500; cursor: pointer; font-size: 14px;">Create Task</button>
                 </div>
 
             </form>

@@ -220,15 +220,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="plan-name">Starter</div>
                 <div class="plan-desc">Perfect for individuals and small teams getting started</div>
                 <div class="plan-price">
-                    <span class="amount" data-monthly="$0" data-yearly="$0">$0</span>
+                    <span class="amount" data-monthly="$9" data-yearly="$9">$9</span>
                     <span class="period">/mo</span>
                 </div>
                 <ul class="plan-features">
-                    <li><span class="feat-check">&#10003;</span> Up to 5 team members</li>
-                    <li><span class="feat-check">&#10003;</span> Basic task management</li>
-                    <li><span class="feat-check">&#10003;</span> Time tracking</li>
-                    <li><span class="feat-check">&#10003;</span> Team chat</li>
-                    <li><span class="feat-check">&#10003;</span> 1 workspace</li>
+                    <li><span class="feat-check">&#10003;</span> Up to 10 team members</li>
                 </ul>
                 <a href="signup.php" class="landing-btn-plan">Get Started</a>
             </div>
@@ -237,21 +233,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             <div class="landing-price-card popular">
                 <div class="landing-popular-tag">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
-                    Most Popular
+                   
                 </div>
                 <div class="plan-name">Professional</div>
                 <div class="plan-desc">For growing teams that need advanced features</div>
                 <div class="plan-price">
-                    <span class="amount" data-monthly="$29" data-yearly="$24">$29</span>
+                    <span class="amount" data-monthly="$17" data-yearly="$17">$17</span>
                     <span class="period">/mo</span>
                 </div>
                 <ul class="plan-features">
-                    <li><span class="feat-check">&#10003;</span> Up to 50 team members</li>
-                    <li><span class="feat-check">&#10003;</span> Advanced task management</li>
-                    <li><span class="feat-check">&#10003;</span> Screen monitoring</li>
-                    <li><span class="feat-check">&#10003;</span> Performance ratings</li>
-                    <li><span class="feat-check">&#10003;</span> Group management</li>
-                    <li><span class="feat-check">&#10003;</span> Priority support</li>
+                    <li><span class="feat-check">&#10003;</span> Up to 20 team members</li>
                 </ul>
                 <a href="signup.php" class="landing-btn-plan primary">Get Started</a>
             </div>
@@ -261,16 +252,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="plan-name">Enterprise</div>
                 <div class="plan-desc">For large organizations with custom needs</div>
                 <div class="plan-price">
-                    <span class="amount" data-monthly="$99" data-yearly="$82">$99</span>
+                    <span class="amount" data-monthly="$29" data-yearly="$24">$29</span>
                     <span class="period">/mo</span>
                 </div>
                 <ul class="plan-features">
-                    <li><span class="feat-check">&#10003;</span> Unlimited team members</li>
-                    <li><span class="feat-check">&#10003;</span> All Professional features</li>
-                    <li><span class="feat-check">&#10003;</span> Custom integrations</li>
-                    <li><span class="feat-check">&#10003;</span> Advanced analytics</li>
-                    <li><span class="feat-check">&#10003;</span> Dedicated support</li>
-                    <li><span class="feat-check">&#10003;</span> SLA guarantee</li>
+                    <li><span class="feat-check">&#10003;</span> Up to 40 team members</li>
                 </ul>
                 <a href="signup.php" class="landing-btn-plan">Contact Sales</a>
             </div>
@@ -448,6 +434,50 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 });
             }
         }
+
+        // Plan card selection
+        var priceCards = document.querySelectorAll('.landing-price-card');
+        var popularTag = document.querySelector('.landing-popular-tag');
+
+        function selectPricingCard(card) {
+            if (!card) return;
+
+            priceCards.forEach(function(el) {
+                el.classList.remove('popular');
+                el.setAttribute('aria-pressed', 'false');
+                var btn = el.querySelector('.landing-btn-plan');
+                if (btn) btn.classList.remove('primary');
+            });
+
+            card.classList.add('popular');
+            card.setAttribute('aria-pressed', 'true');
+
+            var selectedBtn = card.querySelector('.landing-btn-plan');
+            if (selectedBtn) selectedBtn.classList.add('primary');
+
+            if (popularTag && popularTag.parentElement !== card) {
+                card.insertBefore(popularTag, card.firstChild);
+            }
+        }
+
+        priceCards.forEach(function(card) {
+            card.setAttribute('tabindex', '0');
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-pressed', card.classList.contains('popular') ? 'true' : 'false');
+
+            card.addEventListener('click', function() {
+                selectPricingCard(card);
+            });
+
+            card.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectPricingCard(card);
+                }
+            });
+        });
+
+        selectPricingCard(document.querySelector('.landing-price-card.popular') || priceCards[0]);
 
         // FAQ accordion
         function toggleFaq(btn) {

@@ -107,11 +107,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             outline: none;
         }
         .input-field:focus {
-            border-color: #4F46E5;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            border-color: #6C3CE1;
+            box-shadow: 0 0 0 3px rgba(108, 60, 225, 0.1);
         }
         .btn-primary-lite {
-            background: #4F46E5;
+            background: #6C3CE1;
             color: #fff;
             border: none;
             border-radius: 8px;
@@ -120,7 +120,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             cursor: pointer;
         }
         .btn-primary-lite:hover {
-            background: #4338CA;
+            background: #8B5CF6;
         }
         .table-wrap {
             overflow-x: auto;
@@ -149,7 +149,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         }
         .st-pending {
             background: #EEF2FF;
-            color: #4338CA;
+            color: #8B5CF6;
         }
         .st-accepted {
             background: #ECFDF5;

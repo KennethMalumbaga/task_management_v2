@@ -128,7 +128,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             </div>
                             <div class="profile-field-group">
                                 <label>New Password</label>
-                                <input type="password" name="new_password" class="field-value" style="width: 100%; box-sizing: border-box;" placeholder="New password">
+                                <input
+                                    type="password"
+                                    name="new_password"
+                                    class="field-value"
+                                    style="width: 100%; box-sizing: border-box;"
+                                    placeholder="New password (min 8, Aa1!)"
+                                    minlength="8"
+                                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}"
+                                    title="Must be at least 8 characters and include uppercase, lowercase, number, and symbol."
+                                >
                             </div>
                             <div class="profile-field-group">
                                 <label>Confirm Password</label>

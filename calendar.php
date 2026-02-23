@@ -97,7 +97,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
         .cal-day:hover { background: #E0E7FF; color: var(--primary); }
         
-        .cal-day.active { background: var(--primary); color: white; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3); }
+        .cal-day.active { background: var(--primary); color: white; box-shadow: 0 4px 6px -1px rgba(108, 60, 225, 0.3); }
         .cal-day.empty { background: transparent; cursor: default; }
 
         .cal-day.has-task::after { 
@@ -243,7 +243,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                 <div style="background: #F5F3FF; border: 1px solid #E0E7FF; border-radius: 8px; padding: 10px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
                                     <img src="<?= $leaderImg ?>" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
                                     <div>
-                                        <div style="font-size: 9px; font-weight: 700; color: #6366F1; letter-spacing: 0.5px; text-transform: uppercase;">
+                                        <div style="font-size: 9px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
                                             <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
                                         </div>
                                         <div style="font-weight: 600; color: #1F2937; font-size: 13px;">

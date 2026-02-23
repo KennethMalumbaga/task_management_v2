@@ -26,6 +26,30 @@ function build_org_slug($name)
     return substr($slug, 0, 80);
 }
 
+function generate_temporary_password($length = 10)
+{
+    $length = max(8, (int)$length);
+    $upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    $lower = "abcdefghijkmnopqrstuvwxyz";
+    $digits = "23456789";
+    $symbols = "!@#$%&*";
+    $all = $upper . $lower . $digits . $symbols;
+
+    $password = '';
+    $password .= $upper[random_int(0, strlen($upper) - 1)];
+    $password .= $lower[random_int(0, strlen($lower) - 1)];
+    $password .= $digits[random_int(0, strlen($digits) - 1)];
+    $password .= $symbols[random_int(0, strlen($symbols) - 1)];
+
+    for ($i = 4; $i < $length; $i++) {
+        $password .= $all[random_int(0, strlen($all) - 1)];
+    }
+
+    $chars = str_split($password);
+    shuffle($chars);
+    return implode('', $chars);
+}
+
 $user_name = validate_input($_POST['user_name']);
 $full_name = validate_input($_POST['full_name']);
 $organization_name = validate_input($_POST['organization_name'] ?? '');
@@ -54,7 +78,7 @@ if ($stmt->rowCount() > 0) {
     exit();
 }
 
-$generated_password = substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%"), 0, 10);
+$generated_password = generate_temporary_password(10);
 $password_hash = password_hash($generated_password, PASSWORD_DEFAULT);
 
 $hasTenantTables = tenant_table_exists($pdo, 'organizations')
@@ -128,9 +152,9 @@ try {
 include_once "send_email.php";
 if (send_confirmation_email($user_name, $full_name, $generated_password)) {
     if ($hasTenantTables) {
-        $msg = "Workspace created. A confirmation email with your password has been sent to $user_name.";
+        $msg = "Workspace created. A confirmation email with your temporary password has been sent to $user_name.";
     } else {
-        $msg = "Account created successfully. A confirmation email with your password has been sent to $user_name.";
+        $msg = "Account created successfully. A confirmation email with your temporary password has been sent to $user_name.";
     }
     header("Location: ../login.php?success=" . urlencode($msg));
     exit();

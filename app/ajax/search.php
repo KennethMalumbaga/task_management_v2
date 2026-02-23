@@ -116,7 +116,7 @@ if (isset($_SESSION['id'])) {
                    : (!empty($group['created_at']) ? $group['created_at'] : null);
        ?>
        <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>">
-            <div class="avatar-md" style="background:#EEF2FF; color:#4F46E5;">
+            <div class="avatar-md" style="background:#EEF2FF; color:#6C3CE1;">
                 <i class="fa fa-users"></i>
             </div>
             <div class="chat-item-content">

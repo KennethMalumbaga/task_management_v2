@@ -43,12 +43,28 @@ require_once "inc/csrf.php";
                 
                 <div class="form-group">
                     <label class="form-label">New Password</label>
-                    <input type="password" class="form-control" name="new_password" placeholder="New Password" required>
+                    <input
+                        type="password"
+                        class="form-control"
+                        name="new_password"
+                        placeholder="At least 8 chars, Aa1!"
+                        minlength="8"
+                        pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}"
+                        title="Must be at least 8 characters and include uppercase, lowercase, number, and symbol."
+                        required
+                    >
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Confirm Password</label>
-                    <input type="password" class="form-control" name="confirm_password" placeholder="Confirm Password" required>
+                    <input
+                        type="password"
+                        class="form-control"
+                        name="confirm_password"
+                        placeholder="Confirm Password"
+                        minlength="8"
+                        required
+                    >
                 </div>
                 
                 <button type="submit" class="btn-primary">Reset Password</button>

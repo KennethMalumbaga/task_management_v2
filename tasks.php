@@ -284,7 +284,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
     <div class="dash-main">
         <?php if ($_SESSION['role'] == 'admin') { ?>
         <div style="margin-bottom: 32px; display: flex; justify-content: flex-end; align-items: center;">
-            <a href="create_task.php" style="background: #4F46E5; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);">
+            <a href="create_task.php" style="background: #6C3CE1; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(108, 60, 225, 0.2);">
                 <i class="fa fa-plus"></i> Create Task
             </a>
         </div>
@@ -351,7 +351,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                     <div class="leader-box-preview">
                         <img src="<?= $leaderImg ?>" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
                         <div>
-                            <div style="font-size: 10px; font-weight: 700; color: #6366F1; letter-spacing: 0.5px; text-transform: uppercase;">
+                            <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
                                 <i class="fa fa-crown"></i> Leader
                             </div>
                             <div style="font-weight: 600; color: #1F2937; font-size: 13px;">
@@ -587,7 +587,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             <div class="leader-box">
                     <img src="<?= $leaderImg ?>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">
                     <div style="flex: 1;">
-                    <div style="font-size: 10px; font-weight: 700; color: #6366F1; letter-spacing: 0.5px; text-transform: uppercase;">
+                    <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
                         <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
                     </div>
                     <div style="font-weight: 600; color: #1F2937; font-size: 14px; margin-top: 4px; border-bottom: 1px solid #E0E7FF; padding-bottom: 4px; margin-bottom: 4px;">
@@ -721,7 +721,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         </div>
                         <?php if(!empty($sub['submission_file'])) { ?>
                             <div style="font-size: 12px; margin-top: 5px;">
-                                <a href="<?=$sub['submission_file']?>" target="_blank" style="color: #4F46E5;">View File</a>
+                                <a href="<?=$sub['submission_file']?>" target="_blank" style="color: #6C3CE1;">View File</a>
                             </div>
                         <?php } ?>
                     </div>
