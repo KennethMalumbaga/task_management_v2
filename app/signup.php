@@ -4,6 +4,8 @@ include "../DB_connection.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 require_once __DIR__ . "/helpers/input.php";
+require_once __DIR__ . "/helpers/password_policy.php";
+require_once __DIR__ . "/helpers/login_verification.php";
 
 function signup_redirect_error($message, $planCode = 'starter')
 {
@@ -20,7 +22,7 @@ if (!csrf_verify('signup_form', $_POST['csrf_token'] ?? null, true)) {
     signup_redirect_error("Invalid or expired request. Please refresh and try again.", $_POST['plan_code'] ?? 'starter');
 }
 
-if (!isset($_POST['user_name']) || !isset($_POST['full_name'])) {
+if (!isset($_POST['user_name']) || !isset($_POST['full_name']) || !isset($_POST['password'])) {
     signup_redirect_error("Invalid signup request.", $_POST['plan_code'] ?? 'starter');
 }
 
@@ -35,30 +37,6 @@ function build_org_slug($name)
     return substr($slug, 0, 80);
 }
 
-function generate_temporary_password($length = 10)
-{
-    $length = max(8, (int)$length);
-    $upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    $lower = "abcdefghijkmnopqrstuvwxyz";
-    $digits = "23456789";
-    $symbols = "!@#$%&*";
-    $all = $upper . $lower . $digits . $symbols;
-
-    $password = '';
-    $password .= $upper[random_int(0, strlen($upper) - 1)];
-    $password .= $lower[random_int(0, strlen($lower) - 1)];
-    $password .= $digits[random_int(0, strlen($digits) - 1)];
-    $password .= $symbols[random_int(0, strlen($symbols) - 1)];
-
-    for ($i = 4; $i < $length; $i++) {
-        $password .= $all[random_int(0, strlen($all) - 1)];
-    }
-
-    $chars = str_split($password);
-    shuffle($chars);
-    return implode('', $chars);
-}
-
 $selectedPlan = tenant_resolve_workspace_plan($_POST['plan_code'] ?? 'starter', 'starter');
 $selectedPlanCode = (string)($selectedPlan['code'] ?? 'starter');
 $selectedPlanName = (string)($selectedPlan['name'] ?? 'Starter');
@@ -67,6 +45,7 @@ $selectedPlanSeatLimit = max(1, (int)($selectedPlan['seat_limit'] ?? 10));
 $user_name = validate_input($_POST['user_name']);
 $full_name = validate_input($_POST['full_name']);
 $organization_name = validate_input($_POST['organization_name'] ?? '');
+$password = (string)($_POST['password'] ?? '');
 
 if (empty($user_name)) {
     signup_redirect_error("Username/Email is required", $selectedPlanCode);
@@ -80,6 +59,12 @@ if (empty($full_name)) {
 if (empty($organization_name)) {
     signup_redirect_error("Workspace name is required", $selectedPlanCode);
 }
+if ($password === '') {
+    signup_redirect_error("Password is required", $selectedPlanCode);
+}
+if (!password_meets_policy($password)) {
+    signup_redirect_error(password_policy_error(), $selectedPlanCode);
+}
 
 $stmt = $pdo->prepare("SELECT username FROM users WHERE username=?");
 $stmt->execute([$user_name]);
@@ -87,12 +72,18 @@ if ($stmt->rowCount() > 0) {
     signup_redirect_error("The username/email is already taken", $selectedPlanCode);
 }
 
-$generated_password = generate_temporary_password(10);
-$password_hash = password_hash($generated_password, PASSWORD_DEFAULT);
+$password_hash = password_hash($password, PASSWORD_DEFAULT);
+if ($password_hash === false) {
+    signup_redirect_error("Unable to process password right now. Please try again.", $selectedPlanCode);
+}
 
 $hasTenantTables = tenant_table_exists($pdo, 'organizations')
     && tenant_table_exists($pdo, 'organization_members')
     && tenant_column_exists($pdo, 'users', 'organization_id');
+
+if (!login_verification_ensure_table($pdo)) {
+    signup_redirect_error("Unable to initialize account verification. Please try again.", $selectedPlanCode);
+}
 
 $newUserId = null;
 $newOrgId = null;
@@ -139,7 +130,7 @@ try {
             "INSERT INTO users (full_name, username, password, role, must_change_password, organization_id)
              VALUES (?, ?, ?, 'admin', ?, ?)"
         );
-        $userStmt->execute([$full_name, $user_name, $password_hash, "true", $newOrgId]);
+        $userStmt->execute([$full_name, $user_name, $password_hash, 0, $newOrgId]);
         $newUserId = (int)$pdo->lastInsertId();
 
         $memberStmt = $pdo->prepare(
@@ -152,51 +143,27 @@ try {
             "INSERT INTO users (full_name, username, password, role, must_change_password)
              VALUES (?, ?, ?, 'employee', ?)"
         );
-        $userStmt->execute([$full_name, $user_name, $password_hash, "true"]);
+        $userStmt->execute([$full_name, $user_name, $password_hash, 0]);
         $newUserId = (int)$pdo->lastInsertId();
     }
 
+    if (!login_verification_mark_required($pdo, (int)$newUserId)) {
+        throw new RuntimeException('Failed to initialize login verification.');
+    }
+
     $pdo->commit();
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
+    error_log("signup failed: " . $e->getMessage());
     signup_redirect_error("Unknown error occurred during registration", $selectedPlanCode);
 }
 
-include_once "send_email.php";
-if (send_confirmation_email($user_name, $full_name, $generated_password)) {
-    if ($hasTenantTables) {
-        $msg = "Workspace created on the {$selectedPlanName} plan (up to {$selectedPlanSeatLimit} members). A confirmation email with your temporary password has been sent to {$user_name}.";
-    } else {
-        $msg = "Account created successfully. A confirmation email with your temporary password has been sent to $user_name.";
-    }
-    header("Location: ../login.php?success=" . urlencode($msg));
-    exit();
+if ($hasTenantTables) {
+    $msg = "Workspace created on the {$selectedPlanName} plan (up to {$selectedPlanSeatLimit} members). Log in to receive your one-time verification code.";
+} else {
+    $msg = "Account created successfully. Log in to receive your one-time verification code.";
 }
-
-try {
-    $pdo->beginTransaction();
-
-    if ($hasTenantTables && $newOrgId && $newUserId) {
-        $stmt = $pdo->prepare("DELETE FROM organization_members WHERE organization_id = ? AND user_id = ?");
-        $stmt->execute([$newOrgId, $newUserId]);
-        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
-        $stmt->execute([$newUserId]);
-        $stmt = $pdo->prepare("DELETE FROM organizations WHERE id = ?");
-        $stmt->execute([$newOrgId]);
-    } elseif ($newUserId) {
-        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
-        $stmt->execute([$newUserId]);
-    }
-
-    $pdo->commit();
-} catch (Throwable $e) {
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
-}
-
-$msg = "Registration failed: Could not send confirmation email to $user_name. Please ensure your email is valid.";
-signup_redirect_error($msg, $selectedPlanCode);
+header("Location: ../login.php?success=" . urlencode($msg));
 exit();

@@ -152,4 +152,46 @@ function send_workspace_invite_email($to_email, $full_name, $workspace_name, $to
         return false;
     }
 }
+
+function send_login_verification_code_email($to_email, $full_name, $code) {
+    if (MAIL_USERNAME === '' || MAIL_PASSWORD === '') {
+        error_log('Mail not configured: set MAIL_USERNAME and MAIL_PASSWORD environment variables.');
+        return false;
+    }
+
+    $mail = new PHPMailer(true);
+
+    try {
+        $mail->isSMTP();
+        $mail->Host       = MAIL_HOST;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = MAIL_USERNAME;
+        $mail->Password   = MAIL_PASSWORD;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = MAIL_PORT;
+
+        $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
+        $mail->addAddress($to_email, $full_name);
+
+        $mail->isHTML(true);
+        $mail->Subject = 'Your TaskFlow verification code';
+        $mail->Body    = "
+            <h2>Login Verification</h2>
+            <p>Hello {$full_name},</p>
+            <p>Use this 4-digit code to finish your login:</p>
+            <p style='font-size: 28px; letter-spacing: 8px; font-weight: 700; margin: 16px 0;'>{$code}</p>
+            <p>This code expires in 10 minutes.</p>
+            <p>If you did not request this login, you can ignore this email.</p>
+            <br>
+            <p>Regards,<br>The Team</p>
+        ";
+        $mail->AltBody = "Hello {$full_name}. Your TaskFlow verification code is {$code}. It expires in 10 minutes.";
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Verification email failed: {$mail->ErrorInfo}");
+        return false;
+    }
+}
 ?>
