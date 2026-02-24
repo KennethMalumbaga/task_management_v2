@@ -203,10 +203,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         <p>Start free, scale as you grow. No hidden fees.</p>
 
         <div class="landing-pricing-toggle">
-            <button class="landing-toggle-btn active" id="toggleMonthly" onclick="setPricing('monthly')">Monthly</button>
-            <button class="landing-toggle-btn" id="toggleYearly" onclick="setPricing('yearly')">
-                Yearly <span class="landing-toggle-save">Save 17%</span>
-            </button>
+            <button class="landing-toggle-btn active" id="toggleMonthly" type="button">Monthly</button>
         </div>
 
         <div class="landing-pricing-note">
@@ -220,13 +217,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="plan-name">Starter</div>
                 <div class="plan-desc">Perfect for individuals and small teams getting started</div>
                 <div class="plan-price">
-                    <span class="amount" data-monthly="$9" data-yearly="$9">$9</span>
+                    <span class="amount" data-monthly="$9">$9</span>
                     <span class="period">/mo</span>
                 </div>
                 <ul class="plan-features">
                     <li><span class="feat-check">&#10003;</span> Up to 10 team members</li>
                 </ul>
-                <a href="signup.php" class="landing-btn-plan">Get Started</a>
+                <a href="signup.php?plan=starter" class="landing-btn-plan">Get Started</a>
             </div>
 
             <!-- Professional -->
@@ -238,13 +235,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="plan-name">Professional</div>
                 <div class="plan-desc">For growing teams that need advanced features</div>
                 <div class="plan-price">
-                    <span class="amount" data-monthly="$17" data-yearly="$17">$17</span>
+                    <span class="amount" data-monthly="$17">$17</span>
                     <span class="period">/mo</span>
                 </div>
                 <ul class="plan-features">
                     <li><span class="feat-check">&#10003;</span> Up to 20 team members</li>
                 </ul>
-                <a href="signup.php" class="landing-btn-plan primary">Get Started</a>
+                <a href="signup.php?plan=professional" class="landing-btn-plan primary">Get Started</a>
             </div>
 
             <!-- Enterprise -->
@@ -252,13 +249,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="plan-name">Enterprise</div>
                 <div class="plan-desc">For large organizations with custom needs</div>
                 <div class="plan-price">
-                    <span class="amount" data-monthly="$29" data-yearly="$24">$29</span>
+                    <span class="amount" data-monthly="$29">$29</span>
                     <span class="period">/mo</span>
                 </div>
                 <ul class="plan-features">
                     <li><span class="feat-check">&#10003;</span> Up to 40 team members</li>
                 </ul>
-                <a href="signup.php" class="landing-btn-plan">Contact Sales</a>
+                <a href="signup.php?plan=enterprise" class="landing-btn-plan">Contact Sales</a>
             </div>
         </div>
     </section>
@@ -413,27 +410,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         document.getElementById('hamburger').addEventListener('click', function() {
             document.getElementById('navLinks').classList.toggle('open');
         });
-
-        // Pricing toggle (monthly/yearly)
-        function setPricing(type) {
-            var monthly = document.getElementById('toggleMonthly');
-            var yearly = document.getElementById('toggleYearly');
-            var amounts = document.querySelectorAll('.landing-price-card .amount');
-
-            if (type === 'monthly') {
-                monthly.classList.add('active');
-                yearly.classList.remove('active');
-                amounts.forEach(function(el) {
-                    el.textContent = el.getAttribute('data-monthly');
-                });
-            } else {
-                yearly.classList.add('active');
-                monthly.classList.remove('active');
-                amounts.forEach(function(el) {
-                    el.textContent = el.getAttribute('data-yearly');
-                });
-            }
-        }
 
         // Plan card selection
         var priceCards = document.querySelectorAll('.landing-price-card');

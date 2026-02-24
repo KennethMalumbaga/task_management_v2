@@ -37,6 +37,134 @@ if (!function_exists('tenant_get_current_org_id')) {
     }
 }
 
+if (!function_exists('tenant_workspace_plan_catalog')) {
+    function tenant_workspace_plan_catalog()
+    {
+        return [
+            'starter' => [
+                'code' => 'starter',
+                'name' => 'Starter',
+                'seat_limit' => 10,
+                'summary' => 'Up to 10 team members',
+            ],
+            'professional' => [
+                'code' => 'professional',
+                'name' => 'Professional',
+                'seat_limit' => 20,
+                'summary' => 'Up to 20 team members',
+            ],
+            'enterprise' => [
+                'code' => 'enterprise',
+                'name' => 'Enterprise',
+                'seat_limit' => 40,
+                'summary' => 'Up to 40 team members',
+            ],
+        ];
+    }
+}
+
+if (!function_exists('tenant_resolve_workspace_plan')) {
+    function tenant_resolve_workspace_plan($planCode, $fallbackCode = 'starter')
+    {
+        $catalog = tenant_workspace_plan_catalog();
+        $aliases = [
+            'trial' => 'starter',
+            'legacy' => 'starter',
+            'pro' => 'professional',
+            'team' => 'professional',
+            'business' => 'enterprise',
+        ];
+
+        $code = strtolower(trim((string)$planCode));
+        if (isset($aliases[$code])) {
+            $code = $aliases[$code];
+        }
+
+        if (isset($catalog[$code])) {
+            return $catalog[$code];
+        }
+
+        $fallback = strtolower(trim((string)$fallbackCode));
+        if (isset($aliases[$fallback])) {
+            $fallback = $aliases[$fallback];
+        }
+
+        return $catalog[$fallback] ?? reset($catalog);
+    }
+}
+
+if (!function_exists('tenant_apply_workspace_plan')) {
+    function tenant_apply_workspace_plan($pdo, $orgId, $planCode)
+    {
+        $orgId = (int)$orgId;
+        if ($orgId <= 0) {
+            return [
+                'ok' => false,
+                'reason' => 'Workspace context is missing.',
+                'plan' => null,
+            ];
+        }
+
+        if (!tenant_table_exists($pdo, 'organizations') || !tenant_table_exists($pdo, 'subscriptions')) {
+            return [
+                'ok' => false,
+                'reason' => 'Workspace billing tables are not available.',
+                'plan' => null,
+            ];
+        }
+
+        $plan = tenant_resolve_workspace_plan($planCode, 'starter');
+        $seatLimit = max(1, (int)($plan['seat_limit'] ?? 0));
+        $activeMembers = tenant_count_workspace_members($pdo, $orgId);
+
+        if ($seatLimit < $activeMembers) {
+            return [
+                'ok' => false,
+                'reason' => "Plan seat limit ({$seatLimit}) is below active members ({$activeMembers}).",
+                'plan' => $plan,
+            ];
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            $subscription = tenant_ensure_subscription($pdo, $orgId);
+            if (!$subscription) {
+                throw new RuntimeException('Unable to initialize workspace subscription.');
+            }
+
+            $stmtOrg = $pdo->prepare("UPDATE organizations SET plan_code = ? WHERE id = ?");
+            $stmtOrg->execute([(string)$plan['code'], $orgId]);
+
+            $stmtSub = $pdo->prepare(
+                "UPDATE subscriptions
+                 SET seat_limit = ?
+                 WHERE organization_id = ?"
+            );
+            $stmtSub->execute([$seatLimit, $orgId]);
+
+            $pdo->commit();
+
+            return [
+                'ok' => true,
+                'reason' => null,
+                'plan' => $plan,
+                'seat_limit' => $seatLimit,
+                'active_members' => $activeMembers,
+            ];
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            return [
+                'ok' => false,
+                'reason' => 'Failed to update workspace plan right now.',
+                'plan' => $plan,
+            ];
+        }
+    }
+}
 if (!function_exists('tenant_get_scope')) {
     function tenant_get_scope($pdo, $table, $alias = '', $joinWord = 'AND', $column = 'organization_id', $orgId = null)
     {

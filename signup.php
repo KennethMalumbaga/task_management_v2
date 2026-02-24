@@ -3,6 +3,12 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 require_once "inc/csrf.php";
+require_once "inc/tenant.php";
+
+$selectedPlan = tenant_resolve_workspace_plan($_GET['plan'] ?? ($_POST['plan_code'] ?? 'starter'), 'starter');
+$selectedPlanCode = (string)($selectedPlan['code'] ?? 'starter');
+$selectedPlanName = (string)($selectedPlan['name'] ?? 'Starter');
+$selectedPlanSeatLimit = (int)($selectedPlan['seat_limit'] ?? 10);
 ?>
 <!DOCTYPE html>
 <html>
@@ -79,10 +85,12 @@ require_once "inc/csrf.php";
 
                 <div class="auth-info-box">
                     This form is for workspace owners/admins. Employees should join using an invite link from their admin.
+                    <br><strong>Selected plan:</strong> <?= htmlspecialchars($selectedPlanName) ?> (up to <?= $selectedPlanSeatLimit ?> team members).
                 </div>
 
                 <form method="POST" action="app/signup.php">
                     <?= csrf_field('signup_form') ?>
+                    <input type="hidden" name="plan_code" value="<?= htmlspecialchars($selectedPlanCode) ?>">
                     <div class="form-group">
                         <label class="form-label">Workspace Name</label>
                         <input type="text" class="form-control" name="organization_name" placeholder="Acme Team" required>
