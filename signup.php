@@ -95,9 +95,9 @@ require_once "inc/csrf.php";
 
                     <div class="form-group">
                         <label class="form-label">Email</label>
-                        <input type="text" class="form-control" name="user_name" placeholder="you@example.com" required>
+                        <input type="email" class="form-control" name="user_name" placeholder="you@example.com" required>
                     </div>
-                    
+                     
                     <button type="submit" class="btn-primary">Register & Get Password</button>
                 </form>
 

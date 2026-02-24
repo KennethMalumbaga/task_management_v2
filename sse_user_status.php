@@ -8,7 +8,7 @@ if (!isset($_SESSION['role']) || !isset($_SESSION['id']) || $_SESSION['role'] !=
 }
 
 include "DB_connection.php";
-include "app/Model/User.php";
+include "app/model/user.php";
 
 // Release session lock so other requests (clock in/out) can proceed
 session_write_close();

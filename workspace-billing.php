@@ -255,7 +255,7 @@ if (!$tenantEnabled) {
         .wb-progress > span {
             display: block;
             height: 100%;
-            background: #4F46E5;
+            background: #6C3CE1;
         }
         .wb-list {
             margin: 0;
@@ -289,14 +289,14 @@ if (!$tenantEnabled) {
             box-sizing: border-box;
         }
         .wb-input:focus {
-            border-color: #4F46E5;
+            border-color: #6C3CE1;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            box-shadow: 0 0 0 3px rgba(108, 60, 225, 0.1);
         }
         .wb-btn {
             border: none;
             border-radius: 8px;
-            background: #4F46E5;
+            background: #6C3CE1;
             color: #fff;
             padding: 11px 14px;
             font-size: 14px;
@@ -305,7 +305,7 @@ if (!$tenantEnabled) {
             white-space: nowrap;
         }
         .wb-btn:hover {
-            background: #4338CA;
+            background: #8B5CF6;
         }
         @media (max-width: 900px) {
             .wb-grid {
@@ -322,7 +322,6 @@ if (!$tenantEnabled) {
 
 <div class="dash-main">
     <div class="wb-card">
-        <h2 class="wb-title">Workspace Billing & Settings</h2>
         <p class="wb-sub">
             One place to see your plan status, seat usage, and renewal/trial dates.
         </p>

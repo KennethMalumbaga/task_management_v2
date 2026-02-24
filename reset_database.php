@@ -30,10 +30,33 @@ function reset_table_exists(PDO $pdo, string $table): bool
     return tenant_table_exists($pdo, $table);
 }
 
+function reset_should_return_to_dashboard(): bool
+{
+    if (PHP_SAPI === 'cli') {
+        return false;
+    }
+    return isset($_GET['return_to']) && $_GET['return_to'] === 'maintenance_dashboard';
+}
+
+function reset_redirect_to_dashboard(string $message, bool $isError = false): void
+{
+    $param = $isError ? 'error' : 'success';
+    header("Location: maintenance_dashboard.php?{$param}=" . urlencode($message));
+    exit();
+}
+
+$GLOBALS['reset_suppress_output'] = false;
+
 function reset_print_line(string $message): void
 {
+    if (!empty($GLOBALS['reset_suppress_output'])) {
+        return;
+    }
     echo $message . (PHP_SAPI === 'cli' ? PHP_EOL : "<br>");
 }
+
+$returnToDashboard = reset_should_return_to_dashboard();
+$GLOBALS['reset_suppress_output'] = $returnToDashboard;
 
 try {
     $context = maintenance_require_org_context($pdo);
@@ -41,8 +64,13 @@ try {
     $orgId = $context['org_id'] !== null ? (int)$context['org_id'] : null;
     $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
+    if ($isGlobal && $returnToDashboard) {
+        $returnToDashboard = false;
+        $GLOBALS['reset_suppress_output'] = false;
+    }
+
     if ($isGlobal) {
-        if (PHP_SAPI !== 'cli') {
+        if (PHP_SAPI !== 'cli' && !$returnToDashboard) {
             echo "<h2>Running Global Database Reset</h2><ul>";
         }
         reset_print_line("Global mode enabled.");
@@ -95,32 +123,14 @@ try {
         $adminPasswordPlain = 'admin123';
         $adminPasswordHash = password_hash($adminPasswordPlain, PASSWORD_DEFAULT);
         $tenantEnabled = maintenance_is_tenant_enabled($pdo);
-        $defaultOrgId = null;
 
-        if ($tenantEnabled && reset_table_exists($pdo, 'organizations')) {
-            $stmtOrg = $pdo->prepare(
-                "INSERT INTO organizations (name, slug, billing_email, status, plan_code)
-                 VALUES ('Default Workspace', 'default-workspace', NULL, 'active', 'legacy')"
-            );
-            $stmtOrg->execute();
-            $defaultOrgId = (int)$pdo->lastInsertId();
-        }
-
-        if ($tenantEnabled && $defaultOrgId !== null) {
+        if ($tenantEnabled && tenant_column_exists($pdo, 'users', 'organization_id')) {
+            // Keep a platform-level admin after global reset without creating a placeholder workspace.
             $stmt = $pdo->prepare(
                 "INSERT INTO users (full_name, username, password, role, organization_id)
-                 VALUES (?, ?, ?, 'admin', ?)"
+                 VALUES (?, ?, ?, 'admin', 0)"
             );
-            $stmt->execute(['Administrator', 'admin', $adminPasswordHash, $defaultOrgId]);
-            $adminUserId = (int)$pdo->lastInsertId();
-
-            if (reset_table_exists($pdo, 'organization_members')) {
-                $mStmt = $pdo->prepare(
-                    "INSERT INTO organization_members (organization_id, user_id, role)
-                     VALUES (?, ?, 'owner')"
-                );
-                $mStmt->execute([$defaultOrgId, $adminUserId]);
-            }
+            $stmt->execute(['Administrator', 'admin', $adminPasswordHash]);
         } else {
             $stmt = $pdo->prepare(
                 "INSERT INTO users (full_name, username, password, role) VALUES (?, ?, ?, 'admin')"
@@ -130,7 +140,7 @@ try {
 
         reset_print_line("Created admin user.");
 
-        if (PHP_SAPI !== 'cli') {
+        if (PHP_SAPI !== 'cli' && !$returnToDashboard) {
             echo "</ul>";
             echo "<h2 style='color: green;'>Global reset completed successfully.</h2>";
             echo "<div style='background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 20px 0;'>";
@@ -144,7 +154,7 @@ try {
         if ($orgId === null) {
             throw new RuntimeException('org_id is required in tenant-safe mode.');
         }
-        if (PHP_SAPI !== 'cli') {
+        if (PHP_SAPI !== 'cli' && !$returnToDashboard) {
             echo "<h2>Resetting Workspace Data</h2><ul>";
         }
         reset_print_line("Tenant-safe mode for org_id={$orgId}");
@@ -180,14 +190,22 @@ try {
             reset_print_line("Cleared {$table}: {$stmt->rowCount()} row(s)");
         }
 
-        if (PHP_SAPI !== 'cli') {
+        if ($returnToDashboard) {
+            reset_redirect_to_dashboard("Workspace deleted successfully.");
+        }
+
+        if (PHP_SAPI !== 'cli' && !$returnToDashboard) {
             echo "</ul>";
             echo "<h2 style='color: green;'>Workspace reset completed successfully.</h2>";
             echo "<p>Only tenant-owned activity data was cleared. Users/workspace settings were kept.</p>";
         }
     }
 } catch (PDOException $e) {
-    if (PHP_SAPI !== 'cli') {
+    if ($returnToDashboard) {
+        reset_redirect_to_dashboard("Workspace reset failed: " . $e->getMessage(), true);
+    }
+
+    if (PHP_SAPI !== 'cli' && !$returnToDashboard) {
         echo "<h2 style='color: red;'>Error occurred:</h2>";
         echo "<p>" . htmlspecialchars($e->getMessage()) . "</p>";
     } else {
@@ -203,7 +221,11 @@ try {
         // no-op
     }
 } catch (Throwable $e) {
-    if (PHP_SAPI !== 'cli') {
+    if ($returnToDashboard) {
+        reset_redirect_to_dashboard("Workspace reset failed: " . $e->getMessage(), true);
+    }
+
+    if (PHP_SAPI !== 'cli' && !$returnToDashboard) {
         echo "<h2 style='color: red;'>Error occurred:</h2>";
         echo "<p>" . htmlspecialchars($e->getMessage()) . "</p>";
     } else {

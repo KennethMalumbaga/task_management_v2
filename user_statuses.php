@@ -9,7 +9,7 @@ if (!isset($_SESSION['role']) || !isset($_SESSION['id']) || $_SESSION['role'] !=
 }
 
 include "DB_connection.php";
-include "app/Model/User.php";
+include "app/model/user.php";
 
 $raw = $_POST['user_ids'] ?? '';
 $raw = is_string($raw) ? $raw : '';

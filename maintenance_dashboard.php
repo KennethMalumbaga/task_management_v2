@@ -233,7 +233,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             width: 190px;
             height: 190px;
             border-radius: 999px;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.14) 0%, rgba(99, 102, 241, 0) 70%);
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0) 70%);
             pointer-events: none;
         }
         .topbar {
@@ -398,7 +398,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             height: 20px;
             border-radius: 6px;
             background: linear-gradient(135deg, var(--brand), var(--brand-2));
-            box-shadow: 0 6px 14px rgba(99, 102, 241, 0.28);
+            box-shadow: 0 6px 14px rgba(139, 92, 246, 0.28);
             position: relative;
         }
         .panel-title .title-mark::after {
@@ -471,7 +471,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         }
         .actions a:hover {
             transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.15);
+            box-shadow: 0 6px 16px rgba(139, 92, 246, 0.15);
             filter: saturate(115%);
         }
         .actions a.is-running {
@@ -636,7 +636,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             color: #fff;
             flex-shrink: 0;
         }
-        .stat-icon.w { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+        .stat-icon.w { background: linear-gradient(135deg, #8B5CF6, #8b5cf6); }
         .stat-icon.a { background: linear-gradient(135deg, #22c55e, #16a34a); }
         .stat-icon.m { background: linear-gradient(135deg, #0ea5e9, #3b82f6); }
         .stat-label {
@@ -679,6 +679,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
     </style>
 </head>
 <body>
+<?php include "inc/toast.php"; ?>
 <div class="container">
     <div class="panel hero">
         <div class="panel-body">
@@ -772,6 +773,11 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                         <td class="actions">
                             <?php foreach ($tenantScripts as $script) {
                                 $href = maintenance_build_link($script['path'], (int)$org['id']);
+                                $linkTarget = '_blank';
+                                if ($script['path'] === 'reset_database.php') {
+                                    $href .= '&return_to=maintenance_dashboard';
+                                    $linkTarget = '_self';
+                                }
                                 $confirm = '';
                                 if (!empty($script['destructive'])) {
                                     $confirm = "return confirm('Run {$script['label']} for workspace ID {$org['id']}? This can delete data.');";
@@ -780,7 +786,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                                 <a
                                     href="<?= htmlspecialchars($href) ?>"
                                     title="<?= htmlspecialchars($script['description']) ?>"
-                                    target="_blank"
+                                    target="<?= htmlspecialchars($linkTarget) ?>"
                                     rel="noopener noreferrer"
                                     data-action-label="<?= htmlspecialchars($script['label']) ?>"
                                     data-action-workspace="<?= htmlspecialchars((string)$org['name']) ?>"

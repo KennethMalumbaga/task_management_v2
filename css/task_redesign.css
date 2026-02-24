@@ -238,8 +238,8 @@
 }
 
 .form-input-v2:focus {
-    border-color: #6366F1;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    border-color: #8B5CF6;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
 }
 
 /* Buttons */
@@ -262,13 +262,13 @@
 }
 
 .btn-indigo {
-    background: #4F46E5;
+    background: #6C3CE1;
     color: white;
 }
 
 .btn-indigo-light {
     background: #EFF6FF;
-    color: #4F46E5;
+    color: #6C3CE1;
 }
 
 .btn-green {

@@ -16,9 +16,86 @@
 
     include_once "app/model/Message.php";
     include_once "app/model/GroupMessage.php";
+    include_once "app/model/Notification.php";
+    include_once "app/model/Task.php";
+    include_once "app/model/user.php";
+    require_once "app/helpers/notification.php";
+    if (!function_exists('csrf_token')) {
+        require_once "inc/csrf.php";
+    }
+
     $dmUnread = countAllUnread($_SESSION['id'], $pdo);
     $grpUnread = count_all_group_unread($pdo, $_SESSION['id']);
     $totalUnread = $dmUnread + $grpUnread;
+
+    $notifUnread = 0;
+    try {
+        $notifUnread = (int)count_notification($pdo, $_SESSION['id']);
+    } catch (Throwable $e) {
+        $notifUnread = 0;
+    }
+
+    $notificationReadCsrfToken = csrf_token('notification_read_action');
+    $notificationReadAllCsrfToken = csrf_token('notification_read_all_action');
+    $notifRows = get_all_my_notifications($pdo, $_SESSION['id']);
+    if (!is_array($notifRows)) {
+        $notifRows = [];
+    }
+    $notifPreview = array_slice($notifRows, 0, 8);
+    $notificationNowTs = tm_notification_reference_now($pdo);
+
+    $me = null;
+    try {
+        $me = get_user_by_id($pdo, $_SESSION['id']);
+    } catch (Throwable $e) {
+        $me = null;
+    }
+
+    $profileImage = 'img/user.png';
+    if (!empty($me['profile_image']) && $me['profile_image'] !== 'default.png') {
+        $candidate = __DIR__ . '/../uploads/' . $me['profile_image'];
+        if (is_file($candidate)) {
+            $profileImage = 'uploads/' . $me['profile_image'];
+        }
+    }
+    $displayName = trim((string)($_SESSION['full_name'] ?? ($me['full_name'] ?? 'User')));
+    if ($displayName === '') {
+        $displayName = 'User';
+    }
+    $displayEmail = trim((string)($_SESSION['username'] ?? ($me['username'] ?? '')));
+    $displayRole = ucfirst((string)($_SESSION['role'] ?? 'user'));
+
+    $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
+    $currentRedirect = $currentPage;
+    if (!empty($_SERVER['QUERY_STRING'])) {
+        $currentRedirect .= '?' . $_SERVER['QUERY_STRING'];
+    }
+    $notificationReadAllLink = "app/notification-read-all.php?csrf_token="
+        . urlencode($notificationReadAllCsrfToken)
+        . "&redirect="
+        . urlencode($currentRedirect);
+
+    $topbarTitles = [
+        'index.php' => 'Dashboard',
+        'tasks.php' => 'Tasks',
+        'my_task.php' => 'Tasks',
+        'calendar.php' => 'Calendar',
+        'messages.php' => 'Messages',
+        'user.php' => 'Users',
+        'invite-user.php' => 'Invites',
+        'workspace-billing.php' => 'Billing',
+        'groups.php' => 'Groups',
+        'screenshots.php' => 'Captures',
+        'profile.php' => 'Profile',
+        'edit_profile.php' => 'Edit Profile',
+        'notifications.php' => 'Notifications',
+        'create_task.php' => 'Create Task',
+        'edit-task-employee.php' => 'Task Details'
+    ];
+    $topbarTitle = $topbarTitles[$currentPage] ?? ucwords(str_replace(['-', '_', '.php'], [' ', ' ', ''], $currentPage));
+    if ($topbarTitle === '') {
+        $topbarTitle = 'Dashboard';
+    }
 ?>
 
 <!-- Mobile Navbar (Fixed Top) -->
@@ -31,24 +108,105 @@
         </div>
     </div>
     
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="messages.php" class="mobile-msg-icon">
+    <div class="mobile-top-actions">
+        <button type="button" class="mobile-icon-btn" id="mobileTopNotifTrigger" title="Notifications" aria-label="Notifications" aria-expanded="false">
+            <i class="fa fa-bell-o"></i>
+            <?php if($notifUnread > 0){ ?>
+                <span class="mobile-unread-badge"><?=$notifUnread?></span>
+            <?php } ?>
+        </button>
+        <a href="messages.php" class="mobile-msg-icon" aria-label="Messages">
             <i class="fa fa-commenting-o"></i>
             <?php if($totalUnread > 0){ ?>
                 <span class="mobile-unread-badge"><?=$totalUnread?></span>
             <?php } ?>
         </a>
-        <button class="mobile-toggle-btn" onclick="toggleSidebar()">
+        <button type="button" class="mobile-profile-trigger" id="mobileTopProfileTrigger" aria-label="Open profile menu" aria-expanded="false">
+            <img src="<?= htmlspecialchars($profileImage, ENT_QUOTES) ?>" alt="Profile">
+        </button>
+        <button class="mobile-toggle-btn" onclick="toggleSidebar()" aria-label="Open menu">
             <i class="fa fa-bars"></i>
         </button>
     </div>
+</div>
+
+<div class="mobile-top-notif-dropdown" id="mobileTopNotifDropdown">
+    <div class="dash-top-notif-head">
+        <div>
+            <div class="dash-top-notif-title">Notifications</div>
+            <div class="dash-top-notif-sub"><?= (int)$notifUnread ?> unread</div>
+        </div>
+        <a href="<?= htmlspecialchars($notificationReadAllLink, ENT_QUOTES) ?>" class="dash-top-notif-head-link">Mark all read</a>
+    </div>
+    <div class="dash-top-notif-list">
+        <?php if (empty($notifPreview)) { ?>
+            <div class="dash-top-notif-empty">No notifications yet.</div>
+        <?php } else { ?>
+            <?php foreach ($notifPreview as $notif) {
+                $taskId = tm_get_notification_task_id($pdo, $notif);
+                $notifLink = "app/notification-read.php?notification_id=" . urlencode((string)$notif['id']);
+                if ($taskId) {
+                    $notifLink .= "&task_id=" . urlencode((string)$taskId);
+                }
+                $notifLink .= "&csrf_token=" . urlencode($notificationReadCsrfToken);
+                $notifType = trim((string)($notif['type'] ?? 'Notification'));
+                $notifMessage = trim((string)($notif['message'] ?? ''));
+                $notifWhen = tm_notification_time_ago($notif, $notificationNowTs);
+                $isUnread = tm_notification_is_unread($notif);
+            ?>
+                <a href="<?= htmlspecialchars($notifLink, ENT_QUOTES) ?>" class="dash-top-notif-item <?= $isUnread ? 'unread' : '' ?>">
+                    <div class="dash-top-notif-type"><?= htmlspecialchars($notifType) ?></div>
+                    <div class="dash-top-notif-msg"><?= htmlspecialchars($notifMessage) ?></div>
+                    <div class="dash-top-notif-meta">
+                        <span><?= htmlspecialchars($notifWhen) ?></span>
+                        <?php if ($isUnread) { ?><span class="dash-top-notif-dot"></span><?php } ?>
+                    </div>
+                </a>
+            <?php } ?>
+        <?php } ?>
+    </div>
+    <div class="dash-top-notif-foot">
+        <a href="notifications.php">View all notifications</a>
+    </div>
+</div>
+
+<div class="mobile-top-profile-dropdown" id="mobileTopProfileDropdown">
+    <div class="dash-top-profile-head">
+        <img src="<?= htmlspecialchars($profileImage, ENT_QUOTES) ?>" alt="Profile">
+        <div>
+            <div class="dash-top-profile-name"><?= htmlspecialchars($displayName) ?></div>
+            <?php if($displayEmail !== '') { ?>
+                <div class="dash-top-profile-email"><?= htmlspecialchars($displayEmail) ?></div>
+            <?php } ?>
+            <div class="dash-top-profile-role"><?= htmlspecialchars($displayRole) ?></div>
+        </div>
+    </div>
+    <a href="profile.php" class="dash-top-profile-link">
+        <i class="fa fa-user-o"></i> My Profile
+    </a>
+    <a href="logout.php" class="dash-top-profile-link danger js-logout-link">
+        <i class="fa fa-sign-out"></i> Logout
+    </a>
 </div>
 
 <!-- Overlay for mobile when sidebar is open -->
 <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
 <script>
+    function closeMobileTopMenus() {
+        var notifDropdown = document.getElementById('mobileTopNotifDropdown');
+        var notifTrigger = document.getElementById('mobileTopNotifTrigger');
+        var profileDropdown = document.getElementById('mobileTopProfileDropdown');
+        var profileTrigger = document.getElementById('mobileTopProfileTrigger');
+
+        if (notifDropdown) notifDropdown.classList.remove('show');
+        if (profileDropdown) profileDropdown.classList.remove('show');
+        if (notifTrigger) notifTrigger.setAttribute('aria-expanded', 'false');
+        if (profileTrigger) profileTrigger.setAttribute('aria-expanded', 'false');
+    }
+
     function toggleSidebar() {
+        closeMobileTopMenus();
         document.querySelector('.dash-sidebar').classList.toggle('show-sidebar');
         document.querySelector('.sidebar-overlay').classList.toggle('active');
     }
@@ -93,12 +251,6 @@
                     <span class="dash-nav-badge"><?=$totalUnread?></span>
                 <?php } ?>
             </a>
-            <a href="profile.php" class="dash-nav-item <?= isActive('profile.php') ?>">
-                <i class="fa fa-user-o"></i> Profile
-            </a>
-            <a href="logout.php" class="dash-nav-item js-logout-link">
-                <i class="fa fa-sign-out"></i> Logout
-            </a>
         <?php } else { ?>
             <!-- Admin Nav -->
             <a href="index.php" class="dash-nav-item <?= isActive('index.php') ?>">
@@ -132,17 +284,89 @@
             <a href="screenshots.php" class="dash-nav-item <?= isActive('screenshots.php') ?>">
                 <i class="fa fa-camera"></i> Captures
             </a>
-            <a href="profile.php" class="dash-nav-item <?= isActive('profile.php') ?>">
-                <i class="fa fa-user-o"></i> Profile
-            </a>
-            <a href="logout.php" class="dash-nav-item js-logout-link">
-                <i class="fa fa-sign-out"></i> Logout
-            </a>
         <?php } ?>
     </nav>
 </div>
 
-<div id="logoutConfirmModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1200; align-items:center; justify-content:center;">
+<!-- Desktop Content Topbar -->
+<div class="dash-content-topbar">
+    <h1 class="dash-content-topbar-title"><?= htmlspecialchars($topbarTitle) ?></h1>
+    <div class="dash-top-utility">
+    <div class="dash-top-notif-menu" id="dashTopNotifMenu">
+        <button type="button" class="dash-top-bell" id="dashTopNotifTrigger" title="Notifications" aria-label="Notifications" aria-expanded="false">
+            <i class="fa fa-bell-o"></i>
+            <?php if($notifUnread > 0){ ?>
+                <span class="dash-top-badge"><?=$notifUnread?></span>
+            <?php } ?>
+        </button>
+        <div class="dash-top-notif-dropdown" id="dashTopNotifDropdown">
+            <div class="dash-top-notif-head">
+                <div>
+                    <div class="dash-top-notif-title">Notifications</div>
+                    <div class="dash-top-notif-sub"><?= (int)$notifUnread ?> unread</div>
+                </div>
+                <a href="<?= htmlspecialchars($notificationReadAllLink, ENT_QUOTES) ?>" class="dash-top-notif-head-link">Read all</a>
+            </div>
+            <div class="dash-top-notif-list">
+                <?php if (empty($notifPreview)) { ?>
+                    <div class="dash-top-notif-empty">No notifications yet.</div>
+                <?php } else { ?>
+                    <?php foreach ($notifPreview as $notif) {
+                        $taskId = tm_get_notification_task_id($pdo, $notif);
+                        $notifLink = "app/notification-read.php?notification_id=" . urlencode((string)$notif['id']);
+                        if ($taskId) {
+                            $notifLink .= "&task_id=" . urlencode((string)$taskId);
+                        }
+                        $notifLink .= "&csrf_token=" . urlencode($notificationReadCsrfToken);
+                        $notifType = trim((string)($notif['type'] ?? 'Notification'));
+                        $notifMessage = trim((string)($notif['message'] ?? ''));
+                        $notifWhen = tm_notification_time_ago($notif, $notificationNowTs);
+                        $isUnread = tm_notification_is_unread($notif);
+                    ?>
+                        <a href="<?= htmlspecialchars($notifLink, ENT_QUOTES) ?>" class="dash-top-notif-item <?= $isUnread ? 'unread' : '' ?>">
+                            <div class="dash-top-notif-type"><?= htmlspecialchars($notifType) ?></div>
+                            <div class="dash-top-notif-msg"><?= htmlspecialchars($notifMessage) ?></div>
+                            <div class="dash-top-notif-meta">
+                                <span><?= htmlspecialchars($notifWhen) ?></span>
+                                <?php if ($isUnread) { ?><span class="dash-top-notif-dot"></span><?php } ?>
+                            </div>
+                        </a>
+                    <?php } ?>
+                <?php } ?>
+            </div>
+            <div class="dash-top-notif-foot">
+                <a href="notifications.php">View all notifications</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="dash-top-profile-menu" id="dashTopProfileMenu">
+        <button type="button" class="dash-top-profile-trigger" id="dashTopProfileTrigger" aria-label="Open profile menu" aria-expanded="false">
+            <img src="<?= htmlspecialchars($profileImage, ENT_QUOTES) ?>" alt="Profile">
+        </button>
+        <div class="dash-top-profile-dropdown" id="dashTopProfileDropdown">
+            <div class="dash-top-profile-head">
+                <img src="<?= htmlspecialchars($profileImage, ENT_QUOTES) ?>" alt="Profile">
+                <div>
+                    <div class="dash-top-profile-name"><?= htmlspecialchars($displayName) ?></div>
+                    <?php if($displayEmail !== '') { ?>
+                        <div class="dash-top-profile-email"><?= htmlspecialchars($displayEmail) ?></div>
+                    <?php } ?>
+                    <div class="dash-top-profile-role"><?= htmlspecialchars($displayRole) ?></div>
+                </div>
+            </div>
+            <a href="profile.php" class="dash-top-profile-link">
+                <i class="fa fa-user-o"></i> My Profile
+            </a>
+            <a href="logout.php" class="dash-top-profile-link danger js-logout-link">
+                <i class="fa fa-sign-out"></i> Logout
+            </a>
+        </div>
+    </div>
+    </div>
+</div>
+
+<div id="logoutConfirmModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center;">
     <div style="background:#fff; width:min(92vw, 360px); border-radius:12px; padding:22px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.15);">
         <div style="width:46px; height:46px; margin:0 auto 12px; border-radius:50%; background:#FEF3C7; color:#B45309; display:flex; align-items:center; justify-content:center; font-size:18px;">
             <i class="fa fa-sign-out"></i>
@@ -157,6 +381,135 @@
 </div>
 
 <script>
+    (function () {
+        var trigger = document.getElementById('dashTopNotifTrigger');
+        var dropdown = document.getElementById('dashTopNotifDropdown');
+        var profileDropdown = document.getElementById('dashTopProfileDropdown');
+        var profileTrigger = document.getElementById('dashTopProfileTrigger');
+        if (!trigger || !dropdown) return;
+
+        function closeMenu() {
+            dropdown.classList.remove('show');
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        trigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (profileDropdown) {
+                profileDropdown.classList.remove('show');
+            }
+            if (profileTrigger) {
+                profileTrigger.setAttribute('aria-expanded', 'false');
+            }
+            var willShow = !dropdown.classList.contains('show');
+            dropdown.classList.toggle('show', willShow);
+            trigger.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!dropdown.contains(e.target) && !trigger.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeMenu();
+            }
+        });
+    })();
+
+    (function () {
+        var trigger = document.getElementById('dashTopProfileTrigger');
+        var dropdown = document.getElementById('dashTopProfileDropdown');
+        var notifDropdown = document.getElementById('dashTopNotifDropdown');
+        var notifTrigger = document.getElementById('dashTopNotifTrigger');
+        if (!trigger || !dropdown) return;
+
+        function closeMenu() {
+            dropdown.classList.remove('show');
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        trigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (notifDropdown) {
+                notifDropdown.classList.remove('show');
+            }
+            if (notifTrigger) {
+                notifTrigger.setAttribute('aria-expanded', 'false');
+            }
+            var willShow = !dropdown.classList.contains('show');
+            dropdown.classList.toggle('show', willShow);
+            trigger.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!dropdown.contains(e.target) && !trigger.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeMenu();
+            }
+        });
+    })();
+
+    (function () {
+        var notifTrigger = document.getElementById('mobileTopNotifTrigger');
+        var notifDropdown = document.getElementById('mobileTopNotifDropdown');
+        var profileTrigger = document.getElementById('mobileTopProfileTrigger');
+        var profileDropdown = document.getElementById('mobileTopProfileDropdown');
+        if (!notifTrigger || !notifDropdown || !profileTrigger || !profileDropdown) return;
+
+        function closeNotif() {
+            notifDropdown.classList.remove('show');
+            notifTrigger.setAttribute('aria-expanded', 'false');
+        }
+
+        function closeProfile() {
+            profileDropdown.classList.remove('show');
+            profileTrigger.setAttribute('aria-expanded', 'false');
+        }
+
+        function closeMenus() {
+            closeNotif();
+            closeProfile();
+        }
+
+        notifTrigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            closeProfile();
+            var willShow = !notifDropdown.classList.contains('show');
+            notifDropdown.classList.toggle('show', willShow);
+            notifTrigger.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+        });
+
+        profileTrigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            closeNotif();
+            var willShow = !profileDropdown.classList.contains('show');
+            profileDropdown.classList.toggle('show', willShow);
+            profileTrigger.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+        });
+
+        document.addEventListener('click', function (e) {
+            var clickedOutsideNotif = !notifDropdown.contains(e.target) && !notifTrigger.contains(e.target);
+            var clickedOutsideProfile = !profileDropdown.contains(e.target) && !profileTrigger.contains(e.target);
+            if (clickedOutsideNotif && clickedOutsideProfile) {
+                closeMenus();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeMenus();
+            }
+        });
+    })();
+
     (function () {
         var links = document.querySelectorAll('a.js-logout-link');
         if (!links.length) return;

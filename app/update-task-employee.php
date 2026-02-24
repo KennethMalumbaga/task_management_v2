@@ -61,8 +61,8 @@ if (!in_array($ext, $allowed)) {
     exit();
 }
 
-if ($_FILES['submission_file']['size'] > 100 * 1024 * 1024) {
-    header("Location: ../edit-task-employee.php?error=File too large (Max 100MB)&id=$id");
+if ($_FILES['submission_file']['size'] > 50 * 1024 * 1024) {
+    header("Location: ../edit-task-employee.php?error=File too large (Max 50MB)&id=$id");
     exit();
 }
 
@@ -100,4 +100,5 @@ foreach ($stmt->fetchAll() as $admin) {
 
 header("Location: ../edit-task-employee.php?success=Submitted successfully&id=$id");
 exit();
+
 

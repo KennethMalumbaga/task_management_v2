@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../inc/tenant.php';
+require_once __DIR__ . '/../helpers/rating.php';
 
 function leader_feedback_append_scope($pdo, $sql, $params, $table = 'leader_feedback', $alias = '', $joinWord = 'AND')
 {
@@ -10,17 +11,7 @@ function leader_feedback_append_scope($pdo, $sql, $params, $table = 'leader_feed
 
 function smooth_peer_rating($peer_raw, $n, $prior_mean = 3.5, $prior_weight = 3)
 {
-    $n = (int)$n;
-    if ($n <= 0 || $peer_raw === null) {
-        return null;
-    }
-
-    $peer_raw = (float)$peer_raw;
-    $prior_mean = (float)$prior_mean;
-    $prior_weight = (float)$prior_weight;
-
-    return (($n / ($n + $prior_weight)) * $peer_raw)
-         + (($prior_weight / ($n + $prior_weight)) * $prior_mean);
+    return tm_apply_peer_rating_smoothing($peer_raw, $n, $prior_mean, $prior_weight);
 }
 
 function leader_feedback_table_exists($pdo)
@@ -69,11 +60,10 @@ function get_leader_peer_feedback_stats($pdo, $leader_id)
 
     $count = (int)($res['count'] ?? 0);
     $raw_avg = ($count > 0 && !empty($res['avg'])) ? (float)$res['avg'] : null;
-    $adj_avg = smooth_peer_rating($raw_avg, $count);
 
     return [
         'count' => $count,
-        'avg' => $adj_avg !== null ? number_format($adj_avg, 1) : '0.0',
+        'avg' => $raw_avg !== null ? number_format($raw_avg, 1) : '0.0',
         'raw_avg' => $raw_avg !== null ? number_format($raw_avg, 1) : '0.0'
     ];
 }

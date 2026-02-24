@@ -110,7 +110,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <h2 class="profile-name-text"><?= htmlspecialchars($user['full_name']) ?></h2>
                     <span class="profile-role-text"><?= ucfirst($user['role']) ?></span>
                     <div class="profile-actions" style="margin-left: auto;">
-                        <a href="messages.php?id=<?=$user['id']?>" class="btn-primary" style="background: #4F46E5;">
+                        <a href="messages.php?id=<?=$user['id']?>" class="btn-primary" style="background: #6C3CE1;">
                             <i class="fa fa-comment"></i> Message
                         </a>
                     </div>

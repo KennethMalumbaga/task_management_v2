@@ -169,12 +169,28 @@ if ($token === '') {
                     <?php if (!$isOpenLink) { ?>
                         <div class="form-group">
                             <label class="form-label">Password</label>
-                            <input type="password" class="form-control" name="password" placeholder="At least 8 characters" required>
+                            <input
+                                type="password"
+                                class="form-control"
+                                name="password"
+                                placeholder="At least 8 chars, Aa1!"
+                                minlength="8"
+                                pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}"
+                                title="Must be at least 8 characters and include uppercase, lowercase, number, and symbol."
+                                required
+                            >
                         </div>
 
                         <div class="form-group">
                             <label class="form-label">Confirm Password</label>
-                            <input type="password" class="form-control" name="confirm_password" placeholder="Repeat password" required>
+                            <input
+                                type="password"
+                                class="form-control"
+                                name="confirm_password"
+                                placeholder="Repeat password"
+                                minlength="8"
+                                required
+                            >
                         </div>
                     <?php } else { ?>
                         <div class="auth-info-box">

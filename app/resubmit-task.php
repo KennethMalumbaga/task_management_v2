@@ -9,13 +9,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         include "model/Notification.php";
         include "model/Task.php";
         include "model/LeaderFeedback.php";
-
-        function validate_input($data) {
-            $data = trim($data);
-            $data = stripslashes($data);
-            $data = htmlspecialchars($data);
-            return $data;
-        }
+        require_once __DIR__ . "/helpers/input.php";
 
         if (!csrf_verify('resubmit_task_form', $_POST['csrf_token'] ?? null, true)) {
             $em = "Invalid or expired request. Please refresh and try again.";
@@ -33,7 +27,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
              $ext = strtolower(pathinfo($_FILES['submission_file']['name'], PATHINFO_EXTENSION));
              
              // Basic validation (can add more robust checks)
-             if (in_array($ext, $allowed) && $_FILES['submission_file']['size'] <= 100 * 1024 * 1024) {
+             if (in_array($ext, $allowed) && $_FILES['submission_file']['size'] <= 50 * 1024 * 1024) {
                  $upload_dir = "../uploads";
                  if (!is_dir($upload_dir)) {
                     mkdir($upload_dir, 0777, true);
@@ -106,4 +100,5 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
     header("Location: ../login.php?error=$em");
     exit();
 }
+
 

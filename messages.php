@@ -76,8 +76,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
     <!-- Main Content -->
     <div class="dash-main" style="height: 100vh; display: flex; flex-direction: column;">
-        <h2 style="margin-bottom: 20px; font-weight: 700; color: #111827;">Messages</h2>
-        
         <div class="chat-layout">
             
             <!-- Chat Sidebar (Users) -->
@@ -146,7 +144,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="chat-list" id="groupList">
                     <?php if (!empty($groups)) { foreach ($groups as $group) { ?>
                         <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>">
-                            <div class="avatar-md" style="background:#EEF2FF; color:#4F46E5;">
+                            <div class="avatar-md" style="background:#EEF2FF; color:#6C3CE1;">
                                 <i class="fa fa-users"></i>
                             </div>
                             <div class="chat-item-content">
@@ -485,9 +483,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                          totalSize += selectedFiles[i].size;
                      }
                      
-                     // Warning if > 100MB
-                     if(totalSize > 100 * 1024 * 1024) {
-                         html += `<div style="color: red; font-size: 12px; margin-top: 5px;">Total size exceeds 100MB!</div>`;
+                     // Warning if > 50MB
+                     if(totalSize > 50 * 1024 * 1024) {
+                         html += `<div style="color: red; font-size: 12px; margin-top: 5px;">Total size exceeds 50MB!</div>`;
                      }
 
                      $("#fileName").html(html); // We are replacing the simple span with list
@@ -590,8 +588,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 for(var i=0; i<selectedFiles.length; i++){
                     totalSize += selectedFiles[i].size;
                 }
-                if(totalSize > 100 * 1024 * 1024) {
-                    alert("Total file size exceeds 100MB limit.");
+                if(totalSize > 50 * 1024 * 1024) {
+                    alert("Total file size exceeds 50MB limit.");
                     return;
                 }
 
@@ -904,5 +902,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
 ?>
+
 
 

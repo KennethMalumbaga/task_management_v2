@@ -207,6 +207,22 @@ function get_task_by_id($pdo, $id)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+function get_task_by_title($pdo, $title)
+{
+    $title = trim((string)$title);
+    if ($title === '') {
+        return 0;
+    }
+
+    $sql = "SELECT * FROM tasks WHERE LOWER(TRIM(title)) = LOWER(TRIM(?))";
+    [$sql, $params] = task_model_append_scope($pdo, $sql, [$title], 'tasks');
+    $sql .= " ORDER BY id DESC LIMIT 1";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $task = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $task ?: 0;
+}
+
 function get_all_tasks($pdo)
 {
     [$sql, $params] = task_model_append_scope($pdo, "SELECT * FROM tasks WHERE 1=1", [], 'tasks');

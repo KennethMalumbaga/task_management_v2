@@ -28,7 +28,7 @@ body.auth-body {
 /* Left Panel - Branding */
 .auth-left {
     flex: 1;
-    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+    background: #6C3CE1;
     padding: 30px;
     /* Reduced padding */
     display: flex;
@@ -188,16 +188,16 @@ body.auth-body {
 }
 
 .form-control:focus {
-    border-color: #4F46E5;
+    border-color: #6C3CE1;
     background: #fff;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 0 0 3px rgba(108, 60, 225, 0.1);
 }
 
 .btn-primary {
     display: block;
     width: 100%;
-    background-color: #4F46E5;
+    background-color: #6C3CE1;
     color: white;
     border: none;
     padding: 14px;
@@ -210,7 +210,7 @@ body.auth-body {
 }
 
 .btn-primary:hover {
-    background-color: #4338CA;
+    background-color: #8B5CF6;
 }
 
 .auth-footer {
@@ -221,7 +221,7 @@ body.auth-body {
 }
 
 .auth-link {
-    color: #4F46E5;
+    color: #6C3CE1;
     text-decoration: none;
     font-weight: 500;
 }
@@ -250,7 +250,7 @@ body.auth-body {
 .btn-primary {
     display: block;
     width: 100%;
-    background-color: #4F46E5;
+    background-color: #6C3CE1;
     color: white;
     border: none;
     padding: 14px;
@@ -260,13 +260,13 @@ body.auth-body {
     cursor: pointer;
     transition: all 0.2s;
     margin-top: 10px;
-    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2), 0 2px 4px -1px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 4px 6px -1px rgba(108, 60, 225, 0.2), 0 2px 4px -1px rgba(108, 60, 225, 0.1);
 }
 
 .btn-primary:hover {
-    background-color: #4338CA;
+    background-color: #8B5CF6;
     transform: translateY(-1px);
-    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 10px 15px -3px rgba(108, 60, 225, 0.3);
 }
 
 .alert {
@@ -305,3 +305,4 @@ body.auth-body {
         padding: 30px 24px;
     }
 }
+

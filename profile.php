@@ -56,7 +56,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 </div>
 
                 <div class="profile-actions">
-                    <a href="edit_profile.php" class="btn-primary" style="background: #4F46E5;">
+                    <a href="edit_profile.php" class="btn-primary" style="background: #6C3CE1;">
                         <i class="fa fa-pencil"></i> Edit Profile
                     </a>
                 </div>
@@ -163,11 +163,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <!-- Overall Score Card -->
                     <div style="background: linear-gradient(135deg, #EDE9FE, #F3E8FF); padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
                         <div style="background: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                            <span style="font-size: 24px; font-weight: 700; color: #7C3AED;"><?= $collab_scores['avg'] ?></span>
+                            <span style="font-size: 24px; font-weight: 700; color: #8B5CF6;"><?= $collab_scores['avg'] ?></span>
                         </div>
                         <div>
                             <div style="font-size: 16px; font-weight: 600; color: #5B21B6;">Overall Average</div>
-                            <div style="font-size: 13px; color: #7C3AED;">Based on <?= $collab_scores['count'] ?> rated subtasks</div>
+                            <div style="font-size: 13px; color: #8B5CF6;">Based on <?= $collab_scores['count'] ?> rated subtasks</div>
                         </div>
                     </div>
                     

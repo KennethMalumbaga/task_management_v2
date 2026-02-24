@@ -61,10 +61,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 	<div class="dash-main">
         
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
-             <div>
-                <h2 style="font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0;">Task Details</h2>
-                <a href="my_task.php" style="color: var(--primary); text-decoration: none; font-size: 14px;"><i class="fa fa-arrow-left"></i> Back to My Tasks</a>
-             </div>
+             <a href="my_task.php" style="color: var(--primary); text-decoration: none; font-size: 14px;"><i class="fa fa-arrow-left"></i> Back to My Tasks</a>
              <div>
                  <span class="badge badge-primary"><?= ucfirst($task['status']) ?></span>
              </div>

@@ -5,14 +5,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     if (isset($_POST['title']) && isset($_POST['description']) && $_SESSION['role'] == 'admin' && isset($_POST['due_date'])) {
         include "../DB_connection.php";
         require_once "../inc/csrf.php";
-
-        function validate_input($data)
-        {
-            $data = trim($data);
-            $data = stripslashes($data);
-            $data = htmlspecialchars($data);
-            return $data;
-        }
+        require_once __DIR__ . "/helpers/input.php";
 
         if (!csrf_verify('create_task_form', $_POST['csrf_token'] ?? null, true)) {
             $em = "Invalid or expired request. Please refresh and try again.";
@@ -94,9 +87,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     exit();
                 }
 
-                // Max 100MB
-                if ($file['size'] > 100 * 1024 * 1024) {
-                    $em = "Template file is too large. Maximum allowed size is 100MB.";
+                // Max 50MB
+                if ($file['size'] > 50 * 1024 * 1024) {
+                    $em = "Template file is too large. Maximum allowed size is 50MB.";
                     header("Location: ../create_task.php?error=$em");
                     exit();
                 }
@@ -166,3 +159,4 @@ else {
     header("Location: ../create_task.php?error=$em");
     exit();
 }
+

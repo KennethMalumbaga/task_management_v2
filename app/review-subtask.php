@@ -7,13 +7,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         require_once "../inc/csrf.php";
         include "model/Subtask.php";
         include "model/Notification.php";
-
-        function validate_input($data) {
-            $data = trim($data);
-            $data = stripslashes($data);
-            $data = htmlspecialchars($data);
-            return $data;
-        }
+        require_once __DIR__ . "/helpers/input.php";
 
         if (!csrf_verify('review_subtask_form', $_POST['csrf_token'] ?? null, true)) {
             $em = "Invalid or expired request. Please refresh and try again.";
@@ -51,11 +45,10 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
                 exit();
             }
             $status = 'completed';
-            $score_msg = ($score !== null) ? " Score: $score/5." : "";
             if ($is_self_review) {
                 $msg = "Your subtask submission has been ACCEPTED. Self-rating is disabled.";
             } else {
-                $msg = "Your subtask submission has been ACCEPTED.$score_msg";
+                $msg = "Your subtask is rated: $score/5.";
             }
             // Only allow score on accept
         } else if ($action == 'revise') {
@@ -69,8 +62,11 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
 
         update_subtask_status($pdo, $subtask_id, $status, $feedback, $score);
         
-        // Notify the member
-        insert_notification($pdo, [$msg, $subtask['member_id'], 'Subtask Review', $subtask['task_id']]);
+        // Notify the member, but avoid self-notification.
+        if ((int)$subtask['member_id'] !== (int)$_SESSION['id']) {
+            $notifType = ($action === 'accept') ? 'Subtask Rated' : 'Subtask Review';
+            insert_notification($pdo, [$msg, $subtask['member_id'], $notifType, $subtask['task_id']]);
+        }
 
         $em = "Subtask updated successfully";
         header("Location: ../my_task.php?success=$em");

@@ -9,14 +9,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         include "model/Subtask.php";
         include "model/Notification.php";
         include "model/Task.php";
-
-        function validate_input($data)
-        {
-            $data = trim($data);
-            $data = stripslashes($data);
-            $data = htmlspecialchars($data);
-            return $data;
-        }
+        require_once __DIR__ . "/helpers/input.php";
 
         if (!csrf_verify('add_subtask_form', $_POST['csrf_token'] ?? null, true)) {
             $em = "Invalid or expired request. Please refresh and try again.";
@@ -58,10 +51,12 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
             $data = array($task_id, $member_id, $description, $due_date);
             insert_subtask($pdo, $data);
 
-            // Notify the member
-            $task = get_task_by_id($pdo, $task_id);
-            $notif_msg = "You have been assigned a subtask for: " . $task['title'];
-            insert_notification($pdo, [$notif_msg, $member_id, 'New Subtask', $task_id]);
+            // Notify the member, but avoid self-notification when leader assigns to self.
+            if ((int)$member_id !== (int)$_SESSION['id']) {
+                $task = get_task_by_id($pdo, $task_id);
+                $notif_msg = "You have been assigned a subtask for: " . $task['title'];
+                insert_notification($pdo, [$notif_msg, $member_id, 'New Subtask', $task_id]);
+            }
 
             $em = "Subtask created successfully";
             header("Location: ../my_task.php?success=$em");

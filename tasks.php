@@ -282,14 +282,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
 
     <!-- Main Content -->
     <div class="dash-main">
-        
-        <div style="margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="font-size: 24px; font-weight: 700; color: #111827; margin: 0;"><?= $text ?></h2>
-            
-            <a href="create_task.php" style="background: #4F46E5; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);">
+        <?php if ($_SESSION['role'] == 'admin') { ?>
+        <div style="margin-bottom: 32px; display: flex; justify-content: flex-end; align-items: center;">
+            <a href="create_task.php" style="background: #6C3CE1; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(108, 60, 225, 0.2);">
                 <i class="fa fa-plus"></i> Create Task
             </a>
         </div>
+        <?php } ?>
 
         <?php if (isset($_GET['success'])) {?>
             <div style="background: #ECFDF5; color: #065F46; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; border: 1px solid #A7F3D0;">
@@ -352,7 +351,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                     <div class="leader-box-preview">
                         <img src="<?= $leaderImg ?>" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
                         <div>
-                            <div style="font-size: 10px; font-weight: 700; color: #6366F1; letter-spacing: 0.5px; text-transform: uppercase;">
+                            <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
                                 <i class="fa fa-crown"></i> Leader
                             </div>
                             <div style="font-weight: 600; color: #1F2937; font-size: 13px;">
@@ -447,6 +446,63 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             }
             $subtasks = [];
             try { $subtasks = get_subtasks_by_task($pdo, $task['id']); } catch (Throwable $e) {}
+
+            // Task-specific rating maps (used in People section below).
+            $taskScoreByMember = [];
+            if (!empty($subtasks)) {
+                foreach ($subtasks as $st) {
+                    $memberId = (int)($st['member_id'] ?? 0);
+                    $score = isset($st['score']) ? (float)$st['score'] : 0.0;
+                    if ($memberId <= 0 || $score <= 0) {
+                        continue;
+                    }
+                    if (!isset($taskScoreByMember[$memberId])) {
+                        $taskScoreByMember[$memberId] = ['sum' => 0.0, 'count' => 0];
+                    }
+                    $taskScoreByMember[$memberId]['sum'] += $score;
+                    $taskScoreByMember[$memberId]['count']++;
+                }
+            }
+
+            $memberFeedbackAvgForLeader = null;
+            if (!empty($leaderFeedbackRows)) {
+                $feedbackCountTmp = count($leaderFeedbackRows);
+                $feedbackSumTmp = 0.0;
+                foreach ($leaderFeedbackRows as $fbRowTmp) {
+                    $feedbackSumTmp += (float)($fbRowTmp['rating'] ?? 0);
+                }
+                if ($feedbackCountTmp > 0) {
+                    $memberFeedbackAvgForLeader = $feedbackSumTmp / $feedbackCountTmp;
+                }
+            }
+
+            $leaderTaskAdminRate = null;
+            if ($leader && isset($leader['performance_rating']) && (float)$leader['performance_rating'] > 0) {
+                $leaderTaskAdminRate = (float)$leader['performance_rating'];
+            }
+
+            $leaderTaskCollabRate = null;
+            if ($leader) {
+                if (function_exists('subtask_blend_leader_admin_member_50_50')) {
+                    $leaderTaskCollabRate = subtask_blend_leader_admin_member_50_50($leaderTaskAdminRate, $memberFeedbackAvgForLeader);
+                } else if ($leaderTaskAdminRate !== null && $memberFeedbackAvgForLeader !== null) {
+                    $leaderTaskCollabRate = ($leaderTaskAdminRate + $memberFeedbackAvgForLeader) / 2;
+                } else if ($leaderTaskAdminRate !== null) {
+                    $leaderTaskCollabRate = $leaderTaskAdminRate;
+                } else if ($memberFeedbackAvgForLeader !== null) {
+                    $leaderTaskCollabRate = $memberFeedbackAvgForLeader;
+                }
+            }
+
+            $leaderTaskRate = $leaderTaskAdminRate;
+            if ($leader && $leaderTaskRate === null) {
+                $leaderIdTmp = (int)$leader['user_id'];
+                if (isset($taskScoreByMember[$leaderIdTmp]) && (int)$taskScoreByMember[$leaderIdTmp]['count'] > 0) {
+                    $leaderTaskRate = $taskScoreByMember[$leaderIdTmp]['sum'] / $taskScoreByMember[$leaderIdTmp]['count'];
+                } else {
+                    $leaderTaskRate = $leaderTaskCollabRate;
+                }
+            }
     ?>
     <div class="modal-overlay" id="modal-task-<?=$task['id']?>" onclick="if(event.target === this) closeTaskModal(<?=$task['id']?>)">
         <div class="modal-content">
@@ -531,17 +587,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             <div class="leader-box">
                     <img src="<?= $leaderImg ?>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">
                     <div style="flex: 1;">
-                    <div style="font-size: 10px; font-weight: 700; color: #6366F1; letter-spacing: 0.5px; text-transform: uppercase;">
+                    <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
                         <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
                     </div>
                     <div style="font-weight: 600; color: #1F2937; font-size: 14px; margin-top: 4px; border-bottom: 1px solid #E0E7FF; padding-bottom: 4px; margin-bottom: 4px;">
                         <?= htmlspecialchars($leader['full_name']) ?>
                     </div>
                     <div style="font-size: 11px; color: #6B7280; display: flex; gap: 10px;">
-                        <?php $lStats = get_user_rating_stats($pdo, $leader['user_id']); ?>
-                        <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $lStats['avg'] ?>/5</span>
-                        <?php $lCollab = get_collaborative_scores_by_user($pdo, $leader['user_id']); ?>
-                        <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $lCollab['avg'] ?>/5</span>
+                        <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $leaderTaskRate !== null ? number_format($leaderTaskRate, 1) : '--' ?>/5</span>
+                        <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $leaderTaskCollabRate !== null ? number_format($leaderTaskCollabRate, 1) : '--' ?>/5</span>
                     </div>
                     </div>
             </div>
@@ -558,10 +612,23 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                             <div>
                             <div style="font-weight: 500; font-size: 13px; color: #1F2937;"><?= htmlspecialchars($member['full_name']) ?></div>
                              <div style="font-size: 11px; color: #6B7280; display: flex; gap: 10px;">
-                                <?php $mStats = get_user_rating_stats($pdo, $member['user_id']); ?>
-                                <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $mStats['avg'] ?>/5</span>
-                                 <?php $mCollab = get_collaborative_scores_by_user($pdo, $member['user_id']); ?>
-                                <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $mCollab['avg'] ?>/5</span>
+                                <?php
+                                    $memberIdTmp = (int)$member['user_id'];
+                                    $memberTaskRate = null;
+                                    if (isset($member['performance_rating']) && (float)$member['performance_rating'] > 0) {
+                                        $memberTaskRate = (float)$member['performance_rating'];
+                                    } else if (isset($taskScoreByMember[$memberIdTmp]) && (int)$taskScoreByMember[$memberIdTmp]['count'] > 0) {
+                                        $memberTaskRate = $taskScoreByMember[$memberIdTmp]['sum'] / $taskScoreByMember[$memberIdTmp]['count'];
+                                    }
+                                    $memberTaskCollabRate = null;
+                                    if (isset($taskScoreByMember[$memberIdTmp]) && (int)$taskScoreByMember[$memberIdTmp]['count'] > 0) {
+                                        $memberTaskCollabRate = $taskScoreByMember[$memberIdTmp]['sum'] / $taskScoreByMember[$memberIdTmp]['count'];
+                                    } else {
+                                        $memberTaskCollabRate = $memberTaskRate;
+                                    }
+                                ?>
+                                <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $memberTaskRate !== null ? number_format($memberTaskRate, 1) : '--' ?>/5</span>
+                                <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $memberTaskCollabRate !== null ? number_format($memberTaskCollabRate, 1) : '--' ?>/5</span>
                             </div>
                             </div>
                     </div>
@@ -580,9 +647,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                                 $feedbackSum += (int)$fbRow['rating'];
                             }
                             $feedbackRawAvg = $feedbackCount > 0 ? ($feedbackSum / $feedbackCount) : null;
-                            $feedbackAvgSmoothed = smooth_peer_rating($feedbackRawAvg, $feedbackCount);
-                            $feedbackAvg = $feedbackAvgSmoothed !== null ? number_format($feedbackAvgSmoothed, 1) : "0.0";
-                            $feedbackRawLabel = $feedbackRawAvg !== null ? number_format($feedbackRawAvg, 1) : "0.0";
+                            $feedbackAvg = $feedbackRawAvg !== null ? number_format($feedbackRawAvg, 1) : "0.0";
                         ?>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #BFDBFE;">
                             <div style="font-size: 12px; font-weight: 600; color: #1E40AF;">
@@ -590,9 +655,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                             </div>
                             <div style="font-size: 12px; font-weight: 700; color: #1D4ED8;">
                                 <i class="fa fa-star" style="color:#F59E0B;"></i> <?= $feedbackAvg ?>/5
-                                <span style="font-size: 10px; color: #64748B; font-weight: 500;">
-                                    (raw <?= $feedbackRawLabel ?>)
-                                </span>
                             </div>
                         </div>
                         <div style="display: grid; gap: 10px;">
@@ -659,7 +721,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         </div>
                         <?php if(!empty($sub['submission_file'])) { ?>
                             <div style="font-size: 12px; margin-top: 5px;">
-                                <a href="<?=$sub['submission_file']?>" target="_blank" style="color: #4F46E5;">View File</a>
+                                <a href="<?=$sub['submission_file']?>" target="_blank" style="color: #6C3CE1;">View File</a>
                             </div>
                         <?php } ?>
                     </div>
@@ -810,170 +872,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         </div>
     </div>
 
-    <script>
-        const taskLeaderMap = <?= json_encode($taskLeaderMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
-
-        function openTaskModal(taskId) {
-            var modal = document.getElementById("modal-task-" + taskId);
-            if(modal) {
-                modal.style.display = "flex";
-                document.body.style.overflow = "hidden"; // Prevent scrolling
-            }
-        }
-
-        function closeTaskModal(taskId) {
-            var modal = document.getElementById("modal-task-" + taskId);
-            if(modal) {
-                modal.style.display = "none";
-                document.body.style.overflow = "auto";
-            }
-        }
-
-        // Action Modal Functions
-        function openAcceptDialog(id, title, subCount) {
-            $("#acceptTaskId").val(id);
-            $("#acceptTaskTitle").text(title);
-            $("#acceptSubtaskCount").text(subCount);
-
-            $("#ratingValue").val(0);
-            highlightTaskStars(0);
-
-            const leader = taskLeaderMap[String(id)] || null;
-            if (leader && leader.user_id) {
-                $("#acceptLeaderName").text(leader.full_name);
-                $("#leaderRatingBlock").show();
-                $("#leaderRatingValue").val(0);
-                highlightLeaderStars(0);
-            } else {
-                $("#acceptLeaderName").text("N/A");
-                $("#leaderRatingBlock").hide();
-                $("#leaderRatingValue").val(0);
-            }
-
-            $("#acceptModal").css("display", "flex").hide().fadeIn(200);
-        }
-
-        function openRevisionDialog(id, title, subCount) {
-            $("#reviseTaskId").val(id);
-            $("#reviseTaskTitle").text(title);
-            $("#reviseSubtaskCount").text(subCount);
-            $("#revisionModal").css("display", "flex").hide().fadeIn(200);
-        }
-
-        function closeActionModal(id) {
-            $("#" + id).fadeOut(200);
-        }
-
-        // Delete Modal Functions
-        function openDeleteModal(event, id, title) {
-            event.stopPropagation(); // Prevent opening task details modal
-            $("#deleteTaskId").val(id);
-            $("#deleteTaskTitle").text(title);
-            $("#deleteTaskModal").css("display", "flex").hide().fadeIn(200);
-        }
-
-        function closeDeleteModal() {
-            $("#deleteTaskModal").fadeOut(200);
-        }
-
-        function openValidationModal(message) {
-            $("#validationErrorText").text(message);
-            $("#validationErrorModal").css("display", "flex").hide().fadeIn(200);
-        }
-
-        function closeValidationModal() {
-            $("#validationErrorModal").fadeOut(200);
-        }
-
-        // Task rating stars
-        $(".task-rating-input i").hover(function() {
-            const val = $(this).data('value');
-            highlightTaskStars(val);
-        }, function() {
-            const current = $("#ratingValue").val();
-            highlightTaskStars(current);
-        });
-
-        $(".task-rating-input i").click(function() {
-            const val = $(this).data('value');
-            $("#ratingValue").val(val);
-            highlightTaskStars(val);
-        });
-
-        function highlightTaskStars(val) {
-            $(".task-rating-input i").each(function() {
-                if ($(this).data('value') <= val) {
-                    $(this).addClass('active').css('color', '#F59E0B');
-                } else {
-                    $(this).removeClass('active').css('color', '#D1D5DB');
-                }
-            });
-        }
-
-        // Leader rating stars
-        $(".leader-rating-input i").hover(function() {
-            const val = $(this).data('value');
-            highlightLeaderStars(val);
-        }, function() {
-            const current = $("#leaderRatingValue").val();
-            highlightLeaderStars(current);
-        });
-
-        $(".leader-rating-input i").click(function() {
-            const val = $(this).data('value');
-            $("#leaderRatingValue").val(val);
-            highlightLeaderStars(val);
-        });
-
-        function highlightLeaderStars(val) {
-            $(".leader-rating-input i").each(function() {
-                if ($(this).data('value') <= val) {
-                    $(this).addClass('active').css('color', '#F59E0B');
-                } else {
-                    $(this).removeClass('active').css('color', '#D1D5DB');
-                }
-            });
-        }
-
-        $("#acceptModal form").on("submit", function(e) {
-            const taskRating = parseInt($("#ratingValue").val(), 10) || 0;
-            if (taskRating < 1 || taskRating > 5) {
-                e.preventDefault();
-                openValidationModal("Please provide a task rating.");
-                return;
-            }
-
-            const leaderBlockVisible = $("#leaderRatingBlock").is(":visible");
-            if (leaderBlockVisible) {
-                const leaderRating = parseInt($("#leaderRatingValue").val(), 10) || 0;
-                if (leaderRating < 1 || leaderRating > 5) {
-                    e.preventDefault();
-                    openValidationModal("Please provide a leader rating.");
-                    return;
-                }
-            }
-        });
-    </script>
-    <script>
-        $(document).ready(function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const openTaskId = urlParams.get('open_task');
-            if (openTaskId) {
-                // Assuming openTaskModal or similar exists, otherwise use toggleTask logic
-                if (typeof openTaskModal === "function") {
-                    openTaskModal(openTaskId);
-                } else if (typeof toggleTask === "function") {
-                    toggleTask(openTaskId);
-                }
-                
-                // Scroll to task
-                const element = document.getElementById("task-card-" + openTaskId);
-                if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }
-        });
-    </script>
+    <?php include "inc/pages/tasks_scripts.php"; ?>
 </body>
 </html>
 <?php 

@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../inc/tenant.php';
+require_once __DIR__ . '/../helpers/rating.php';
 
 function subtask_append_scope($pdo, $sql, $params, $table, $alias = '', $joinWord = 'AND')
 {
@@ -105,17 +106,24 @@ function subtask_model_table_exists($pdo, $table)
 
 function subtask_apply_peer_smoothing($peer_raw, $n, $prior_mean = 3.5, $prior_weight = 3)
 {
-    $n = (int)$n;
-    if ($n <= 0 || $peer_raw === null) {
-        return null;
+    return tm_apply_peer_rating_smoothing($peer_raw, $n, $prior_mean, $prior_weight);
+}
+
+function subtask_blend_leader_admin_member_50_50($admin_avg, $member_avg)
+{
+    $has_admin = ($admin_avg !== null);
+    $has_member = ($member_avg !== null);
+
+    if ($has_admin && $has_member) {
+        return (((float)$admin_avg) + ((float)$member_avg)) / 2;
     }
-
-    $peer_raw = (float)$peer_raw;
-    $prior_mean = (float)$prior_mean;
-    $prior_weight = (float)$prior_weight;
-
-    return (($n / ($n + $prior_weight)) * $peer_raw)
-         + (($prior_weight / ($n + $prior_weight)) * $prior_mean);
+    if ($has_admin) {
+        return (float)$admin_avg;
+    }
+    if ($has_member) {
+        return (float)$member_avg;
+    }
+    return null;
 }
 
 /**
@@ -166,15 +174,14 @@ function get_collaborative_scores_by_user($pdo, $user_id)
             $peer = $stmt->fetch(PDO::FETCH_ASSOC);
             $peer_count = (int)($peer['count'] ?? 0);
             $peer_avg_raw = ($peer_count > 0 && $peer['avg'] !== null) ? (float)$peer['avg'] : null;
-            $peer_avg = subtask_apply_peer_smoothing($peer_avg_raw, $peer_count);
+            $peer_avg = $peer_avg_raw;
         }
 
         $total_count = $admin_count + $peer_count;
         $overall_avg = 0.0;
-        if ($total_count > 0) {
-            $weighted_sum = ($admin_avg !== null ? $admin_avg * $admin_count : 0)
-                          + ($peer_avg !== null ? $peer_avg * $peer_count : 0);
-            $overall_avg = $weighted_sum / $total_count;
+        $blended_overall = subtask_blend_leader_admin_member_50_50($admin_avg, $peer_avg);
+        if ($blended_overall !== null) {
+            $overall_avg = $blended_overall;
         }
 
         $breakdown = [];
@@ -229,7 +236,7 @@ function get_collaborative_scores_by_user($pdo, $user_id)
                 $task_peer = $stmt->fetch(PDO::FETCH_ASSOC);
                 $task_peer_count = (int)($task_peer['count'] ?? 0);
                 $task_peer_avg_raw = ($task_peer_count > 0 && $task_peer['avg'] !== null) ? (float)$task_peer['avg'] : null;
-                $task_peer_avg = subtask_apply_peer_smoothing($task_peer_avg_raw, $task_peer_count);
+                $task_peer_avg = $task_peer_avg_raw;
             }
 
             $task_total_count = $task_admin_count + $task_peer_count;
@@ -237,9 +244,10 @@ function get_collaborative_scores_by_user($pdo, $user_id)
                 continue;
             }
 
-            $task_weighted_sum = ($task_admin_avg !== null ? $task_admin_avg * $task_admin_count : 0)
-                               + ($task_peer_avg !== null ? $task_peer_avg * $task_peer_count : 0);
-            $task_avg = $task_weighted_sum / $task_total_count;
+            $task_avg = subtask_blend_leader_admin_member_50_50($task_admin_avg, $task_peer_avg);
+            if ($task_avg === null) {
+                continue;
+            }
 
             $breakdown[] = [
                 'task_id' => $task_id,

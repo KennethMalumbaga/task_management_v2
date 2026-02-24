@@ -4,6 +4,8 @@ date_default_timezone_set('Asia/Manila');
 include "../DB_connection.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
+require_once __DIR__ . "/helpers/input.php";
+require_once __DIR__ . "/helpers/password_policy.php";
 
 if (isset($_POST['new_password']) && isset($_POST['confirm_password']) && isset($_POST['token'])) {
     $rawToken = trim((string)($_POST['token'] ?? ''));
@@ -11,16 +13,9 @@ if (isset($_POST['new_password']) && isset($_POST['confirm_password']) && isset(
         header("Location: ../reset-password.php?token=" . urlencode($rawToken) . "&error=" . urlencode("Invalid or expired request. Please refresh and try again."));
         exit();
     }
-    
-    function validate_input($data) {
-        $data = trim($data);
-        $data = stripslashes($data);
-        $data = htmlspecialchars($data);
-        return $data;
-    }
 
-    $new_password = validate_input($_POST['new_password']);
-    $confirm_password = validate_input($_POST['confirm_password']);
+    $new_password = (string)($_POST['new_password'] ?? '');
+    $confirm_password = (string)($_POST['confirm_password'] ?? '');
     $token = validate_input($_POST['token']);
 
     if (empty($new_password) || empty($confirm_password)) {
@@ -28,6 +23,9 @@ if (isset($_POST['new_password']) && isset($_POST['confirm_password']) && isset(
         exit();
     } else if ($new_password !== $confirm_password) {
         header("Location: ../reset-password.php?token=$token&error=Passwords do not match");
+        exit();
+    } else if (!password_meets_policy($new_password)) {
+        header("Location: ../reset-password.php?token=$token&error=" . urlencode(password_policy_error()));
         exit();
     } else {
         // Validate Token

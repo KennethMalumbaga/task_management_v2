@@ -44,10 +44,10 @@ if (isset($_SESSION['id'])) {
                 $file_size = $_FILES['files']['size'][$i];
                 $ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
-                // Size check per file (or maybe total? User request says total < 100MB)
+                // Size check per file (or maybe total? User request says total < 50MB)
                 // Let's assume individual file size is reasonable, and keep existing check loose or implement total check.
                 // For now, let's just upload valid files.
-                if (in_array($ext, $allowed) && $file_size <= 100 * 1024 * 1024) {
+                if (in_array($ext, $allowed) && $file_size <= 50 * 1024 * 1024) {
                     $new_filename = "chat_" . time() . "_" . $i . "_" . $from_id . "." . $ext;
                     if(move_uploaded_file($file_tmp, "$upload_dir/$new_filename")) {
                         insertAttachment($chat_id, $new_filename, $pdo);
@@ -59,3 +59,4 @@ if (isset($_SESSION['id'])) {
 
 	}
 }
+

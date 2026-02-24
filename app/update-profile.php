@@ -5,13 +5,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 if (isset($_POST['full_name']) && isset($_SESSION['role'])) {
 	include "../DB_connection.php";
     require_once "../inc/csrf.php";
-
-    function validate_input($data) {
-	  $data = trim($data);
-	  $data = stripslashes($data);
-	  $data = htmlspecialchars($data);
-	  return $data;
-	}
+    require_once __DIR__ . "/helpers/input.php";
+    require_once __DIR__ . "/helpers/password_policy.php";
 
     if (!csrf_verify('update_profile_form', $_POST['csrf_token'] ?? null, true)) {
         $em = "Invalid or expired request. Please refresh and try again.";
@@ -55,9 +50,9 @@ if (isset($_POST['full_name']) && isset($_SESSION['role'])) {
     }
 
 	// Password handling
-	$password = validate_input($_POST['password']);
-	$new_password = validate_input($_POST['new_password']);
-	$confirm_password = validate_input($_POST['confirm_password']);
+	$password = (string)($_POST['password'] ?? '');
+	$new_password = (string)($_POST['new_password'] ?? '');
+	$confirm_password = (string)($_POST['confirm_password'] ?? '');
 	
    $id = $_SESSION['id'];
 
@@ -91,6 +86,11 @@ if (isset($_POST['full_name']) && isset($_SESSION['role'])) {
             if ($new_password != $confirm_password) {
                 $em = "New password and confirm password do not match";
                 header("Location: ../edit_profile.php?error=$em");
+                exit();
+            }
+            if (!password_meets_policy($new_password)) {
+                $em = password_policy_error();
+                header("Location: ../edit_profile.php?error=" . urlencode($em));
                 exit();
             }
             if (!password_verify($password, $user['password'])) {

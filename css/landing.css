@@ -440,7 +440,7 @@
 }
 
 .landing-feature-icon.indigo {
-    background: linear-gradient(135deg, #6366F1, #818CF8);
+    background: linear-gradient(135deg, #8B5CF6, #8B5CF6);
 }
 
 .landing-feature-card h3 {
@@ -459,7 +459,7 @@
 
 /* ===== VIDEO / DEMO SECTION ===== */
 .landing-demo {
-    background: linear-gradient(135deg, #6C3CE1 0%, #8B5CF6 50%, #A78BFA 100%);
+    background: linear-gradient(135deg, #6C3CE1 0%, #8B5CF6 50%, #8B5CF6 100%);
     padding: 80px 60px;
     position: relative;
     overflow: hidden;
@@ -714,6 +714,7 @@
     padding: 36px 30px;
     text-align: left;
     position: relative;
+    cursor: pointer;
     transition: all 0.3s ease;
 }
 
@@ -743,6 +744,10 @@
     align-items: center;
     gap: 6px;
     white-space: nowrap;
+}
+
+.landing-price-card:not(.popular) .landing-popular-tag {
+    display: none;
 }
 
 .landing-popular-tag svg {
@@ -1011,7 +1016,7 @@
 }
 
 .landing-support-head {
-    background: linear-gradient(135deg, #6C3CE1 0%, #8B5CF6 60%, #A855F7 100%);
+    background: linear-gradient(135deg, #6C3CE1 0%, #8B5CF6 60%, #8B5CF6 100%);
     color: #fff;
     padding: 18px 18px 16px;
     display: flex;
