@@ -5,14 +5,23 @@ require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 require_once __DIR__ . "/helpers/input.php";
 
-if (!isset($_POST['user_name']) || !isset($_POST['full_name'])) {
-    header("Location: ../signup.php?error=error");
+function signup_redirect_error($message, $planCode = 'starter')
+{
+    $query = "error=" . urlencode((string)$message);
+    $safePlan = strtolower(trim((string)$planCode));
+    if ($safePlan !== '') {
+        $query .= "&plan=" . urlencode($safePlan);
+    }
+    header("Location: ../signup.php?" . $query);
     exit();
 }
 
 if (!csrf_verify('signup_form', $_POST['csrf_token'] ?? null, true)) {
-    header("Location: ../signup.php?error=" . urlencode("Invalid or expired request. Please refresh and try again."));
-    exit();
+    signup_redirect_error("Invalid or expired request. Please refresh and try again.", $_POST['plan_code'] ?? 'starter');
+}
+
+if (!isset($_POST['user_name']) || !isset($_POST['full_name'])) {
+    signup_redirect_error("Invalid signup request.", $_POST['plan_code'] ?? 'starter');
 }
 
 function build_org_slug($name)
@@ -50,32 +59,32 @@ function generate_temporary_password($length = 10)
     return implode('', $chars);
 }
 
+$selectedPlan = tenant_resolve_workspace_plan($_POST['plan_code'] ?? 'starter', 'starter');
+$selectedPlanCode = (string)($selectedPlan['code'] ?? 'starter');
+$selectedPlanName = (string)($selectedPlan['name'] ?? 'Starter');
+$selectedPlanSeatLimit = max(1, (int)($selectedPlan['seat_limit'] ?? 10));
+
 $user_name = validate_input($_POST['user_name']);
 $full_name = validate_input($_POST['full_name']);
 $organization_name = validate_input($_POST['organization_name'] ?? '');
 
 if (empty($user_name)) {
-    header("Location: ../signup.php?error=Username/Email is required");
-    exit();
+    signup_redirect_error("Username/Email is required", $selectedPlanCode);
 }
 if (!filter_var($user_name, FILTER_VALIDATE_EMAIL)) {
-    header("Location: ../signup.php?error=Invalid email address");
-    exit();
+    signup_redirect_error("Invalid email address", $selectedPlanCode);
 }
 if (empty($full_name)) {
-    header("Location: ../signup.php?error=Full Name is required");
-    exit();
+    signup_redirect_error("Full Name is required", $selectedPlanCode);
 }
 if (empty($organization_name)) {
-    header("Location: ../signup.php?error=Workspace name is required");
-    exit();
+    signup_redirect_error("Workspace name is required", $selectedPlanCode);
 }
 
 $stmt = $pdo->prepare("SELECT username FROM users WHERE username=?");
 $stmt->execute([$user_name]);
 if ($stmt->rowCount() > 0) {
-    header("Location: ../signup.php?error=The username/email is already taken");
-    exit();
+    signup_redirect_error("The username/email is already taken", $selectedPlanCode);
 }
 
 $generated_password = generate_temporary_password(10);
@@ -107,9 +116,9 @@ try {
 
         $orgStmt = $pdo->prepare(
             "INSERT INTO organizations (name, slug, billing_email, status, plan_code)
-             VALUES (?, ?, ?, 'active', 'trial')"
+             VALUES (?, ?, ?, 'active', ?)"
         );
-        $orgStmt->execute([$organization_name, $slug, $user_name]);
+        $orgStmt->execute([$organization_name, $slug, $user_name, $selectedPlanCode]);
         $newOrgId = (int)$pdo->lastInsertId();
 
         if (tenant_table_exists($pdo, 'subscriptions')) {
@@ -117,6 +126,13 @@ try {
             if (!$subscription) {
                 throw new RuntimeException('Failed to initialize workspace subscription.');
             }
+
+            $subStmt = $pdo->prepare(
+                "UPDATE subscriptions
+                 SET seat_limit = ?
+                 WHERE organization_id = ?"
+            );
+            $subStmt->execute([$selectedPlanSeatLimit, $newOrgId]);
         }
 
         $userStmt = $pdo->prepare(
@@ -145,14 +161,13 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    header("Location: ../signup.php?error=Unknown error occurred during registration");
-    exit();
+    signup_redirect_error("Unknown error occurred during registration", $selectedPlanCode);
 }
 
 include_once "send_email.php";
 if (send_confirmation_email($user_name, $full_name, $generated_password)) {
     if ($hasTenantTables) {
-        $msg = "Workspace created. A confirmation email with your temporary password has been sent to $user_name.";
+        $msg = "Workspace created on the {$selectedPlanName} plan (up to {$selectedPlanSeatLimit} members). A confirmation email with your temporary password has been sent to {$user_name}.";
     } else {
         $msg = "Account created successfully. A confirmation email with your temporary password has been sent to $user_name.";
     }
@@ -183,5 +198,5 @@ try {
 }
 
 $msg = "Registration failed: Could not send confirmation email to $user_name. Please ensure your email is valid.";
-header("Location: ../signup.php?error=" . urlencode($msg));
+signup_redirect_error($msg, $selectedPlanCode);
 exit();

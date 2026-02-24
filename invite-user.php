@@ -54,10 +54,18 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         $stmt->execute([$orgId]);
         $invites = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
+
+    $pendingInviteCount = 0;
+    foreach ($invites as $inviteRow) {
+        if (strtolower((string)($inviteRow['status'] ?? '')) === 'pending') {
+            $pendingInviteCount++;
+        }
+    }
     ?>
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <title>Invite Users | TaskFlow</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -65,309 +73,297 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
-    <style>
-        .card {
-            background: #fff;
-            border: 1px solid #E5E7EB;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 18px;
-        }
-        .alert-box {
-            padding: 10px 12px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            font-size: 14px;
-        }
-        .alert-error {
-            background: #FEF2F2;
-            border: 1px solid #FECACA;
-            color: #991B1B;
-        }
-        .alert-success {
-            background: #ECFDF5;
-            border: 1px solid #A7F3D0;
-            color: #065F46;
-        }
-        .alert-warn {
-            background: #FFFBEB;
-            border: 1px solid #FDE68A;
-            color: #92400E;
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-        .input-field {
-            width: 100%;
-            border: 1px solid #D1D5DB;
-            border-radius: 8px;
-            padding: 10px 12px;
-            outline: none;
-        }
-        .input-field:focus {
-            border-color: #6C3CE1;
-            box-shadow: 0 0 0 3px rgba(108, 60, 225, 0.1);
-        }
-        .btn-primary-lite {
-            background: #6C3CE1;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .btn-primary-lite:hover {
-            background: #8B5CF6;
-        }
-        .table-wrap {
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            text-align: left;
-            padding: 10px 8px;
-            border-bottom: 1px solid #E5E7EB;
-            font-size: 13px;
-            vertical-align: top;
-        }
-        th {
-            color: #6B7280;
-            font-weight: 600;
-        }
-        .status-pill {
-            display: inline-block;
-            font-size: 12px;
-            padding: 3px 8px;
-            border-radius: 999px;
-            font-weight: 600;
-        }
-        .st-pending {
-            background: #EEF2FF;
-            color: #8B5CF6;
-        }
-        .st-accepted {
-            background: #ECFDF5;
-            color: #065F46;
-        }
-        .st-revoked, .st-expired {
-            background: #F3F4F6;
-            color: #374151;
-        }
-        .mini-btn {
-            border: 1px solid #D1D5DB;
-            border-radius: 6px;
-            padding: 5px 8px;
-            background: #fff;
-            color: #374151;
-            text-decoration: none;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        .mini-btn-danger {
-            border-color: #FCA5A5;
-            color: #B91C1C;
-            background: #FEF2F2;
-        }
-        .mono {
-            font-family: Consolas, monospace;
-            font-size: 11px;
-            background: #F9FAFB;
-            border: 1px solid #E5E7EB;
-            border-radius: 6px;
-            padding: 3px 6px;
-        }
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="css/workspace-panels.css">
 </head>
-<body>
+<body class="invites-page">
 <?php include "inc/new_sidebar.php"; ?>
 
 <div class="dash-main">
-    <div class="card">
-        <p style="margin:0; color:#6B7280;">
-            Workspace: <strong><?= htmlspecialchars((string)$orgName) ?></strong>
-        </p>
-        <p style="margin:6px 0 0; color:#6B7280; font-size:13px;">
-            Subscription: <strong><?= htmlspecialchars($subscriptionStatus) ?></strong>
-            <?php if ($seatLimit !== null) { ?>
-                | Seats: <strong><?= $seatUsed ?>/<?= $seatLimit ?></strong>
-                <?php if ($seatsLeft !== null) { ?>
-                    (<?= max(0, $seatsLeft) ?> left)
-                <?php } ?>
-            <?php } ?>
-        </p>
-    </div>
-
-    <?php if (isset($_GET['error'])) { ?>
-        <div class="alert-box alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
-    <?php } ?>
-    <?php if (isset($_GET['success'])) { ?>
-        <div class="alert-box alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
-    <?php } ?>
-    <?php if (isset($_GET['warn'])) { ?>
-        <div class="alert-box alert-warn"><?= htmlspecialchars($_GET['warn']) ?></div>
-    <?php } ?>
-    <?php if (isset($_GET['manual_link'])) { ?>
-        <div class="alert-box alert-warn">
-            Manual invite link:
-            <span class="mono"><?= htmlspecialchars($_GET['manual_link']) ?></span>
-        </div>
-    <?php } ?>
-    <?php if (isset($_GET['one_time_link'])) { ?>
-        <div class="alert-box alert-success">
-            One-time join link:
-            <span class="mono"><?= htmlspecialchars($_GET['one_time_link']) ?></span>
-        </div>
-    <?php } ?>
-
-    <?php if (!$hasInviteTable) { ?>
-        <div class="card alert-box alert-error">
-            `workspace_invites` table is missing. Run `sql_create_workspace_invites.sql` or `run_migration_workspace_invites.php` first.
-        </div>
-    <?php } elseif ($is_super_admin) { ?>
-        <div class="card alert-box alert-error">
-            Super Admin cannot send workspace invites from this screen.
-        </div>
-    <?php } elseif (!$capacity['ok']) { ?>
-        <div class="card alert-box alert-warn">
-            <?= htmlspecialchars((string)$capacity['reason']) ?>
-        </div>
-    <?php } else { ?>
-        <div class="card">
-            <h3 style="margin-top:0;">Send New Invite</h3>
-            <form action="app/invite-user.php" method="POST">
-                <?= csrf_field('invite_user_form') ?>
-                <div class="form-row">
-                    <div>
-                        <label style="display:block; margin-bottom:6px; font-size:13px; color:#374151;">Employee Full Name</label>
-                        <input class="input-field" type="text" name="full_name" placeholder="Jane Doe" required>
-                    </div>
-                    <div>
-                        <label style="display:block; margin-bottom:6px; font-size:13px; color:#374151;">Employee Email</label>
-                        <input class="input-field" type="email" name="email" placeholder="jane@company.com" required>
-                    </div>
+    <div class="workspace-shell workspace-animate">
+        <section class="workspace-hero">
+            <div>
+                <span class="workspace-eyebrow">
+                    <i class="fa fa-user-plus"></i> Workspace Invites
+                </span>
+                <h2>Invite teammates with a cleaner onboarding flow.</h2>
+                <p>Send direct invites, run bulk imports, and issue one-time links while keeping workspace capacity visible at a glance.</p>
+            </div>
+            <div class="workspace-hero-stats">
+                <div class="workspace-hero-stat">
+                    <span>Workspace</span>
+                    <strong><?= htmlspecialchars((string)$orgName) ?></strong>
                 </div>
-                <div style="margin-top: 12px;">
-                    <button class="btn-primary-lite" type="submit">
-                        <i class="fa fa-paper-plane"></i> Send Invite
-                    </button>
+                <div class="workspace-hero-stat">
+                    <span>Subscription</span>
+                    <strong><?= htmlspecialchars($subscriptionStatus) ?></strong>
                 </div>
-            </form>
-        </div>
-
-        <div class="card">
-            <h3 style="margin-top:0;">Bulk Invite Upload</h3>
-            <p style="margin: 0 0 12px; color:#6B7280; font-size:13px;">
-                Upload employee list as <strong>.xlsx</strong>, <strong>.csv</strong>, or text-based <strong>.pdf</strong>.
-                Include columns for name and email (for example: <code>Full Name</code>, <code>Email</code>).
-            </p>
-            <form action="app/invite-users-bulk.php" method="POST" enctype="multipart/form-data">
-                <?= csrf_field('bulk_invite_form') ?>
-                <input
-                    class="input-field"
-                    type="file"
-                    name="employees_file"
-                    accept=".xlsx,.csv,.pdf"
-                    required
-                >
-                <div style="margin-top: 12px;">
-                    <button class="btn-primary-lite" type="submit">
-                        <i class="fa fa-upload"></i> Upload and Send Invites
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <div class="card">
-            <h3 style="margin-top:0;">Generate One-time Join Link</h3>
-            <p style="margin: 0 0 12px; color:#6B7280; font-size:13px;">
-                Create a single-use link you can send directly to one employee. The first valid signup consumes the link.
-            </p>
-            <form action="app/generate-invite-link.php" method="POST">
-                <?= csrf_field('generate_workspace_join_link_form') ?>
-                <button class="btn-primary-lite" type="submit">
-                    <i class="fa fa-link"></i> Generate One-time Link
-                </button>
-            </form>
-        </div>
-    <?php } ?>
-
-    <div class="card">
-        <h3 style="margin-top:0;">Recent Invites</h3>
-        <?php if (empty($invites)) { ?>
-            <p style="color:#6B7280;">No invites yet.</p>
-        <?php } else { ?>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Name</th>
-                        <th>Status</th>
-                        <th>Expires</th>
-                        <th>Join Link</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <?php foreach ($invites as $invite) {
-                        $status = strtolower((string)$invite['status']);
-                        $isOpenLink = invite_is_open_link_email((string)$invite['email']);
-                        $statusClass = 'st-expired';
-                        if ($status === 'pending') {
-                            $statusClass = 'st-pending';
-                        } elseif ($status === 'accepted') {
-                            $statusClass = 'st-accepted';
-                        } elseif ($status === 'revoked') {
-                            $statusClass = 'st-revoked';
-                        }
-                        $joinLink = APP_URL . '/join-workspace.php?token=' . $invite['token'];
-                        ?>
-                        <tr>
-                            <td><?= htmlspecialchars(invite_format_display_email((string)$invite['email'])) ?></td>
-                            <td><?= htmlspecialchars((string)($invite['full_name'] ?: ($isOpenLink ? 'Open registration link' : '-'))) ?></td>
-                            <td><span class="status-pill <?= $statusClass ?>"><?= htmlspecialchars(ucfirst($status)) ?></span></td>
-                            <td><?= htmlspecialchars((string)$invite['expires_at']) ?></td>
-                            <td><span class="mono"><?= htmlspecialchars($joinLink) ?></span></td>
-                            <td>
-                                <button type="button" class="mini-btn" onclick="copyInviteLink('<?= htmlspecialchars($joinLink, ENT_QUOTES) ?>')">Copy Link</button>
-                                <?php if ($status === 'pending') { ?>
-                                    <form action="app/cancel-invite.php" method="POST" style="display:inline-block; margin-left:4px;">
-                                        <?= csrf_field('revoke_invite_form') ?>
-                                        <input type="hidden" name="invite_id" value="<?= (int)$invite['id'] ?>">
-                                        <button type="submit" class="mini-btn mini-btn-danger" onclick="return confirm('Revoke this invite?')">Revoke</button>
-                                    </form>
-                                <?php } ?>
-                            </td>
-                        </tr>
+                <div class="workspace-hero-stat">
+                    <span>Seat Usage</span>
+                    <strong><?= $seatUsed ?><?= $seatLimit !== null ? "/" . $seatLimit : "" ?></strong>
+                    <?php if ($seatsLeft !== null) { ?>
+                        <small><?= max(0, $seatsLeft) ?> seat<?= max(0, $seatsLeft) === 1 ? '' : 's' ?> left</small>
                     <?php } ?>
-                    </tbody>
-                </table>
+                </div>
+                <div class="workspace-hero-stat">
+                    <span>Pending Invites</span>
+                    <strong><?= (int)$pendingInviteCount ?></strong>
+                    <small><?= count($invites) ?> recent invite<?= count($invites) === 1 ? '' : 's' ?> tracked</small>
+                </div>
+            </div>
+        </section>
+
+        <div class="workspace-alert-stack">
+            <?php if (isset($_GET['error'])) { ?>
+                <div class="workspace-alert error">
+                    <i class="fa fa-exclamation-circle"></i>
+                    <div><?= htmlspecialchars($_GET['error']) ?></div>
+                </div>
+            <?php } ?>
+            <?php if (isset($_GET['success'])) { ?>
+                <div class="workspace-alert success">
+                    <i class="fa fa-check-circle"></i>
+                    <div><?= htmlspecialchars($_GET['success']) ?></div>
+                </div>
+            <?php } ?>
+            <?php if (isset($_GET['warn'])) { ?>
+                <div class="workspace-alert warn">
+                    <i class="fa fa-warning"></i>
+                    <div><?= htmlspecialchars($_GET['warn']) ?></div>
+                </div>
+            <?php } ?>
+            <?php if (isset($_GET['manual_link'])) { ?>
+                <div class="workspace-alert warn">
+                    <i class="fa fa-link"></i>
+                    <div>
+                        Manual invite link generated.
+                        <div class="workspace-inline-code"><?= htmlspecialchars($_GET['manual_link']) ?></div>
+                    </div>
+                </div>
+            <?php } ?>
+        </div>
+
+        <?php if (!$hasInviteTable) { ?>
+            <section class="workspace-panel">
+                <div class="workspace-panel-head">
+                    <h3 class="workspace-panel-title">Invite Setup Required</h3>
+                </div>
+                <div class="workspace-alert error">
+                    <i class="fa fa-database"></i>
+                    <div>`workspace_invites` table is missing. Run `sql_create_workspace_invites.sql` or `run_migration_workspace_invites.php` first.</div>
+                </div>
+            </section>
+        <?php } elseif ($is_super_admin) { ?>
+            <section class="workspace-panel">
+                <div class="workspace-panel-head">
+                    <h3 class="workspace-panel-title">Invites Unavailable For Super Admin</h3>
+                </div>
+                <div class="workspace-alert error">
+                    <i class="fa fa-ban"></i>
+                    <div>Super Admin cannot send workspace invites from this screen.</div>
+                </div>
+            </section>
+        <?php } elseif (!$capacity['ok']) { ?>
+            <section class="workspace-panel">
+                <div class="workspace-panel-head">
+                    <h3 class="workspace-panel-title">Invites Temporarily Locked</h3>
+                </div>
+                <div class="workspace-alert warn">
+                    <i class="fa fa-warning"></i>
+                    <div><?= htmlspecialchars((string)$capacity['reason']) ?></div>
+                </div>
+            </section>
+        <?php } else { ?>
+            <div class="invite-action-grid">
+                <section class="workspace-panel">
+                    <div class="workspace-panel-head">
+                        <div>
+                            <h3 class="workspace-panel-title">Send New Invite</h3>
+                            <p class="workspace-panel-sub">Invite a single teammate with full name and work email.</p>
+                        </div>
+                    </div>
+                    <form action="app/invite-user.php" method="POST" class="workspace-form-grid">
+                        <?= csrf_field('invite_user_form') ?>
+                        <div class="workspace-form-grid two-col">
+                            <div class="workspace-field">
+                                <label>Employee Full Name</label>
+                                <input class="workspace-input" type="text" name="full_name" placeholder="Jane Doe" required>
+                            </div>
+                            <div class="workspace-field">
+                                <label>Employee Email</label>
+                                <input class="workspace-input" type="email" name="email" placeholder="jane@company.com" required>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="workspace-btn primary" type="submit">
+                                <i class="fa fa-paper-plane"></i> Send Invite
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="workspace-panel">
+                    <div class="workspace-panel-head">
+                        <div>
+                            <h3 class="workspace-panel-title">Generate One-time Link</h3>
+                            <p class="workspace-panel-sub">Create a single-use join URL. The first valid signup consumes it.</p>
+                        </div>
+                    </div>
+                    <form action="app/generate-invite-link.php" method="POST" class="workspace-form-grid">
+                        <?= csrf_field('generate_workspace_join_link_form') ?>
+                        <div>
+                            <button class="workspace-btn primary" type="submit">
+                                <i class="fa fa-link"></i> Generate One-time Link
+                            </button>
+                        </div>
+                    </form>
+                    <?php if (isset($_GET['one_time_link'])) { ?>
+                        <div class="workspace-alert success" style="margin-top:12px;">
+                            <i class="fa fa-check-circle-o"></i>
+                            <div>
+                                One-time join link generated.
+                                <div class="workspace-inline-code"><?= htmlspecialchars($_GET['one_time_link']) ?></div>
+                                <div class="workspace-action-row" style="margin-top:8px;">
+                                    <button
+                                        type="button"
+                                        class="workspace-btn ghost mini"
+                                        onclick="copyInviteLink('<?= htmlspecialchars((string)$_GET['one_time_link'], ENT_QUOTES) ?>')"
+                                    >
+                                        <i class="fa fa-copy"></i> Copy Link
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    <?php } ?>
+                </section>
+
+                <section class="workspace-panel invite-bulk-panel">
+                    <div class="workspace-panel-head">
+                        <div>
+                            <h3 class="workspace-panel-title">Bulk Invite Upload</h3>
+                            <p class="workspace-panel-sub">
+                                Upload <strong>.xlsx</strong>, <strong>.csv</strong>, or text-based <strong>.pdf</strong>.
+                                Include name and email columns, for example <code>Full Name</code> and <code>Email</code>.
+                            </p>
+                        </div>
+                    </div>
+                    <form action="app/invite-users-bulk.php" method="POST" enctype="multipart/form-data" class="workspace-form-grid">
+                        <?= csrf_field('bulk_invite_form') ?>
+                        <div class="workspace-field">
+                            <label>Employee File</label>
+                            <input
+                                class="workspace-input"
+                                type="file"
+                                name="employees_file"
+                                accept=".xlsx,.csv,.pdf"
+                                required
+                            >
+                        </div>
+                        <div>
+                            <button class="workspace-btn primary" type="submit">
+                                <i class="fa fa-upload"></i> Upload And Send Invites
+                            </button>
+                        </div>
+                    </form>
+                </section>
             </div>
         <?php } ?>
+
+        <section class="workspace-panel">
+            <div class="workspace-panel-head">
+                <div>
+                    <h3 class="workspace-panel-title">Recent Invites</h3>
+                    <p class="workspace-panel-sub">Track invite status, expiry, and quickly copy or revoke active links.</p>
+                </div>
+                <span class="workspace-pill soft"><?= count($invites) ?> record<?= count($invites) === 1 ? '' : 's' ?></span>
+            </div>
+            <?php if (empty($invites)) { ?>
+                <p class="workspace-empty">No invites yet.</p>
+            <?php } else { ?>
+                <div class="workspace-table-wrap">
+                    <table class="workspace-table">
+                        <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Expires</th>
+                            <th>Join Link</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($invites as $invite) {
+                            $status = strtolower((string)$invite['status']);
+                            $isOpenLink = invite_is_open_link_email((string)$invite['email']);
+                            $statusClass = 'st-expired';
+                            if ($status === 'pending') {
+                                $statusClass = 'st-pending';
+                            } elseif ($status === 'accepted') {
+                                $statusClass = 'st-accepted';
+                            } elseif ($status === 'revoked') {
+                                $statusClass = 'st-revoked';
+                            }
+                            $joinLink = APP_URL . '/join-workspace.php?token=' . $invite['token'];
+                            ?>
+                            <tr>
+                                <td><?= htmlspecialchars(invite_format_display_email((string)$invite['email'])) ?></td>
+                                <td><?= htmlspecialchars((string)($invite['full_name'] ?: ($isOpenLink ? 'Open registration link' : '-'))) ?></td>
+                                <td><span class="workspace-status <?= $statusClass ?>"><?= htmlspecialchars(ucfirst($status)) ?></span></td>
+                                <td><?= htmlspecialchars((string)$invite['expires_at']) ?></td>
+                                <td><span class="workspace-mono"><?= htmlspecialchars($joinLink) ?></span></td>
+                                <td>
+                                    <div class="workspace-action-row">
+                                        <button type="button" class="workspace-btn ghost mini" onclick="copyInviteLink('<?= htmlspecialchars($joinLink, ENT_QUOTES) ?>')">
+                                            <i class="fa fa-copy"></i> Copy Link
+                                        </button>
+                                        <?php if ($status === 'pending') { ?>
+                                            <form action="app/cancel-invite.php" method="POST" class="workspace-inline-form">
+                                                <?= csrf_field('revoke_invite_form') ?>
+                                                <input type="hidden" name="invite_id" value="<?= (int)$invite['id'] ?>">
+                                                <button type="submit" class="workspace-btn danger mini" onclick="return confirm('Revoke this invite?')">Revoke</button>
+                                            </form>
+                                        <?php } ?>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php } ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php } ?>
+        </section>
     </div>
 </div>
 
+<div id="inviteToast" class="workspace-toast" role="status" aria-live="polite"></div>
 <script>
+    var inviteToastTimer = null;
+
+    function showInviteToast(message, type) {
+        var toast = document.getElementById('inviteToast');
+        if (!toast) {
+            alert(message);
+            return;
+        }
+        toast.textContent = message;
+        toast.className = 'workspace-toast show ' + (type === 'error' ? 'error' : 'success');
+        if (inviteToastTimer) {
+            clearTimeout(inviteToastTimer);
+        }
+        inviteToastTimer = setTimeout(function () {
+            toast.className = 'workspace-toast';
+        }, 2200);
+    }
+
     function copyInviteLink(link) {
         if (!navigator.clipboard) {
-            alert('Clipboard is not available in this browser.');
+            showInviteToast('Clipboard is not available in this browser.', 'error');
             return;
         }
         navigator.clipboard.writeText(link).then(function () {
-            alert('Invite link copied.');
+            showInviteToast('Invite link copied.', 'success');
         }).catch(function () {
-            alert('Failed to copy invite link.');
+            showInviteToast('Failed to copy invite link.', 'error');
         });
     }
 </script>

@@ -140,6 +140,18 @@ if (!$tenantEnabled) {
         $error = "Unable to load workspace billing details right now.";
     }
 }
+
+$workspaceDisplayName = (string)($org['name'] ?? ($_SESSION['organization_name'] ?? 'Workspace'));
+$workspaceSlug = (string)($org['slug'] ?? 'N/A');
+$workspaceId = isset($org['id']) ? (int)$org['id'] : 0;
+$workspaceStatus = (string)($org['status'] ?? 'N/A');
+$workspacePlanCode = (string)($org['plan_code'] ?? 'N/A');
+$workspaceBillingEmail = (string)(!empty($org['billing_email']) ? $org['billing_email'] : 'N/A');
+$subscriptionStatusText = strtoupper((string)($subscription['status'] ?? 'N/A'));
+$seatUsageDisplay = $seatLimit !== null ? ($seatUsed . "/" . $seatLimit) : (string)$seatUsed;
+$availablePlans = tenant_workspace_plan_catalog();
+$resolvedWorkspacePlan = tenant_resolve_workspace_plan($workspacePlanCode, 'starter');
+$currentWorkspacePlanCode = (string)($resolvedWorkspacePlan['code'] ?? 'starter');
 ?>
 <!DOCTYPE html>
 <html>
@@ -152,333 +164,246 @@ if (!$tenantEnabled) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
-    <style>
-        .wb-card {
-            background: #fff;
-            border: 1px solid #E5E7EB;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-        .wb-title {
-            margin: 0;
-            font-size: 24px;
-            color: #111827;
-        }
-        .wb-sub {
-            margin: 6px 0 0;
-            color: #6B7280;
-            font-size: 13px;
-        }
-        .wb-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(240px, 1fr));
-            gap: 14px;
-        }
-        .wb-stat {
-            border: 1px solid #E5E7EB;
-            border-radius: 10px;
-            padding: 14px;
-            background: #F9FAFB;
-        }
-        .wb-label {
-            color: #6B7280;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .4px;
-            margin-bottom: 6px;
-        }
-        .wb-value {
-            color: #111827;
-            font-size: 22px;
-            font-weight: 700;
-            line-height: 1.2;
-        }
-        .wb-hint {
-            margin-top: 6px;
-            color: #6B7280;
-            font-size: 12px;
-        }
-        .wb-pill {
-            display: inline-block;
-            border-radius: 999px;
-            padding: 4px 10px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .wb-pill.ok {
-            background: #DCFCE7;
-            color: #166534;
-        }
-        .wb-pill.warn {
-            background: #FEF3C7;
-            color: #92400E;
-        }
-        .wb-pill.danger {
-            background: #FEE2E2;
-            color: #991B1B;
-        }
-        .wb-alert {
-            border-radius: 10px;
-            padding: 10px 12px;
-            margin-bottom: 12px;
-            font-size: 14px;
-        }
-        .wb-alert.error {
-            background: #FEF2F2;
-            border: 1px solid #FECACA;
-            color: #991B1B;
-        }
-        .wb-alert.warn {
-            background: #FFFBEB;
-            border: 1px solid #FDE68A;
-            color: #92400E;
-        }
-        .wb-alert.success {
-            background: #ECFDF5;
-            border: 1px solid #A7F3D0;
-            color: #065F46;
-        }
-        .wb-alert.info {
-            background: #EFF6FF;
-            border: 1px solid #BFDBFE;
-            color: #1E40AF;
-        }
-        .wb-progress {
-            margin-top: 8px;
-            width: 100%;
-            height: 8px;
-            border-radius: 999px;
-            background: #E5E7EB;
-            overflow: hidden;
-        }
-        .wb-progress > span {
-            display: block;
-            height: 100%;
-            background: #6C3CE1;
-        }
-        .wb-list {
-            margin: 0;
-            padding-left: 18px;
-            color: #374151;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        .wb-form-grid {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 10px;
-            align-items: end;
-            margin-top: 10px;
-        }
-        .wb-input-label {
-            display: block;
-            font-size: 12px;
-            color: #6B7280;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: .4px;
-            font-weight: 600;
-        }
-        .wb-input {
-            width: 100%;
-            border: 1px solid #D1D5DB;
-            border-radius: 8px;
-            padding: 10px 12px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
-        .wb-input:focus {
-            border-color: #6C3CE1;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(108, 60, 225, 0.1);
-        }
-        .wb-btn {
-            border: none;
-            border-radius: 8px;
-            background: #6C3CE1;
-            color: #fff;
-            padding: 11px 14px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        .wb-btn:hover {
-            background: #8B5CF6;
-        }
-        @media (max-width: 900px) {
-            .wb-grid {
-                grid-template-columns: 1fr;
-            }
-            .wb-form-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="css/workspace-panels.css">
 </head>
-<body>
+<body class="billing-page">
 <?php include "inc/new_sidebar.php"; ?>
 
 <div class="dash-main">
-    <div class="wb-card">
-        <p class="wb-sub">
-            One place to see your plan status, seat usage, and renewal/trial dates.
-        </p>
-    </div>
+    <div class="workspace-shell workspace-animate">
+        <section class="workspace-hero">
+            <div>
+                <span class="workspace-eyebrow">
+                    <i class="fa fa-credit-card"></i> Workspace Billing
+                </span>
+                <h2>Control seats, monitor renewal windows, and keep onboarding stable.</h2>
+                <p>One place to view plan health, active capacity, and role distribution before you invite additional members.</p>
+            </div>
+            <div class="workspace-hero-stats">
+                <div class="workspace-hero-stat">
+                    <span>Workspace</span>
+                    <strong><?= htmlspecialchars($workspaceDisplayName) ?></strong>
+                </div>
+                <div class="workspace-hero-stat">
+                    <span>Subscription</span>
+                    <strong><?= htmlspecialchars($subscriptionStatusText) ?></strong>
+                </div>
+                <div class="workspace-hero-stat">
+                    <span>Seats</span>
+                    <strong><?= $seatUsageDisplay ?></strong>
+                    <small>
+                        <?php if ($seatsLeft !== null) { ?>
+                            <?= max(0, $seatsLeft) ?> seat<?= max(0, $seatsLeft) === 1 ? '' : 's' ?> left
+                        <?php } else { ?>
+                            Seat limit not configured
+                        <?php } ?>
+                    </small>
+                </div>
+                <div class="workspace-hero-stat">
+                    <span>Pending Invites</span>
+                    <strong><?= $pendingInvites ?></strong>
+                    <small>Pending invites do not consume seats yet</small>
+                </div>
+            </div>
+        </section>
 
-    <?php if ($isSuperAdmin) { ?>
-        <div class="wb-alert info">
-            You are signed in as Super Admin. You are currently viewing one workspace context.
-        </div>
-    <?php } ?>
-
-    <?php if (!empty($flashSuccess)) { ?>
-        <div class="wb-alert success"><?= htmlspecialchars($flashSuccess) ?></div>
-    <?php } ?>
-
-    <?php if (!empty($flashError)) { ?>
-        <div class="wb-alert error"><?= htmlspecialchars($flashError) ?></div>
-    <?php } ?>
-
-    <?php if ($error !== null) { ?>
-        <div class="wb-alert error"><?= htmlspecialchars($error) ?></div>
-    <?php } else { ?>
-        <div class="wb-card">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                <div>
-                    <div style="font-size:22px; font-weight:700; color:#111827;"><?= htmlspecialchars((string)$org['name']) ?></div>
-                    <div class="wb-sub">
-                        slug: <?= htmlspecialchars((string)$org['slug']) ?> | org_id: <?= (int)$org['id'] ?>
+        <?php if ($isSuperAdmin || !empty($flashSuccess) || !empty($flashError)) { ?>
+            <div class="workspace-alert-stack">
+                <?php if ($isSuperAdmin) { ?>
+                    <div class="workspace-alert info">
+                        <i class="fa fa-info-circle"></i>
+                        <div>You are signed in as Super Admin and currently viewing one workspace context.</div>
                     </div>
-                </div>
-                <div class="wb-pill <?= wb_status_badge_class($subscription['status'] ?? 'active') ?>">
-                    <?= strtoupper((string)($subscription['status'] ?? 'ACTIVE')) ?>
-                </div>
-            </div>
-            <div class="wb-sub" style="margin-top:8px;">
-                Workspace status: <strong><?= htmlspecialchars((string)$org['status']) ?></strong> |
-                Plan code: <strong><?= htmlspecialchars((string)$org['plan_code']) ?></strong> |
-                Billing email: <strong><?= htmlspecialchars((string)($org['billing_email'] ?: 'N/A')) ?></strong>
-            </div>
-        </div>
-
-        <?php if ($capacity && !$capacity['ok']) { ?>
-            <div class="wb-alert warn">
-                <?= htmlspecialchars((string)$capacity['reason']) ?>
+                <?php } ?>
+                <?php if (!empty($flashSuccess)) { ?>
+                    <div class="workspace-alert success">
+                        <i class="fa fa-check-circle"></i>
+                        <div><?= htmlspecialchars($flashSuccess) ?></div>
+                    </div>
+                <?php } ?>
+                <?php if (!empty($flashError)) { ?>
+                    <div class="workspace-alert error">
+                        <i class="fa fa-exclamation-circle"></i>
+                        <div><?= htmlspecialchars($flashError) ?></div>
+                    </div>
+                <?php } ?>
             </div>
         <?php } ?>
 
-        <div class="wb-grid">
-            <div class="wb-stat">
-                <div class="wb-label">Seats</div>
-                <div class="wb-value">
-                    <?= $seatUsed ?><?= $seatLimit !== null ? "/" . $seatLimit : "" ?>
+        <?php if ($error !== null) { ?>
+            <section class="workspace-panel">
+                <div class="workspace-panel-head">
+                    <h3 class="workspace-panel-title">Billing Details Unavailable</h3>
                 </div>
-                <div class="wb-hint">
-                    Used <?= $seatUsed ?> seat<?= $seatUsed !== 1 ? 's' : '' ?>
-                    <?php if ($seatsLeft !== null) { ?>
-                        , <?= max(0, $seatsLeft) ?> left
+                <div class="workspace-alert error">
+                    <i class="fa fa-exclamation-triangle"></i>
+                    <div><?= htmlspecialchars($error) ?></div>
+                </div>
+            </section>
+        <?php } else { ?>
+            <section class="workspace-panel">
+                <div class="workspace-panel-head">
+                    <div>
+                        <h3 class="workspace-panel-title"><?= htmlspecialchars($workspaceDisplayName) ?></h3>
+                        <p class="workspace-panel-sub">Workspace status, plan metadata, and billing contact snapshot.</p>
+                    </div>
+                    <span class="workspace-pill <?= wb_status_badge_class($subscription['status'] ?? 'active') ?>">
+                        <?= htmlspecialchars($subscriptionStatusText) ?>
+                    </span>
+                </div>
+                <div class="workspace-meta-row">
+                    <span class="workspace-meta-chip"><i class="fa fa-hashtag"></i> Org ID <strong><?= $workspaceId ?></strong></span>
+                    <span class="workspace-meta-chip"><i class="fa fa-tag"></i> Slug <strong><?= htmlspecialchars($workspaceSlug) ?></strong></span>
+                    <span class="workspace-meta-chip"><i class="fa fa-shield"></i> Status <strong><?= htmlspecialchars($workspaceStatus) ?></strong></span>
+                    <span class="workspace-meta-chip"><i class="fa fa-cubes"></i> Plan <strong><?= htmlspecialchars($currentWorkspacePlanCode) ?></strong></span>
+                    <span class="workspace-meta-chip"><i class="fa fa-envelope-o"></i> Billing <strong><?= htmlspecialchars($workspaceBillingEmail) ?></strong></span>
+                </div>
+            </section>
+
+            <?php if ($capacity && !$capacity['ok']) { ?>
+                <div class="workspace-alert warn">
+                    <i class="fa fa-warning"></i>
+                    <div><?= htmlspecialchars((string)$capacity['reason']) ?></div>
+                </div>
+            <?php } ?>
+
+            <div class="billing-stats-grid">
+                <article class="workspace-stat-card">
+                    <div class="workspace-stat-head">
+                        <span class="workspace-stat-label">Seats</span>
+                        <span class="workspace-stat-icon"><i class="fa fa-users"></i></span>
+                    </div>
+                    <div class="workspace-stat-value"><?= $seatUsageDisplay ?></div>
+                    <p class="workspace-stat-hint">
+                        Used <?= $seatUsed ?> seat<?= $seatUsed !== 1 ? 's' : '' ?>
+                        <?php if ($seatsLeft !== null) { ?>
+                            , <?= max(0, $seatsLeft) ?> left
+                        <?php } ?>
+                    </p>
+                    <?php if ($seatLimit !== null && $seatLimit > 0) { ?>
+                        <div class="workspace-progress"><span style="width: <?= $seatUsagePct ?>%;"></span></div>
                     <?php } ?>
-                </div>
-                <?php if ($seatLimit !== null && $seatLimit > 0) { ?>
-                    <div class="wb-progress"><span style="width: <?= $seatUsagePct ?>%;"></span></div>
-                <?php } ?>
+                </article>
+
+                <article class="workspace-stat-card">
+                    <div class="workspace-stat-head">
+                        <span class="workspace-stat-label">Pending Invites</span>
+                        <span class="workspace-stat-icon"><i class="fa fa-user-plus"></i></span>
+                    </div>
+                    <div class="workspace-stat-value"><?= $pendingInvites ?></div>
+                    <p class="workspace-stat-hint">Pending invites do not consume seats until accepted.</p>
+                </article>
+
+                <article class="workspace-stat-card">
+                    <div class="workspace-stat-head">
+                        <span class="workspace-stat-label">Trial Ends</span>
+                        <span class="workspace-stat-icon"><i class="fa fa-hourglass-half"></i></span>
+                    </div>
+                    <div class="workspace-stat-value compact"><?= wb_format_datetime($subscription['trial_ends_at'] ?? null) ?></div>
+                    <?php $trialLeft = wb_days_left_text($subscription['trial_ends_at'] ?? null); ?>
+                    <?php if ($trialLeft !== null) { ?>
+                        <p class="workspace-stat-hint"><?= htmlspecialchars($trialLeft) ?></p>
+                    <?php } ?>
+                </article>
+
+                <article class="workspace-stat-card">
+                    <div class="workspace-stat-head">
+                        <span class="workspace-stat-label">Current Period End</span>
+                        <span class="workspace-stat-icon"><i class="fa fa-calendar"></i></span>
+                    </div>
+                    <div class="workspace-stat-value compact"><?= wb_format_datetime($subscription['current_period_end'] ?? null) ?></div>
+                    <?php $periodLeft = wb_days_left_text($subscription['current_period_end'] ?? null); ?>
+                    <?php if ($periodLeft !== null) { ?>
+                        <p class="workspace-stat-hint"><?= htmlspecialchars($periodLeft) ?></p>
+                    <?php } ?>
+                </article>
+
+                <article class="workspace-stat-card">
+                    <div class="workspace-stat-head">
+                        <span class="workspace-stat-label">Workspace Created</span>
+                        <span class="workspace-stat-icon"><i class="fa fa-flag"></i></span>
+                    </div>
+                    <div class="workspace-stat-value compact"><?= wb_format_datetime($org['created_at'] ?? null) ?></div>
+                    <p class="workspace-stat-hint">Use this timestamp for onboarding and trial tracking.</p>
+                </article>
             </div>
 
-            <div class="wb-stat">
-                <div class="wb-label">Pending Invites</div>
-                <div class="wb-value"><?= $pendingInvites ?></div>
-                <div class="wb-hint">Pending invites do not consume seats until accepted.</div>
-            </div>
-
-            <div class="wb-stat">
-                <div class="wb-label">Trial Ends</div>
-                <div class="wb-value" style="font-size:18px;"><?= wb_format_datetime($subscription['trial_ends_at'] ?? null) ?></div>
-                <?php $trialLeft = wb_days_left_text($subscription['trial_ends_at'] ?? null); ?>
-                <?php if ($trialLeft !== null) { ?>
-                    <div class="wb-hint"><?= htmlspecialchars($trialLeft) ?></div>
-                <?php } ?>
-            </div>
-
-            <div class="wb-stat">
-                <div class="wb-label">Current Period End</div>
-                <div class="wb-value" style="font-size:18px;"><?= wb_format_datetime($subscription['current_period_end'] ?? null) ?></div>
-                <?php $periodLeft = wb_days_left_text($subscription['current_period_end'] ?? null); ?>
-                <?php if ($periodLeft !== null) { ?>
-                    <div class="wb-hint"><?= htmlspecialchars($periodLeft) ?></div>
-                <?php } ?>
-            </div>
-
-            <div class="wb-stat">
-                <div class="wb-label">Member Roles</div>
-                <div class="wb-value" style="font-size:18px;">
-                    Owners <?= $ownerCount ?> | Admins <?= $adminCount ?> | Members <?= $memberCount ?>
-                </div>
-                <div class="wb-hint">Members are counted from workspace membership records.</div>
-            </div>
-
-            <div class="wb-stat">
-                <div class="wb-label">Workspace Created</div>
-                <div class="wb-value" style="font-size:18px;"><?= wb_format_datetime($org['created_at'] ?? null) ?></div>
-                <div class="wb-hint">Use this for onboarding and trial tracking.</div>
-            </div>
-        </div>
-
-        <div class="wb-card" style="margin-top: 16px;">
-            <h3 style="margin:0 0 6px; font-size:18px; color:#111827;">Manage Seats (Manual)</h3>
-            <p class="wb-sub" style="margin:0;">
-                Use this when you manually upgrade/downgrade a workspace plan and need to change how many users can join.
-            </p>
-
-            <?php if (!$canManageSeats) { ?>
-                <div class="wb-alert info" style="margin-top:12px;">
-                    You currently have read-only access for workspace billing settings.
-                </div>
-            <?php } else { ?>
-                <?php
-                    $currentSeatLimit = ($seatLimit !== null && $seatLimit > 0) ? $seatLimit : 10;
-                    $minSeatLimit = max(1, $seatUsed);
-                ?>
-                <form action="app/update-workspace-seat-limit.php" method="POST" style="margin-top:12px;">
-                    <?= csrf_field('workspace_seat_limit_form') ?>
-                    <div class="wb-form-grid">
+            <div class="workspace-split-grid">
+                <section class="workspace-panel">
+                    <div class="workspace-panel-head">
                         <div>
-                            <label class="wb-input-label">Seat Limit</label>
-                            <input
-                                class="wb-input"
-                                type="number"
-                                name="seat_limit"
-                                min="<?= $minSeatLimit ?>"
-                                max="5000"
-                                value="<?= $currentSeatLimit ?>"
-                                required
-                            >
-                            <div class="wb-hint">
-                                Current members: <?= $seatUsed ?>.
-                                Minimum allowed right now: <?= $minSeatLimit ?> (you cannot set below active members).
-                            </div>
-                        </div>
-                        <div>
-                            <button class="wb-btn" type="submit">
-                                <i class="fa fa-save"></i> Update Seats
-                            </button>
+                            <h3 class="workspace-panel-title">Plan & Seat Capacity</h3>
+                            <p class="workspace-panel-sub">Seat capacity is fixed by plan. Choose a plan to change workspace limits.</p>
                         </div>
                     </div>
-                </form>
-            <?php } ?>
-        </div>
 
-        <div class="wb-card" style="margin-top: 16px;">
-            <h3 style="margin:0 0 10px; font-size:18px; color:#111827;">How This Works (Simple)</h3>
-            <ol class="wb-list">
-                <li>Your workspace has a subscription status and a seat limit.</li>
-                <li>Each user in your workspace consumes one seat.</li>
-                <li>You can invite users only when there are seats left and the plan/trial is active.</li>
-                <li>If seats are full or trial/plan is inactive, new joins are blocked automatically.</li>
-            </ol>
-        </div>
-    <?php } ?>
+                    <div class="workspace-plan-picker">
+                        <p class="workspace-panel-sub">Choose a plan to automatically set seat capacity for this workspace.</p>
+                        <div class="workspace-plan-grid">
+                            <?php foreach ($availablePlans as $plan) {
+                                $planCode = (string)($plan['code'] ?? '');
+                                $planName = (string)($plan['name'] ?? $planCode);
+                                $planSummary = (string)($plan['summary'] ?? '');
+                                $planSeatLimit = (int)($plan['seat_limit'] ?? 0);
+                                $isCurrentPlan = strtolower($planCode) === strtolower($currentWorkspacePlanCode);
+                            ?>
+                                <article class="workspace-plan-card <?= $isCurrentPlan ? 'is-current' : '' ?>">
+                                    <div class="workspace-plan-head">
+                                        <strong><?= htmlspecialchars($planName) ?></strong>
+                                        <?php if ($isCurrentPlan) { ?>
+                                            <span class="workspace-pill soft">Current</span>
+                                        <?php } ?>
+                                    </div>
+                                    <div class="workspace-plan-seats"><?= $planSeatLimit ?></div>
+                                    <p class="workspace-stat-hint"><?= htmlspecialchars($planSummary) ?></p>
+
+                                    <?php if ($canManageSeats) { ?>
+                                        <form action="app/select-workspace-plan.php" method="POST" class="workspace-inline-form">
+                                            <?= csrf_field('workspace_plan_select_form') ?>
+                                            <input type="hidden" name="plan_code" value="<?= htmlspecialchars($planCode) ?>">
+                                            <button class="workspace-btn <?= $isCurrentPlan ? 'ghost' : 'primary' ?> mini" type="submit" <?= $isCurrentPlan ? 'disabled' : '' ?>>
+                                                <?php if ($isCurrentPlan) { ?>
+                                                    Current Plan
+                                                <?php } else { ?>
+                                                    Choose <?= htmlspecialchars($planName) ?>
+                                                <?php } ?>
+                                            </button>
+                                        </form>
+                                    <?php } ?>
+                                </article>
+                            <?php } ?>
+                        </div>
+                    </div>
+                    <?php if (!$canManageSeats) { ?>
+                        <div class="workspace-alert info">
+                            <i class="fa fa-lock"></i>
+                            <div>You currently have read-only access for workspace billing settings.</div>
+                        </div>
+                    <?php } else { ?>
+                        <div class="workspace-alert info">
+                            <i class="fa fa-info-circle"></i>
+                            <div>Manual seat updates are disabled. Use the plan selector above to change seat capacity.</div>
+                        </div>
+                    <?php } ?>
+                </section>
+
+                <section class="workspace-panel">
+                    <div class="workspace-panel-head">
+                        <div>
+                            <h3 class="workspace-panel-title">How Billing Works</h3>
+                            <p class="workspace-panel-sub">Quick guide to how limits and invites interact.</p>
+                        </div>
+                    </div>
+                    <ol class="workspace-list">
+                        <li><span class="workspace-step">1</span><span>Your workspace always has a subscription state and a plan-defined seat limit.</span></li>
+                        <li><span class="workspace-step">2</span><span>Each active member consumes exactly one seat.</span></li>
+                        <li><span class="workspace-step">3</span><span>Changing plan automatically updates seat capacity for the workspace.</span></li>
+                        <li><span class="workspace-step">4</span><span>If seats are full or billing status is blocked, new joins are prevented automatically.</span></li>
+                    </ol>
+                </section>
+            </div>
+        <?php } ?>
+    </div>
 </div>
 </body>
 </html>
