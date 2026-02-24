@@ -379,11 +379,6 @@ $currentWorkspacePlanCode = (string)($resolvedWorkspacePlan['code'] ?? 'starter'
                             <i class="fa fa-lock"></i>
                             <div>You currently have read-only access for workspace billing settings.</div>
                         </div>
-                    <?php } else { ?>
-                        <div class="workspace-alert info">
-                            <i class="fa fa-info-circle"></i>
-                            <div>Manual seat updates are disabled. Use the plan selector above to change seat capacity.</div>
-                        </div>
                     <?php } ?>
                 </section>
 
