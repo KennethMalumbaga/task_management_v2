@@ -380,14 +380,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
         }
     </style>
+    <link rel="stylesheet" href="css/dashboard-page.css">
 </head>
-<body>
+<body class="dashboard-page">
     
     <!-- Sidebar -->
     <?php include "inc/new_sidebar.php"; ?>
 
     <!-- Main Content -->
     <div class="dash-main">
+        <div class="dashboard-shell">
         
         <!-- Top Section: Time Tracker & Welcome -->
         <div class="dash-top-grid">
@@ -603,7 +605,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         </div>
 
             <!-- Stats Section (Moved Up) -->
-            <div class="dash-stats-grid" style="margin-bottom: 24px;">
+            <div class="dash-stats-grid">
                 <!-- Total Tasks -->
                 <div class="stat-card">
                     <div class="stat-info">
@@ -649,123 +651,147 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 </div>
             </div>
 
-            <div class="tasks-section-header">
-                <h3>Recent Tasks</h3>
-                <?php if ($_SESSION['role'] == "admin") { ?>
-                    <a href="create_task.php" class="btn-create-task">
-                        <i class="fa fa-plus"></i> Create Task
-                    </a>
-                <?php } ?>
-            </div>
-
-            <!-- Tasks Grid (Updated Layout) -->
-            <div class="tasks-grid">
-                <?php if (!empty($recent_tasks) && count($recent_tasks) > 0) { 
-                    foreach($recent_tasks as $task) { 
-                        // Status Logic
-                        $statusClass = "pending";
-                        $statusText = str_replace('_', ' ', $task['status']);
-                        if ($task['status'] == 'in_progress') $statusClass = "in_progress";
-                        
-                        $isSubmitted = false;
-                        if ($task['status'] == 'completed') {
-                            if (isset($task['rating']) && $task['rating'] > 0) {
-                                $statusClass = "completed"; $statusText = "completed";
-                            } else {
-                                $statusClass = "submitted"; $statusText = "submitted for review";
-                                $isSubmitted = true;
-                            }
-                        }
-
-                        // Determine Redirect URL
-                        $redirectUrl = ($_SESSION['role'] == 'admin') 
-                            ? "tasks.php?open_task=" . $task['id'] 
-                            : "my_task.php?open_task=" . $task['id'];
-
-                        // Organize Assignees
-                        $assignees = get_task_assignees($pdo, $task['id']);
-                        $leader = null;
-                        $members = [];
-                        if ($assignees != 0) {
-                            foreach ($assignees as $a) {
-                                if ($a['role'] == 'leader') $leader = $a;
-                                else $members[] = $a;
-                            }
-                        }
-                ?>
-                <!-- Task Card -->
-                <div class="task-card" onclick="navigateWithClockInGuard('<?=$redirectUrl?>')">
-                    
-                    <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: start;">
-                        <h3 class="task-title" style="margin: 0;"><?= htmlspecialchars($task['title']) ?></h3>
-                    </div>
-                    
-                    <div style="margin-bottom: 16px;">
-                        <span class="badge-v2 <?=$statusClass?>"><?= $statusText ?></span>
-                    </div>
-                    
-                    <div class="preview-content">
-                        <div style="color: #6B7280; font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
-                            <?= htmlspecialchars(mb_strimwidth($task['description'], 0, 100, "...")) ?>
-                        </div>
-
-                        <?php if ($leader) { 
-                            $leaderImg = !empty($leader['profile_image']) ? 'uploads/' . $leader['profile_image'] : 'img/user.png';
-                        ?>
-                        <div class="leader-box-preview">
-                            <img src="<?= $leaderImg ?>" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
-                            <div>
-                                <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
-                                    <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
-                                </div>
-                                <div style="font-weight: 600; color: #1F2937; font-size: 13px;">
-                                    <?= htmlspecialchars($leader['full_name']) ?>
-                                </div>
-                            </div>
-                        </div>
-                        <?php } ?>
-
-                        <?php if (!empty($members)) { ?>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fa fa-users" style="color: #059669; font-size: 12px;"></i>
-                            <div style="font-size: 12px; font-weight: 600; color: #059669;">Team Members</div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
-                            <div style="display: flex; padding-left: 8px;">
-                                <?php foreach (array_slice($members, 0, 4) as $m) { 
-                                    $mImg = !empty($m['profile_image']) ? 'uploads/' . $m['profile_image'] : 'img/user.png';
-                                ?>
-                                <img src="<?= $mImg ?>" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid white; margin-left: -8px; object-fit: cover; background: #E5E7EB;">
-                                <?php } ?>
-                            </div>
-                            <span style="font-size: 12px; color: #6B7280;"><?= count($members) ?> member<?= count($members)>1?'s':''?></span>
-                        </div>
-                        <?php } ?>
-                    </div>
-
-                    <!-- Footer -->
-                    <div class="task-footer">
-                        <div>Due: <?= empty($task['due_date']) ? 'No Date' : date("M d", strtotime($task['due_date'])) ?></div>
-                        <?php if ($task['status'] == 'completed' && isset($task['rating']) && (float)$task['rating'] > 0) { ?>
-                        <div style="color: #F59E0B; font-weight: 600;"><i class="fa fa-star"></i> <?= number_format((float)$task['rating'], 1) ?>/5</div>
-                        <?php } ?>
-                    </div>
+            <section class="dashboard-recent-board">
+                <div class="tasks-section-header">
+                    <h3>Recent Tasks</h3>
+                    <?php if ($_SESSION['role'] == "admin") { ?>
+                        <a href="create_task.php" class="btn-create-task">
+                            <i class="fa fa-plus"></i> Create Task
+                        </a>
+                    <?php } ?>
                 </div>
-                <?php 
-                } 
-                } else { ?>
-                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #6B7280;">
-                        <i class="fa fa-folder-open-o" style="font-size: 48px; opacity: 0.5; margin-bottom: 15px;"></i>
-                        <h3>No recent tasks</h3>
+
+                <!-- Tasks Grid (Updated Layout) -->
+                <div class="tasks-grid">
+                    <?php if (!empty($recent_tasks) && count($recent_tasks) > 0) { 
+                        foreach($recent_tasks as $task) { 
+                            // Status Logic (match Tasks page derived state from subtasks)
+                            $statusClass = "pending";
+                            $statusText = "pending";
+                            $taskStatusRaw = strtolower(trim((string)($task['status'] ?? 'pending')));
+                            $taskRating = isset($task['rating']) ? (float)$task['rating'] : 0.0;
+
+                            $subtasksForStatus = [];
+                            try {
+                                $subtasksForStatus = get_subtasks_by_task($pdo, $task['id']);
+                            } catch (Throwable $e) {
+                                $subtasksForStatus = [];
+                            }
+                            if (!is_array($subtasksForStatus)) {
+                                $subtasksForStatus = [];
+                            }
+
+                            $hasStartedSubtask = false;
+                            foreach ($subtasksForStatus as $subtaskRow) {
+                                $subtaskStatus = strtolower(trim((string)($subtaskRow['status'] ?? 'pending')));
+                                if (in_array($subtaskStatus, ['submitted', 'completed', 'in_progress', 'revise', 'revision_needed', 'rejected'], true)) {
+                                    $hasStartedSubtask = true;
+                                    break;
+                                }
+                            }
+
+                            if ($taskStatusRaw === 'completed' && $taskRating <= 0) {
+                                $statusClass = "submitted";
+                                $statusText = "submitted for review";
+                            } elseif ($taskStatusRaw === 'completed') {
+                                $statusClass = "completed";
+                                $statusText = "completed";
+                            } elseif ($hasStartedSubtask || $taskStatusRaw === 'in_progress') {
+                                $statusClass = "in_progress";
+                                $statusText = "IN PROGRESS";
+                            }
+
+                            // Determine Redirect URL
+                            $redirectUrl = ($_SESSION['role'] == 'admin') 
+                                ? "tasks.php?open_task=" . $task['id'] 
+                                : "my_task.php?open_task=" . $task['id'];
+
+                            // Organize Assignees
+                            $assignees = get_task_assignees($pdo, $task['id']);
+                            $leader = null;
+                            $members = [];
+                            if ($assignees != 0) {
+                                foreach ($assignees as $a) {
+                                    if ($a['role'] == 'leader') $leader = $a;
+                                    else $members[] = $a;
+                                }
+                            }
+                    ?>
+                    <!-- Task Card -->
+                    <div class="task-card" onclick="navigateWithClockInGuard('<?=$redirectUrl?>')">
+                        
+                        <div class="dashboard-task-head">
+                            <h3 class="task-title"><?= htmlspecialchars($task['title']) ?></h3>
+                        </div>
+                        
+                        <div class="dashboard-task-status">
+                            <span class="badge-v2 <?=$statusClass?>"><?= $statusText ?></span>
+                        </div>
+                        
+                        <div class="preview-content">
+                            <div class="dashboard-task-desc">
+                                <?= htmlspecialchars(mb_strimwidth($task['description'], 0, 100, "...")) ?>
+                            </div>
+
+                            <?php if ($leader) { 
+                                $leaderImg = !empty($leader['profile_image']) ? 'uploads/' . $leader['profile_image'] : 'img/user.png';
+                            ?>
+                            <div class="leader-box-preview">
+                                <img src="<?= $leaderImg ?>" class="dashboard-leader-avatar" alt="Leader">
+                                <div>
+                                    <div class="dashboard-leader-label">
+                                        <i class="fa fa-crown"></i> Project Leader
+                                    </div>
+                                    <div class="dashboard-leader-name">
+                                        <?= htmlspecialchars($leader['full_name']) ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php } ?>
+
+                            <?php if (!empty($members)) { ?>
+                            <div class="dashboard-team-label">
+                                <i class="fa fa-users"></i>
+                                <div>Team Members</div>
+                            </div>
+                            <div class="dashboard-team-row">
+                                <div class="dashboard-team-avatars">
+                                    <?php foreach (array_slice($members, 0, 4) as $m) { 
+                                        $mImg = !empty($m['profile_image']) ? 'uploads/' . $m['profile_image'] : 'img/user.png';
+                                    ?>
+                                    <img src="<?= $mImg ?>" class="dashboard-team-avatar" alt="Member">
+                                    <?php } ?>
+                                </div>
+                                <span class="dashboard-team-count"><?= count($members) ?> member<?= count($members)>1?'s':''?></span>
+                            </div>
+                            <?php } ?>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="task-footer">
+                            <div>Due: <?= empty($task['due_date']) ? 'No Date' : date("M d", strtotime($task['due_date'])) ?></div>
+                            <?php if ($task['status'] == 'completed' && isset($task['rating']) && (float)$task['rating'] > 0) { ?>
+                            <div class="dashboard-task-rating"><i class="fa fa-star"></i> <?= number_format((float)$task['rating'], 1) ?>/5</div>
+                            <?php } ?>
+                        </div>
                     </div>
-                <?php } ?>
-            </div>
-            
-            <div style="margin-top: 15px; text-align: center;">
-                 <a href="<?= ($_SESSION['role']=='admin'?'tasks.php':'my_task.php') ?>" style="color: #6C3CE1; text-decoration: none; font-size: 14px; font-weight: 500;">
-                     View All Tasks <i class="fa fa-arrow-right"></i>
-                 </a>
-            </div>
+                    <?php 
+                    } 
+                    } else { ?>
+                        <div class="dashboard-empty-state">
+                            <i class="fa fa-folder-open-o"></i>
+                            <h3>No recent tasks</h3>
+                        </div>
+                    <?php } ?>
+                </div>
+                
+                <div class="dashboard-view-all-wrap">
+                     <a href="<?= ($_SESSION['role']=='admin'?'tasks.php':'my_task.php') ?>" class="dashboard-view-all-link">
+                         View All Tasks <i class="fa fa-arrow-right"></i>
+                     </a>
+                </div>
+            </section>
+        </div>
         </div>
 
     </div>

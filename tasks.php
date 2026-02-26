@@ -21,15 +21,165 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         $tasks = get_all_tasks_NoDeadline($pdo);
     } elseif (isset($_GET['status']) && $_GET['status'] === "Pending") {
         $text = "Pending";
-        $tasks = get_all_tasks_pending($pdo);
+        $tasks = get_all_tasks($pdo);
     } elseif (isset($_GET['status']) && $_GET['status'] === "in_progress") {
         $text = "In Progress";
-        $tasks = get_all_tasks_in_progress($pdo);
+        $tasks = get_all_tasks($pdo);
     } elseif (isset($_GET['status']) && $_GET['status'] === "Completed") {
         $text = "Completed";
-        $tasks = get_all_tasks_completed($pdo);
+        $tasks = get_all_tasks($pdo);
     } else {
         $tasks = get_all_tasks($pdo);
+    }
+
+    function tasks_page_has_started_subtasks($subtasks)
+    {
+        if (!is_array($subtasks) || empty($subtasks)) {
+            return false;
+        }
+
+        foreach ($subtasks as $subtaskRow) {
+            $subtaskStatus = strtolower(trim((string)($subtaskRow['status'] ?? 'pending')));
+            if (in_array($subtaskStatus, ['submitted', 'completed', 'in_progress', 'revise', 'revision_needed', 'rejected'], true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function tasks_page_resolve_status($taskRow, $subtasks)
+    {
+        $taskStatus = strtolower(trim((string)($taskRow['status'] ?? 'pending')));
+        $taskRating = isset($taskRow['rating']) ? (float)$taskRow['rating'] : 0.0;
+
+        if ($taskStatus === 'completed' && $taskRating <= 0) {
+            return [
+                'code' => 'submitted_review',
+                'badge_class' => 'badge-v2 submitted',
+                'label' => 'submitted for review',
+                'is_awaiting_review' => true,
+            ];
+        }
+
+        if ($taskStatus === 'completed') {
+            return [
+                'code' => 'completed',
+                'badge_class' => 'badge-v2 completed',
+                'label' => 'completed',
+                'is_awaiting_review' => false,
+            ];
+        }
+
+        if (tasks_page_has_started_subtasks($subtasks) || $taskStatus === 'in_progress') {
+            return [
+                'code' => 'in_progress',
+                'badge_class' => 'badge-v2 in_progress',
+                'label' => 'in progress',
+                'is_awaiting_review' => false,
+            ];
+        }
+
+        return [
+            'code' => 'pending',
+            'badge_class' => 'badge-v2 pending',
+            'label' => 'pending',
+            'is_awaiting_review' => false,
+        ];
+    }
+
+    // Global hero stats should remain stable regardless of active tab filters.
+    $allTasksForStats = get_all_tasks($pdo);
+    $allTaskCount = is_array($allTasksForStats) ? count($allTasksForStats) : 0;
+    $allInProgressCount = 0;
+    if (is_array($allTasksForStats)) {
+        foreach ($allTasksForStats as $taskStatGlobal) {
+            $taskGlobalId = (int)($taskStatGlobal['id'] ?? 0);
+            if ($taskGlobalId <= 0) {
+                continue;
+            }
+            $subtasksGlobal = [];
+            try {
+                $subtasksGlobal = get_subtasks_by_task($pdo, $taskGlobalId);
+            } catch (Throwable $e) {
+                $subtasksGlobal = [];
+            }
+            $globalResolved = tasks_page_resolve_status($taskStatGlobal, is_array($subtasksGlobal) ? $subtasksGlobal : []);
+            if (($globalResolved['code'] ?? '') === 'in_progress') {
+                $allInProgressCount++;
+            }
+        }
+    }
+
+    $taskSubtasksMap = [];
+    $taskViewStatusMap = [];
+    if (is_array($tasks)) {
+        foreach ($tasks as $taskStatusRow) {
+            $taskStatusId = (int)($taskStatusRow['id'] ?? 0);
+            if ($taskStatusId <= 0) {
+                continue;
+            }
+            $subtasksForStatus = [];
+            try {
+                $subtasksForStatus = get_subtasks_by_task($pdo, $taskStatusId);
+            } catch (Throwable $e) {
+                $subtasksForStatus = [];
+            }
+            if (!is_array($subtasksForStatus)) {
+                $subtasksForStatus = [];
+            }
+            $taskSubtasksMap[$taskStatusId] = $subtasksForStatus;
+            $taskViewStatusMap[$taskStatusId] = tasks_page_resolve_status($taskStatusRow, $subtasksForStatus);
+        }
+    }
+
+    $statusFilter = isset($_GET['status']) ? (string)$_GET['status'] : '';
+    if ($statusFilter === 'Pending' || $statusFilter === 'in_progress' || $statusFilter === 'Completed') {
+        $filteredTasks = [];
+        foreach ((array)$tasks as $taskFilterRow) {
+            $taskFilterId = (int)($taskFilterRow['id'] ?? 0);
+            $resolvedCode = (string)($taskViewStatusMap[$taskFilterId]['code'] ?? 'pending');
+            $rawTaskStatus = strtolower(trim((string)($taskFilterRow['status'] ?? 'pending')));
+
+            if ($statusFilter === 'Pending' && ($resolvedCode === 'pending' || $rawTaskStatus === 'pending')) {
+                $filteredTasks[] = $taskFilterRow;
+            } elseif ($statusFilter === 'in_progress' && ($resolvedCode === 'in_progress' || $rawTaskStatus === 'in_progress')) {
+                $filteredTasks[] = $taskFilterRow;
+            } elseif (
+                $statusFilter === 'Completed'
+                && (in_array($resolvedCode, ['completed', 'submitted_review'], true) || $rawTaskStatus === 'completed')
+            ) {
+                $filteredTasks[] = $taskFilterRow;
+            }
+        }
+        $tasks = $filteredTasks;
+    }
+
+    $shownTaskCount = is_array($tasks) ? count($tasks) : 0;
+    $shownCompleted = 0;
+    $shownInProgress = 0;
+    $shownPending = 0;
+    $shownDueToday = 0;
+    $todayDate = date('Y-m-d');
+
+    if (is_array($tasks)) {
+        foreach ($tasks as $taskStat) {
+            $taskStatId = (int)($taskStat['id'] ?? 0);
+            $resolvedCodeStat = (string)($taskViewStatusMap[$taskStatId]['code'] ?? 'pending');
+            if ($resolvedCodeStat === 'completed' || $resolvedCodeStat === 'submitted_review') {
+                $shownCompleted++;
+            } elseif ($resolvedCodeStat === 'in_progress') {
+                $shownInProgress++;
+            } else {
+                $shownPending++;
+            }
+
+            if (!empty($taskStat['due_date'])) {
+                $dueDateOnly = date('Y-m-d', strtotime((string)$taskStat['due_date']));
+                if ($dueDateOnly === $todayDate) {
+                    $shownDueToday++;
+                }
+            }
+        }
     }
 ?>
 <!DOCTYPE html>
@@ -274,124 +424,177 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
              }
         }
     </style>
+    <link rel="stylesheet" href="css/tasks-page.css">
 </head>
-<body>
+<body class="tasks-page">
     
     <!-- Sidebar -->
     <?php include "inc/new_sidebar.php"; ?>
 
     <!-- Main Content -->
     <div class="dash-main">
-        <?php if ($_SESSION['role'] == 'admin') { ?>
-        <div style="margin-bottom: 32px; display: flex; justify-content: flex-end; align-items: center;">
-            <a href="create_task.php" style="background: #6C3CE1; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(108, 60, 225, 0.2);">
-                <i class="fa fa-plus"></i> Create Task
-            </a>
-        </div>
-        <?php } ?>
-
-        <?php if (isset($_GET['success'])) {?>
-            <div style="background: #ECFDF5; color: #065F46; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; border: 1px solid #A7F3D0;">
-                <i class="fa fa-check-circle" style="margin-right: 8px;"></i> <?php echo stripcslashes($_GET['success']); ?>
-            </div>
-        <?php } ?>
-        <?php if (isset($_GET['error'])) {?>
-            <div style="background: #FEF2F2; color: #991B1B; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; border: 1px solid #FECACA;">
-                <i class="fa fa-exclamation-circle" style="margin-right: 8px;"></i> <?php echo stripcslashes($_GET['error']); ?>
-            </div>
-        <?php } ?>
-        
-        <div class="tasks-grid">
-            <?php if (!empty($tasks)) { 
-                foreach ($tasks as $task) { 
-                    $badgeClass = "badge-v2 pending";
-                    $statusDisplay = str_replace('_',' ',$task['status']);
-                    if ($task['status'] == 'in_progress') $badgeClass = "badge-v2 in_progress";
-                    if ($task['status'] == 'completed') $badgeClass = "badge-v2 completed";
-                    if ($task['status'] == 'completed' && ($task['rating'] == 0 || $task['rating'] == NULL)) {
-                         $statusDisplay = "submitted for review"; 
-                         $badgeClass = "badge-v2 submitted"; 
-                    }
-
-                    // Organize Assignees
-                    $assignees = get_task_assignees($pdo, $task['id']);
-                    $leader = null;
-                    $members = [];
-                    if ($assignees != 0) {
-                        foreach ($assignees as $a) {
-                            if ($a['role'] == 'leader') {
-                                $leader = $a;
-                            } else {
-                                $members[] = $a;
-                            }
-                        }
-                    }
-            ?>
-            <!-- Task Card -->
-            <div class="task-card" id="task-card-<?=$task['id']?>" onclick="openTaskModal(<?=$task['id']?>)">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                     <h3 class="task-title"><?= htmlspecialchars($task['title']) ?></h3>
-                     <!-- Delete Button (Replaces Edit) -->
-                     <object>
-                        <button onclick="openDeleteModal(event, <?=$task['id']?>, '<?=htmlspecialchars($task['title'], ENT_QUOTES)?>')" style="border: none; background: none; cursor: pointer; color: #EF4444; padding: 0;">
-                            <i class="fa fa-trash"></i>
-                        </button>
-                     </object>
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <span class="<?= $badgeClass ?>"><?= $statusDisplay ?></span>
-                </div>
-                <div class="preview-content">
-                    <div style="font-size: 14px; color: #6B7280; margin-bottom: 20px; line-height: 1.5;">
-                        <?= htmlspecialchars(mb_strimwidth($task['description'], 0, 100, "...")) ?>
+        <div class="tasks-shell">
+            <section class="tasks-hero">
+                <div class="tasks-hero-main">
+                    <span class="tasks-eyebrow">
+                        <i class="fa fa-bolt"></i> TaskFlow Command Center
+                    </span>
+                    <h2><?= htmlspecialchars((string)$text) ?> Board</h2>
+                    <p>Track priorities, audit progress, and review completions from one focused control surface designed for daily task operations.</p>
+                    <div class="tasks-filter-row">
+                        <a href="tasks.php" class="tasks-filter-pill <?= (!isset($_GET['due_date']) && !isset($_GET['status'])) ? 'active' : '' ?>">All</a>
+                        <a href="tasks.php?due_date=Due+Today" class="tasks-filter-pill <?= (isset($_GET['due_date']) && $_GET['due_date'] === 'Due Today') ? 'active' : '' ?>">Due Today</a>
+                        <a href="tasks.php?due_date=Overdue" class="tasks-filter-pill <?= (isset($_GET['due_date']) && $_GET['due_date'] === 'Overdue') ? 'active' : '' ?>">Overdue</a>
+                        <a href="tasks.php?status=Pending" class="tasks-filter-pill <?= (isset($_GET['status']) && $_GET['status'] === 'Pending') ? 'active' : '' ?>">Pending</a>
+                        <a href="tasks.php?status=in_progress" class="tasks-filter-pill <?= (isset($_GET['status']) && $_GET['status'] === 'in_progress') ? 'active' : '' ?>">In Progress</a>
+                        <a href="tasks.php?status=Completed" class="tasks-filter-pill <?= (isset($_GET['status']) && $_GET['status'] === 'Completed') ? 'active' : '' ?>">Completed</a>
                     </div>
-                    <?php if ($leader) { 
-                        $leaderImg = !empty($leader['profile_image']) ? 'uploads/' . $leader['profile_image'] : 'img/user.png';
-                    ?>
-                    <div class="leader-box-preview">
-                        <img src="<?= $leaderImg ?>" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
-                        <div>
-                            <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
-                                <i class="fa fa-crown"></i> Leader
-                            </div>
-                            <div style="font-weight: 600; color: #1F2937; font-size: 13px;">
-                                <?= htmlspecialchars($leader['full_name']) ?>
-                            </div>
+                </div>
+                <div class="tasks-hero-side">
+                    <div class="tasks-hero-stats">
+                        <div class="tasks-hero-stat">
+                            <span>All Tasks</span>
+                            <strong><?= (int)$allTaskCount ?></strong>
+                            <small>total task<?= $allTaskCount === 1 ? '' : 's' ?> in workspace</small>
+                        </div>
+                        <div class="tasks-hero-stat">
+                            <span>In Progress</span>
+                            <strong><?= (int)$allInProgressCount ?></strong>
+                            <small>active across all tasks</small>
+                        </div>
+                        <div class="tasks-hero-stat">
+                            <span>Completed</span>
+                            <strong><?= (int)$shownCompleted ?></strong>
+                            <small>ready for audit/review</small>
+                        </div>
+                        <div class="tasks-hero-stat">
+                            <span>Due Today</span>
+                            <strong><?= (int)$shownDueToday ?></strong>
+                            <small>needs immediate focus</small>
                         </div>
                     </div>
-                    <?php } ?>
-                    <?php if (!empty($members)) { ?>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <i class="fa fa-users" style="color: #059669; font-size: 12px;"></i>
-                        <div style="font-size: 12px; font-weight: 600; color: #059669;">Team Members</div>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
-                        <div style="display: flex; padding-left: 8px;">
-                            <?php foreach (array_slice($members, 0, 4) as $m) { 
-                                $mImg = !empty($m['profile_image']) ? 'uploads/' . $m['profile_image'] : 'img/user.png';
-                            ?>
-                            <img src="<?= $mImg ?>" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid white; margin-left: -8px; object-fit: cover; background: #E5E7EB;">
-                            <?php } ?>
-                        </div>
-                        <span style="font-size: 12px; color: #6B7280;"><?= count($members) ?> member<?= count($members)>1?'s':''?></span>
-                    </div>
+                    <?php if ($_SESSION['role'] == 'admin') { ?>
+                    <a href="create_task.php" class="tasks-create-btn">
+                        <i class="fa fa-plus"></i> Create Task
+                    </a>
                     <?php } ?>
                 </div>
-                <!-- Footer -->
-                <div class="task-footer">
-                    <div>Due: <?= empty($task['due_date']) ? 'No Date' : date("M j", strtotime($task['due_date'])) ?></div>
-                    <?php if ($task['status'] == 'completed' && isset($task['rating']) && (float)$task['rating'] > 0) { ?>
-                    <div style="color: #F59E0B; font-weight: 600;"><i class="fa fa-star"></i> <?= number_format((float)$task['rating'], 1) ?>/5</div>
-                    <?php } ?>
-                </div>
-            </div>
-            <?php } 
-            } else { ?>
-                 <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #6B7280;">
-                    <i class="fa fa-folder-open-o" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
-                    <h3>No tasks found</h3>
+            </section>
+
+            <?php if (isset($_GET['success'])) {?>
+                <div class="tasks-flash success">
+                    <i class="fa fa-check-circle"></i>
+                    <span><?php echo stripcslashes($_GET['success']); ?></span>
                 </div>
             <?php } ?>
+            <?php if (isset($_GET['error'])) {?>
+                <div class="tasks-flash error">
+                    <i class="fa fa-exclamation-circle"></i>
+                    <span><?php echo stripcslashes($_GET['error']); ?></span>
+                </div>
+            <?php } ?>
+
+            <section class="tasks-board">
+                <div class="tasks-board-head">
+                    <div>
+                        <h3><?= htmlspecialchars((string)$text) ?></h3>
+                        <p>Open any card to inspect full details, subtasks, ratings, and review actions.</p>
+                    </div>
+                    <span class="tasks-board-count"><?= (int)$shownTaskCount ?> record<?= $shownTaskCount === 1 ? '' : 's' ?></span>
+                </div>
+
+                <div class="tasks-grid">
+                    <?php if (!empty($tasks)) {
+                        foreach ($tasks as $task) {
+                            $taskId = (int)($task['id'] ?? 0);
+                            $taskViewStatus = $taskViewStatusMap[$taskId] ?? [
+                                'code' => 'pending',
+                                'badge_class' => 'badge-v2 pending',
+                                'label' => 'pending',
+                                'is_awaiting_review' => false,
+                            ];
+                            $badgeClass = (string)$taskViewStatus['badge_class'];
+                            $statusDisplay = (string)$taskViewStatus['label'];
+
+                            $assignees = get_task_assignees($pdo, $task['id']);
+                            $leader = null;
+                            $members = [];
+                            if ($assignees != 0) {
+                                foreach ($assignees as $a) {
+                                    if ($a['role'] == 'leader') {
+                                        $leader = $a;
+                                    } else {
+                                        $members[] = $a;
+                                    }
+                                }
+                            }
+                    ?>
+                    <div class="task-card" id="task-card-<?=$task['id']?>" onclick="openTaskModal(<?=$task['id']?>)">
+                        <div class="task-card-head">
+                            <h3 class="task-title"><?= htmlspecialchars($task['title']) ?></h3>
+                            <object>
+                                <button class="task-delete-btn" onclick="openDeleteModal(event, <?=$task['id']?>, '<?=htmlspecialchars($task['title'], ENT_QUOTES)?>')">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </object>
+                        </div>
+
+                        <div class="task-status-row">
+                            <span class="<?= $badgeClass ?>"><?= $statusDisplay ?></span>
+                        </div>
+
+                        <p class="task-preview-text">
+                            <?= htmlspecialchars(mb_strimwidth($task['description'], 0, 100, "...")) ?>
+                        </p>
+
+                        <?php if ($leader) {
+                            $leaderImg = !empty($leader['profile_image']) ? 'uploads/' . $leader['profile_image'] : 'img/user.png';
+                        ?>
+                        <div class="task-leader-box">
+                            <img src="<?= $leaderImg ?>" class="task-leader-avatar" alt="Leader">
+                            <div>
+                                <div class="task-leader-label"><i class="fa fa-crown"></i> Leader</div>
+                                <div class="task-leader-name"><?= htmlspecialchars($leader['full_name']) ?></div>
+                            </div>
+                        </div>
+                        <?php } ?>
+
+                        <?php if (!empty($members)) { ?>
+                        <div class="task-members-label">
+                            <i class="fa fa-users"></i> Team Members
+                        </div>
+                        <div class="task-members-row">
+                            <div class="task-member-avatars">
+                                <?php foreach (array_slice($members, 0, 4) as $m) {
+                                    $mImg = !empty($m['profile_image']) ? 'uploads/' . $m['profile_image'] : 'img/user.png';
+                                ?>
+                                <img src="<?= $mImg ?>" class="task-member-avatar" alt="Member">
+                                <?php } ?>
+                            </div>
+                            <span class="task-member-count"><?= count($members) ?> member<?= count($members)>1?'s':''?></span>
+                        </div>
+                        <?php } ?>
+
+                        <div class="task-footer">
+                            <div class="task-due-meta">
+                                <i class="fa fa-calendar-o"></i>
+                                <span>Due: <?= empty($task['due_date']) ? 'No Date' : date("M j", strtotime($task['due_date'])) ?></span>
+                            </div>
+                            <?php if ($task['status'] == 'completed' && isset($task['rating']) && (float)$task['rating'] > 0) { ?>
+                            <div class="task-rating-pill"><i class="fa fa-star"></i> <?= number_format((float)$task['rating'], 1) ?>/5</div>
+                            <?php } ?>
+                        </div>
+                    </div>
+                    <?php }
+                    } else { ?>
+                    <div class="tasks-empty-state">
+                        <i class="fa fa-folder-open-o"></i>
+                        <h3>No tasks found</h3>
+                        <p>Try changing filters or create a new task to get started.</p>
+                    </div>
+                    <?php } ?>
+                </div>
+            </section>
         </div>
     </div>
 
@@ -420,16 +623,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
     <?php if (!empty($tasks)) { 
         foreach ($tasks as $task) { 
             // Re-calculate necessary variables for Modal
-            $badgeClass = "badge-v2 pending";
-            $statusDisplay = str_replace('_',' ',$task['status']);
-            if ($task['status'] == 'in_progress') $badgeClass = "badge-v2 in_progress";
-            if ($task['status'] == 'completed') $badgeClass = "badge-v2 completed";
-            $isAwaitingReview = false;
-            if ($task['status'] == 'completed' && ($task['rating'] == 0 || $task['rating'] == NULL)) {
-                    $statusDisplay = "submitted for review"; 
-                    $badgeClass = "badge-v2 submitted"; 
-                    $isAwaitingReview = true;
-            }
+            $taskIdModal = (int)($task['id'] ?? 0);
+            $taskViewStatusModal = $taskViewStatusMap[$taskIdModal] ?? [
+                'code' => 'pending',
+                'badge_class' => 'badge-v2 pending',
+                'label' => 'pending',
+                'is_awaiting_review' => false,
+            ];
+            $badgeClass = (string)$taskViewStatusModal['badge_class'];
+            $statusDisplay = (string)$taskViewStatusModal['label'];
+            $isAwaitingReview = (bool)($taskViewStatusModal['is_awaiting_review'] ?? false);
             $submissionNote = isset($task['submission_note']) ? $task['submission_note'] : null;
             $assignees = get_task_assignees($pdo, $task['id']);
             $leader = null;
@@ -444,8 +647,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             if ($leader) {
                 $leaderFeedbackRows = get_leader_feedback_for_task($pdo, $task['id'], $leader['user_id']);
             }
-            $subtasks = [];
-            try { $subtasks = get_subtasks_by_task($pdo, $task['id']); } catch (Throwable $e) {}
+            $subtasks = $taskSubtasksMap[$taskIdModal] ?? [];
+            if (!is_array($subtasks)) {
+                $subtasks = [];
+            }
 
             // Task-specific rating maps (used in People section below).
             $taskScoreByMember = [];
