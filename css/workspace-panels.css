@@ -691,8 +691,62 @@ body.billing-page {
         font-size: 14px;
     }
 
+    /* Invites mobile: tighter hero tile typography and spacing */
+    .invites-page .workspace-hero {
+        border-radius: 14px;
+        padding: 12px;
+        gap: 8px;
+    }
+
+    .invites-page .workspace-eyebrow {
+        gap: 5px;
+        font-size: 9px;
+        padding: 5px 8px;
+    }
+
+    .invites-page .workspace-hero h2 {
+        margin: 8px 0 4px;
+        font-size: 17px;
+        line-height: 1.15;
+    }
+
+    .invites-page .workspace-hero p {
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
     .workspace-hero-stats {
         grid-template-columns: 1fr;
+    }
+
+    /* Invites mobile: compact hero stats in a single row */
+    .invites-page .workspace-hero-stats {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    .invites-page .workspace-hero-stat {
+        border-radius: 8px;
+        padding: 5px 4px;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .invites-page .workspace-hero-stat span {
+        font-size: 7px;
+        margin-bottom: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .invites-page .workspace-hero-stat strong {
+        font-size: 11px;
+        line-height: 1.1;
+    }
+
+    .invites-page .workspace-hero-stat small {
+        display: none;
     }
 
     .workspace-panel {
@@ -714,6 +768,297 @@ body.billing-page {
 
     .workspace-btn.mini {
         width: auto;
+    }
+
+    /* Invites mobile: compact action cards in a 2-column grid */
+    .invites-page .invite-action-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        overflow: visible;
+        padding-bottom: 0;
+    }
+
+    .invites-page .invite-action-grid > .workspace-panel {
+        min-width: 0;
+        max-width: none;
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .invites-page .invite-action-grid .workspace-panel-head {
+        margin-bottom: 8px;
+        gap: 6px;
+    }
+
+    .invites-page .invite-action-grid .workspace-panel-title {
+        font-size: 14px;
+        line-height: 1.2;
+    }
+
+    .invites-page .invite-action-grid .workspace-panel-sub {
+        font-size: 10px;
+        line-height: 1.35;
+    }
+
+    .invites-page .invite-action-grid .workspace-form-grid {
+        gap: 7px;
+    }
+
+    .invites-page .invite-action-grid .workspace-field label {
+        margin-bottom: 3px;
+        font-size: 9px;
+    }
+
+    .invites-page .invite-action-grid .workspace-input {
+        padding: 8px 9px;
+        font-size: 11px;
+        border-radius: 8px;
+    }
+
+    .invites-page .invite-action-grid .workspace-btn {
+        padding: 8px 9px;
+        font-size: 11px;
+        border-radius: 8px;
+        gap: 5px;
+    }
+
+    .invites-page .invite-action-grid .workspace-btn.mini {
+        padding: 6px 7px;
+        font-size: 10px;
+        border-radius: 7px;
+    }
+
+    .invites-page .invite-action-grid .workspace-alert {
+        border-radius: 8px;
+        padding: 8px 9px;
+        gap: 6px;
+        font-size: 10px;
+    }
+
+    .invites-page .invite-action-grid .workspace-inline-code {
+        margin-top: 4px;
+        padding: 3px 6px;
+        font-size: 9px;
+        line-height: 1.3;
+    }
+
+    /* Invites mobile: compact Recent Invites table */
+    .invites-page .workspace-table-wrap {
+        border-radius: 10px;
+    }
+
+    .invites-page .workspace-table {
+        min-width: 650px;
+    }
+
+    .invites-page .workspace-table th,
+    .invites-page .workspace-table td {
+        padding: 7px 7px;
+    }
+
+    .invites-page .workspace-table th {
+        font-size: 9px;
+        letter-spacing: 0.04em;
+    }
+
+    .invites-page .workspace-table td {
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    .invites-page .workspace-status {
+        padding: 3px 7px;
+        font-size: 10px;
+    }
+
+    .invites-page .workspace-mono {
+        font-size: 9px;
+        line-height: 1.3;
+        border-radius: 7px;
+        padding: 3px 5px;
+    }
+
+    .invites-page .workspace-action-row {
+        gap: 4px;
+    }
+
+    .invites-page .workspace-table .workspace-btn.mini {
+        padding: 5px 7px;
+        font-size: 9px;
+        border-radius: 7px;
+        gap: 4px;
+    }
+
+    .invites-page .workspace-panel-head .workspace-pill.soft {
+        padding: 4px 8px;
+        font-size: 10px;
+    }
+
+    /* Billing mobile: compact sizing across hero, stats, and panels */
+    .billing-page .workspace-hero {
+        border-radius: 14px;
+        padding: 12px;
+        gap: 8px;
+    }
+
+    .billing-page .workspace-eyebrow {
+        gap: 5px;
+        font-size: 9px;
+        padding: 5px 8px;
+    }
+
+    .billing-page .workspace-hero h2 {
+        margin: 8px 0 4px;
+        font-size: 17px;
+        line-height: 1.15;
+    }
+
+    .billing-page .workspace-hero p {
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    .billing-page .workspace-hero-stats {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    .billing-page .workspace-hero-stat {
+        border-radius: 8px;
+        padding: 5px 4px;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .billing-page .workspace-hero-stat span {
+        font-size: 7px;
+        margin-bottom: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .billing-page .workspace-hero-stat strong {
+        font-size: 11px;
+        line-height: 1.1;
+    }
+
+    .billing-page .workspace-hero-stat small {
+        display: none;
+    }
+
+    .billing-page .workspace-panel {
+        border-radius: 12px;
+        padding: 12px;
+    }
+
+    .billing-page .workspace-panel-title {
+        font-size: 16px;
+        line-height: 1.2;
+    }
+
+    .billing-page .workspace-panel-sub {
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    .billing-page .workspace-meta-row {
+        gap: 6px;
+        margin-top: 8px;
+    }
+
+    .billing-page .workspace-meta-chip {
+        padding: 4px 7px;
+        font-size: 10px;
+        gap: 4px;
+    }
+
+    .billing-page .billing-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .billing-page .workspace-stat-card {
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .billing-page .workspace-stat-label {
+        font-size: 9px;
+    }
+
+    .billing-page .workspace-stat-icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        font-size: 11px;
+    }
+
+    .billing-page .workspace-stat-value {
+        font-size: 18px;
+        line-height: 1.2;
+    }
+
+    .billing-page .workspace-stat-value.compact {
+        font-size: 13px;
+        line-height: 1.3;
+    }
+
+    .billing-page .workspace-stat-hint {
+        margin-top: 4px;
+        font-size: 10px;
+        line-height: 1.3;
+    }
+
+    .billing-page .workspace-progress {
+        margin-top: 7px;
+        height: 7px;
+    }
+
+    .billing-page .workspace-plan-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .billing-page .workspace-plan-card {
+        border-radius: 10px;
+        padding: 9px;
+        gap: 6px;
+    }
+
+    .billing-page .workspace-plan-head strong {
+        font-size: 12px;
+        line-height: 1.2;
+    }
+
+    .billing-page .workspace-plan-seats {
+        font-size: 16px;
+        line-height: 1.2;
+    }
+
+    .billing-page .workspace-plan-card .workspace-btn.mini {
+        padding: 6px 7px;
+        font-size: 10px;
+        border-radius: 7px;
+    }
+
+    .billing-page .workspace-list {
+        gap: 8px;
+    }
+
+    .billing-page .workspace-list li {
+        gap: 7px;
+        font-size: 12px;
+        line-height: 1.35;
+    }
+
+    .billing-page .workspace-step {
+        width: 18px;
+        height: 18px;
+        min-width: 18px;
+        font-size: 9px;
+        margin-top: 0;
     }
 }
 

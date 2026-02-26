@@ -44,11 +44,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $collaborative_rate = $collab_stats['avg'];
     }
 
-    // 2. Recent Tasks (List 2-3 items)
+    // 2. Recent Tasks (show up to 3 latest items)
+    $recentTaskLimit = 3;
     if ($_SESSION['role'] == "admin") {
          $sql_recent = "SELECT * FROM tasks WHERE 1=1";
          $scope = tenant_get_scope($pdo, 'tasks');
-         $sql_recent .= $scope['sql'] . " ORDER BY id DESC LIMIT 2";
+         $sql_recent .= $scope['sql'] . " ORDER BY id DESC LIMIT " . (int)$recentTaskLimit;
          $stmt_recent = $pdo->prepare($sql_recent);
          $stmt_recent->execute($scope['params']);
          $recent_tasks = $stmt_recent->fetchAll(PDO::FETCH_ASSOC);
@@ -60,7 +61,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
          $params_recent = [$user_id];
          $scope = tenant_get_scope($pdo, 'tasks', 't');
          $sql_recent .= $scope['sql'] . "
-                        ORDER BY t.id DESC LIMIT 2";
+                        ORDER BY t.id DESC LIMIT " . (int)$recentTaskLimit;
          $params_recent = array_merge($params_recent, $scope['params']);
          $stmt_recent = $pdo->prepare($sql_recent);
          $stmt_recent->execute($params_recent);
@@ -256,6 +257,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             .tasks-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
                 gap: 10px !important;
+            }
+            .dashboard-recent-board .tasks-grid .task-card:nth-child(n+3) {
+                display: none !important;
             }
             
             .task-card {
