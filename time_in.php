@@ -1,64 +1,77 @@
 <?php
 session_start();
 date_default_timezone_set('Asia/Manila');
-header('Content-Type: application/json');
 
 require 'DB_connection.php';
-require_once 'inc/tenant.php';
-require_once 'inc/csrf.php';
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['status' => 'error', 'message' => 'Invalid request method']);
-    exit;
-}
 
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'employee') {
+    http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
 }
 
-if (!csrf_verify('attendance_ajax_actions', $_POST['csrf_token'] ?? null, false)) {
-    echo json_encode(['status' => 'error', 'message' => 'Invalid or expired request']);
-    exit;
-}
-
 $user_id = $_SESSION['id'];
-$today   = date('Y-m-d');
-$now     = date('H:i:s');
+$today = date('Y-m-d');
+$now   = date('H:i:s');
 
-/* CHECK ACTIVE SESSION */
-// Only block if there is a session that is NOT clocked out
-$sql = "SELECT id FROM attendance
-        WHERE user_id = ? AND att_date = ? AND time_out IS NULL";
-$params = [$user_id, $today];
-$scope = tenant_get_scope($pdo, 'attendance');
-$sql .= $scope['sql'];
-$params = array_merge($params, $scope['params']);
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$active_att = $stmt->fetch(PDO::FETCH_ASSOC);
+/* -------------------------
+   DETERMINE SESSION
+-------------------------- */
+$hour = (int) date('H');
 
-/* ALREADY TIMED IN */
-if ($active_att) {
-    echo json_encode(['status'=>'success','message'=>'Already timed in', 'attendance_id' => $active_att['id']]);
+if ($hour >= 5 && $hour < 12) {
+    $session = 'morning';
+} elseif ($hour >= 12 && $hour < 18) {
+    $session = 'afternoon';
+} else {
+    $session = 'overtime';
+}
+
+/* -------------------------
+   GET TODAY ATTENDANCE
+-------------------------- */
+$sql = "SELECT * FROM attendance 
+        WHERE user_id = ? AND att_date = ?
+        ORDER BY id DESC LIMIT 1";
+$stmt = $conn->prepare($sql);
+$stmt->execute([$user_id, $today]);
+$att = $stmt->fetch(PDO::FETCH_ASSOC);
+
+/* -------------------------
+   IF SESSION ALREADY OPEN
+   → RETURN IT (NOT ERROR)
+-------------------------- */
+if ($att && $att["{$session}_in"] && !$att["{$session}_out"]) {
+    echo json_encode([
+        'status' => 'success',
+        'attendance_id' => $att['id'],
+        'session' => $session,
+        'time_in' => $att["{$session}_in"],
+        'message' => 'Session already active'
+    ]);
     exit;
 }
 
-/* INSERT NEW SESSION */
-// If no active session, insert new one (even if others exist for today)
-$sql = "INSERT INTO attendance (user_id, att_date, time_in)
-        VALUES (?, ?, ?)";
-if (tenant_column_exists($pdo, 'attendance', 'organization_id') && tenant_get_current_org_id()) {
-    $sql = "INSERT INTO attendance (user_id, att_date, time_in, organization_id)
-            VALUES (?, ?, ?, ?)";
-    $pdo->prepare($sql)->execute([$user_id, $today, $now, tenant_get_current_org_id()]);
+/* -------------------------
+   CREATE OR UPDATE
+-------------------------- */
+if (!$att) {
+    $sql = "INSERT INTO attendance (user_id, att_date, {$session}_in)
+            VALUES (?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([$user_id, $today, $now]);
+    $attendance_id = $conn->lastInsertId();
 } else {
-    $pdo->prepare($sql)->execute([$user_id, $today, $now]);
+    $sql = "UPDATE attendance SET {$session}_in = ?
+            WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([$now, $att['id']]);
+    $attendance_id = $att['id'];
 }
 
-// Get the inserted attendance ID
-$new_attendance_id = $pdo->lastInsertId();
-
-echo json_encode(['status'=>'success','message'=>'Time in recorded', 'attendance_id' => $new_attendance_id]);
-exit;
-
+echo json_encode([
+    'status' => 'success',
+    'attendance_id' => $attendance_id,
+    'session' => $session,
+    'time_in' => $now
+]);

@@ -3,6 +3,12 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 require_once "inc/csrf.php";
+
+$hasPendingVerification = isset($_SESSION['pending_login_verification']) && is_array($_SESSION['pending_login_verification']);
+$pendingVerification = $hasPendingVerification ? $_SESSION['pending_login_verification'] : [];
+$verificationEmailMasked = $hasPendingVerification ? (string)($pendingVerification['email_masked'] ?? '') : '';
+$verificationError = isset($_GET['verify_error']) ? trim((string)$_GET['verify_error']) : '';
+$verificationSuccess = isset($_GET['verify_success']) ? trim((string)$_GET['verify_success']) : '';
 ?>
 <!DOCTYPE html>
 <html>
@@ -46,6 +52,126 @@ require_once "inc/csrf.php";
                 left: 10px;
                 font-size: 13px;
                 padding: 7px 10px;
+            }
+        }
+        .verification-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .verification-modal-card {
+            width: 100%;
+            max-width: 430px;
+            background: #fff;
+            border-radius: 14px;
+            padding: 28px 24px 22px;
+            box-shadow: 0 24px 60px rgba(17, 24, 39, 0.3);
+            text-align: center;
+        }
+        .verification-title {
+            margin: 0 0 8px;
+            color: #5d69c7;
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+        .verification-subtitle {
+            margin: 0 0 18px;
+            color: #6b7280;
+            font-size: 15px;
+        }
+        .verification-subtitle strong {
+            color: #4f46e5;
+            word-break: break-all;
+        }
+        .verification-code-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin: 16px 0 10px;
+        }
+        .verification-digit {
+            height: 62px;
+            text-align: center;
+            font-size: 34px;
+            font-weight: 800;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            background: #f1f3f8;
+            color: #5d69c7;
+            outline: none;
+        }
+        .verification-digit:focus {
+            border-color: #8b92df;
+            box-shadow: 0 0 0 3px rgba(139, 146, 223, 0.25);
+        }
+        .verification-resend {
+            margin: 6px 0 14px;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .verification-resend form {
+            display: inline;
+        }
+        .verification-resend-btn {
+            background: none;
+            border: none;
+            color: #5d69c7;
+            cursor: pointer;
+            padding: 0;
+            font-size: 14px;
+            text-decoration: underline;
+        }
+        .verification-resend-btn:hover {
+            color: #4f46e5;
+        }
+        .verification-submit {
+            width: 100%;
+            background: linear-gradient(90deg, #a7afff, #8e7cf6);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1.8px;
+            font-weight: 700;
+            height: 48px;
+            cursor: pointer;
+        }
+        .verification-submit:hover {
+            filter: brightness(0.97);
+        }
+        .verification-alert {
+            margin: 10px 0;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            text-align: left;
+        }
+        .verification-alert.error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+        }
+        .verification-alert.success {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+        .verification-alert.client {
+            display: none;
+        }
+        @media (max-width: 500px) {
+            .verification-title {
+                font-size: 25px;
+            }
+            .verification-digit {
+                height: 56px;
+                font-size: 30px;
             }
         }
     </style>
@@ -135,7 +261,12 @@ require_once "inc/csrf.php";
                     
                     <div class="form-group">
                         <label class="form-label">Password</label>
-                        <input type="password" class="form-control" name="password" placeholder="........" required>
+                        <div class="password-field-wrap">
+                            <input type="password" class="form-control" id="login_password" name="password" placeholder="........" required>
+                            <button type="button" class="password-toggle-btn" data-password-toggle data-target="#login_password" aria-label="Show password">
+                                <i class="fa fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </div>
                     
                     <div style="margin-bottom: 15px; text-align: right;">
@@ -151,5 +282,169 @@ require_once "inc/csrf.php";
                 </div>
             </div>
       </div>
+
+      <?php if ($hasPendingVerification) { ?>
+      <div class="verification-modal-overlay" id="verification-modal" role="dialog" aria-modal="true" aria-labelledby="verification-title">
+          <div class="verification-modal-card">
+              <h4 class="verification-title" id="verification-title">Enter Verification Code</h4>
+              <p class="verification-subtitle">
+                  We have sent a code to <strong><?= htmlspecialchars($verificationEmailMasked) ?></strong>
+              </p>
+
+              <?php if ($verificationSuccess !== '') { ?>
+                  <div class="verification-alert success"><?= htmlspecialchars($verificationSuccess) ?></div>
+              <?php } ?>
+              <?php if ($verificationError !== '') { ?>
+                  <div class="verification-alert error"><?= htmlspecialchars($verificationError) ?></div>
+              <?php } ?>
+              <div class="verification-alert error client" id="verification-client-error"></div>
+
+              <form method="POST" action="app/verify-login-code.php" id="verification-code-form" autocomplete="off">
+                  <?= csrf_field('verify_login_code_form') ?>
+                  <input type="hidden" name="verification_code" id="verification_code" value="">
+
+                  <div class="verification-code-grid">
+                      <input type="text" class="verification-digit" maxlength="1" inputmode="numeric" autocomplete="one-time-code" aria-label="Code digit 1">
+                      <input type="text" class="verification-digit" maxlength="1" inputmode="numeric" aria-label="Code digit 2">
+                      <input type="text" class="verification-digit" maxlength="1" inputmode="numeric" aria-label="Code digit 3">
+                      <input type="text" class="verification-digit" maxlength="1" inputmode="numeric" aria-label="Code digit 4">
+                  </div>
+
+                  <button type="submit" class="verification-submit">Verify</button>
+              </form>
+
+              <div class="verification-resend">
+                  Didn&apos;t get a code?
+                  <form method="POST" action="app/resend-login-code.php">
+                      <?= csrf_field('resend_login_code_form') ?>
+                      <button type="submit" class="verification-resend-btn">Click to Resend</button>
+                  </form>
+              </div>
+          </div>
+      </div>
+
+      <script>
+      (function () {
+          var form = document.getElementById('verification-code-form');
+          if (!form) {
+              return;
+          }
+
+          var inputs = Array.prototype.slice.call(form.querySelectorAll('.verification-digit'));
+          var hiddenInput = document.getElementById('verification_code');
+          var clientError = document.getElementById('verification-client-error');
+
+          function normalizeValue(raw) {
+              return String(raw || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+          }
+
+          function updateHiddenCode() {
+              hiddenInput.value = inputs.map(function (input) {
+                  return normalizeValue(input.value).slice(0, 1);
+              }).join('');
+          }
+
+          function showClientError(message) {
+              if (!clientError) {
+                  return;
+              }
+              clientError.textContent = message;
+              clientError.style.display = message ? 'block' : 'none';
+          }
+
+          inputs.forEach(function (input, index) {
+              input.addEventListener('input', function () {
+                  var value = normalizeValue(input.value);
+                  input.value = value.slice(0, 1);
+                  updateHiddenCode();
+
+                  if (input.value !== '' && index < inputs.length - 1) {
+                      inputs[index + 1].focus();
+                  }
+              });
+
+              input.addEventListener('keydown', function (event) {
+                  if (event.key === 'Backspace' && input.value === '' && index > 0) {
+                      inputs[index - 1].focus();
+                  }
+                  if (event.key === 'ArrowLeft' && index > 0) {
+                      event.preventDefault();
+                      inputs[index - 1].focus();
+                  }
+                  if (event.key === 'ArrowRight' && index < inputs.length - 1) {
+                      event.preventDefault();
+                      inputs[index + 1].focus();
+                  }
+              });
+
+              input.addEventListener('paste', function (event) {
+                  event.preventDefault();
+                  var pasted = normalizeValue((event.clipboardData || window.clipboardData).getData('text'));
+                  if (!pasted) {
+                      return;
+                  }
+
+                  var chars = pasted.split('').slice(0, inputs.length);
+                  inputs.forEach(function (field, i) {
+                      field.value = chars[i] ? chars[i] : '';
+                  });
+                  updateHiddenCode();
+
+                  var nextIndex = Math.min(chars.length, inputs.length - 1);
+                  inputs[nextIndex].focus();
+              });
+          });
+
+          form.addEventListener('submit', function (event) {
+              updateHiddenCode();
+              if (hiddenInput.value.length !== 4) {
+                  event.preventDefault();
+                  showClientError('Enter the full 4-digit verification code.');
+                  inputs[0].focus();
+                  return;
+              }
+              showClientError('');
+          });
+
+          setTimeout(function () {
+              inputs[0].focus();
+          }, 40);
+      })();
+      </script>
+      <?php } ?>
+
+      <script>
+      (function () {
+          var toggles = document.querySelectorAll('[data-password-toggle]');
+          if (!toggles.length) {
+              return;
+          }
+
+          function updateToggleState(button, input) {
+              var visible = input.type === 'text';
+              button.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+              button.setAttribute('title', visible ? 'Hide password' : 'Show password');
+              var icon = button.querySelector('i');
+              if (icon) {
+                  icon.classList.toggle('fa-eye', !visible);
+                  icon.classList.toggle('fa-eye-slash', visible);
+              }
+          }
+
+          toggles.forEach(function (button) {
+              var target = button.getAttribute('data-target');
+              var input = target ? document.querySelector(target) : null;
+              if (!input) {
+                  return;
+              }
+
+              updateToggleState(button, input);
+              button.addEventListener('click', function () {
+                  input.type = input.type === 'password' ? 'text' : 'password';
+                  updateToggleState(button, input);
+              });
+          });
+      })();
+      </script>
 </body>
 </html>

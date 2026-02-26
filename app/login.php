@@ -5,6 +5,7 @@ require_once "../DB_connection.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 require_once __DIR__ . "/helpers/input.php";
+require_once __DIR__ . "/helpers/login_verification.php";
 
 if (!isset($_POST['user_name']) || !isset($_POST['password'])) {
     $em = "Unknown error occurred";
@@ -62,6 +63,7 @@ if ($role !== 'admin' && $role !== 'employee') {
 
 $orgId = tenant_resolve_user_org($pdo, $id, $user['organization_id'] ?? null);
 $orgName = null;
+$orgMembershipRole = null;
 if (tenant_column_exists($pdo, 'users', 'organization_id') && !$orgId && !$isSuperAdmin) {
     $em = "Account is not linked to a workspace.";
     header("Location: ../login.php?error=$em");
@@ -86,7 +88,63 @@ if ($orgId && tenant_table_exists($pdo, 'organizations')) {
         exit();
     }
     $orgName = is_array($org) ? ($org['name'] ?? null) : null;
+    $orgMembershipRole = tenant_resolve_user_membership_role(
+        $pdo,
+        $id,
+        (int)$orgId,
+        $role === 'admin' ? 'admin' : 'member'
+    );
 }
+
+if (login_verification_is_required($pdo, $id)) {
+    $codeResult = login_verification_issue_code($pdo, $id, 10);
+    if (!$codeResult['ok']) {
+        $em = (string)($codeResult['error'] ?? 'Unable to send verification code right now.');
+        header("Location: ../login.php?error=" . urlencode($em));
+        exit();
+    }
+
+    include_once "send_email.php";
+    $mailSent = send_login_verification_code_email($usernameDb, (string)($user['full_name'] ?? 'User'), (string)$codeResult['code']);
+    if (!$mailSent) {
+        $em = "Unable to send verification code right now. Please try again.";
+        header("Location: ../login.php?error=" . urlencode($em));
+        exit();
+    }
+
+    // Prevent stale authenticated state while waiting for verification.
+    unset(
+        $_SESSION['role'],
+        $_SESSION['id'],
+        $_SESSION['username'],
+        $_SESSION['full_name'],
+        $_SESSION['organization_id'],
+        $_SESSION['organization_role'],
+        $_SESSION['organization_name'],
+        $_SESSION['must_change_password'],
+        $_SESSION['toast_success']
+    );
+
+    $_SESSION['pending_login_verification'] = [
+        'user_id' => $id,
+        'role' => $role,
+        'username' => $usernameDb,
+        'full_name' => (string)($user['full_name'] ?? ''),
+        'organization_id' => $orgId ? (int)$orgId : 0,
+        'organization_name' => $orgName ? (string)$orgName : '',
+        'organization_role' => $orgMembershipRole ? (string)$orgMembershipRole : '',
+        'is_super_admin' => $isSuperAdmin ? 1 : 0,
+        'must_change_password' => !empty($user['must_change_password']) ? 1 : 0,
+        'email_masked' => login_verification_mask_email($usernameDb),
+        'last_code_sent_at' => time(),
+    ];
+
+    $sm = "Verification code sent to your email.";
+    header("Location: ../login.php?verify_pending=1&verify_success=" . urlencode($sm));
+    exit();
+}
+
+unset($_SESSION['pending_login_verification']);
 
 session_regenerate_id(true);
 $_SESSION['role'] = $role;
@@ -96,12 +154,7 @@ $_SESSION['full_name'] = $user['full_name'];
 
 if ($orgId) {
     $_SESSION['organization_id'] = (int)$orgId;
-    $_SESSION['organization_role'] = tenant_resolve_user_membership_role(
-        $pdo,
-        $id,
-        (int)$orgId,
-        $role === 'admin' ? 'admin' : 'member'
-    );
+    $_SESSION['organization_role'] = $orgMembershipRole ? (string)$orgMembershipRole : ($role === 'admin' ? 'admin' : 'member');
     if ($orgName) {
         $_SESSION['organization_name'] = $orgName;
     }

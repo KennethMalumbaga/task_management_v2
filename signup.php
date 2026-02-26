@@ -105,8 +105,21 @@ $selectedPlanSeatLimit = (int)($selectedPlan['seat_limit'] ?? 10);
                         <label class="form-label">Email</label>
                         <input type="email" class="form-control" name="user_name" placeholder="you@example.com" required>
                     </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <div class="password-field-wrap">
+                            <input type="password" class="form-control" id="signup_password" name="password" placeholder="Create a secure password" required minlength="8">
+                            <button type="button" class="password-toggle-btn" data-password-toggle data-target="#signup_password" aria-label="Show password">
+                                <i class="fa fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <small style="display:block; margin-top:8px; color:#6B7280;">
+                            Must be at least 8 characters with uppercase, lowercase, number, and symbol.
+                        </small>
+                    </div>
                      
-                    <button type="submit" class="btn-primary">Register & Get Password</button>
+                    <button type="submit" class="btn-primary">Create Workspace</button>
                 </form>
 
                 <div class="auth-footer">
@@ -114,5 +127,39 @@ $selectedPlanSeatLimit = (int)($selectedPlan['seat_limit'] ?? 10);
                 </div>
             </div>
       </div>
+
+      <script>
+      (function () {
+          var toggles = document.querySelectorAll('[data-password-toggle]');
+          if (!toggles.length) {
+              return;
+          }
+
+          function updateToggleState(button, input) {
+              var visible = input.type === 'text';
+              button.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+              button.setAttribute('title', visible ? 'Hide password' : 'Show password');
+              var icon = button.querySelector('i');
+              if (icon) {
+                  icon.classList.toggle('fa-eye', !visible);
+                  icon.classList.toggle('fa-eye-slash', visible);
+              }
+          }
+
+          toggles.forEach(function (button) {
+              var target = button.getAttribute('data-target');
+              var input = target ? document.querySelector(target) : null;
+              if (!input) {
+                  return;
+              }
+
+              updateToggleState(button, input);
+              button.addEventListener('click', function () {
+                  input.type = input.type === 'password' ? 'text' : 'password';
+                  updateToggleState(button, input);
+              });
+          });
+      })();
+      </script>
 </body>
 </html>
