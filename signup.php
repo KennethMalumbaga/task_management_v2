@@ -5,10 +5,26 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 require_once "inc/csrf.php";
 require_once "inc/tenant.php";
 
-$selectedPlan = tenant_resolve_workspace_plan($_GET['plan'] ?? ($_POST['plan_code'] ?? 'starter'), 'starter');
+$incomingPlan = strtolower(trim((string)($_GET['plan'] ?? ($_POST['plan_code'] ?? ''))));
+$incomingMode = strtolower(trim((string)($_GET['signup_mode'] ?? ($_POST['signup_mode'] ?? ''))));
+if (in_array($incomingMode, ['free-trial', 'free_trial'], true)) {
+    $incomingMode = 'trial';
+}
+
+if (!in_array($incomingMode, ['trial', 'paid'], true)) {
+    if ($incomingPlan === '' || in_array($incomingPlan, ['trial', 'free-trial', 'free_trial'], true)) {
+        $incomingMode = 'trial';
+    } else {
+        $incomingMode = 'paid';
+    }
+}
+
+$planSeed = $incomingPlan !== '' ? $incomingPlan : 'starter';
+$selectedPlan = tenant_resolve_workspace_plan($planSeed, 'starter');
 $selectedPlanCode = (string)($selectedPlan['code'] ?? 'starter');
 $selectedPlanName = (string)($selectedPlan['name'] ?? 'Starter');
 $selectedPlanSeatLimit = (int)($selectedPlan['seat_limit'] ?? 10);
+$isTrialSignup = $incomingMode === 'trial';
 ?>
 <!DOCTYPE html>
 <html>
@@ -85,12 +101,19 @@ $selectedPlanSeatLimit = (int)($selectedPlan['seat_limit'] ?? 10);
 
                 <div class="auth-info-box">
                     This form is for workspace owners/admins. Employees should join using an invite link from their admin.
-                    <br><strong>Selected plan:</strong> <?= htmlspecialchars($selectedPlanName) ?> (up to <?= $selectedPlanSeatLimit ?> team members).
+                    <?php if ($isTrialSignup) { ?>
+                        <br><strong>Selected offer:</strong> Free Trial (2 days, up to <?= $selectedPlanSeatLimit ?> team members).
+                        <br>No payment is required before first login. After trial ends, billing lock will require plan payment.
+                    <?php } else { ?>
+                        <br><strong>Selected plan:</strong> <?= htmlspecialchars($selectedPlanName) ?> (up to <?= $selectedPlanSeatLimit ?> team members).
+                        <br>After signup, you will continue to dummy checkout before first login.
+                    <?php } ?>
                 </div>
 
                 <form method="POST" action="app/signup.php">
                     <?= csrf_field('signup_form') ?>
                     <input type="hidden" name="plan_code" value="<?= htmlspecialchars($selectedPlanCode) ?>">
+                    <input type="hidden" name="signup_mode" value="<?= htmlspecialchars($incomingMode) ?>">
                     <div class="form-group">
                         <label class="form-label">Workspace Name</label>
                         <input type="text" class="form-control" name="organization_name" placeholder="Acme Team" required>

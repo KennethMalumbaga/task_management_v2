@@ -147,7 +147,19 @@ $workspaceId = isset($org['id']) ? (int)$org['id'] : 0;
 $workspaceStatus = (string)($org['status'] ?? 'N/A');
 $workspacePlanCode = (string)($org['plan_code'] ?? 'N/A');
 $workspaceBillingEmail = (string)(!empty($org['billing_email']) ? $org['billing_email'] : 'N/A');
+$subscriptionStatusRaw = strtolower(trim((string)($subscription['status'] ?? '')));
+$trialEndsAtRaw = (string)($subscription['trial_ends_at'] ?? '');
+$trialEndsTs = $trialEndsAtRaw !== '' ? strtotime($trialEndsAtRaw) : false;
+$isFreeTrialStatus = in_array($subscriptionStatusRaw, ['trialing', 'trial'], true);
+$isFreeTrialExpired = $isFreeTrialStatus && $trialEndsTs !== false && $trialEndsTs <= time();
 $subscriptionStatusText = strtoupper((string)($subscription['status'] ?? 'N/A'));
+if ($isFreeTrialStatus) {
+    $subscriptionStatusText = $isFreeTrialExpired ? 'FREE TRIAL EXPIRED' : 'FREE TRIAL';
+}
+$subscriptionBadgeClass = wb_status_badge_class($subscription['status'] ?? 'active');
+if ($isFreeTrialExpired) {
+    $subscriptionBadgeClass = 'warn';
+}
 $seatUsageDisplay = $seatLimit !== null ? ($seatUsed . "/" . $seatLimit) : (string)$seatUsed;
 $availablePlans = tenant_workspace_plan_catalog();
 $resolvedWorkspacePlan = tenant_resolve_workspace_plan($workspacePlanCode, 'starter');
@@ -237,6 +249,20 @@ $currentPlanPrice = (int)($dummyPlanPrices[strtolower($currentWorkspacePlanCode)
             </div>
         <?php } ?>
 
+        <?php if ($isFreeTrialStatus) { ?>
+            <div class="workspace-alert <?= $isFreeTrialExpired ? 'warn' : 'info' ?>">
+                <i class="fa <?= $isFreeTrialExpired ? 'fa-exclamation-triangle' : 'fa-hourglass-half' ?>"></i>
+                <div>
+                    <?php if ($isFreeTrialExpired) { ?>
+                        Free trial has ended. Choose a paid plan and complete payment below to unlock workspace access.
+                    <?php } else { ?>
+                        Free trial is active until <strong><?= htmlspecialchars(wb_format_datetime($subscription['trial_ends_at'] ?? null)) ?></strong>.
+                        You can use the workspace normally until the trial period ends.
+                    <?php } ?>
+                </div>
+            </div>
+        <?php } ?>
+
         <?php if ($error !== null) { ?>
             <section class="workspace-panel">
                 <div class="workspace-panel-head">
@@ -254,7 +280,7 @@ $currentPlanPrice = (int)($dummyPlanPrices[strtolower($currentWorkspacePlanCode)
                         <h3 class="workspace-panel-title"><?= htmlspecialchars($workspaceDisplayName) ?></h3>
                         <p class="workspace-panel-sub">Workspace status, plan metadata, and billing contact snapshot.</p>
                     </div>
-                    <span class="workspace-pill <?= wb_status_badge_class($subscription['status'] ?? 'active') ?>">
+                    <span class="workspace-pill <?= $subscriptionBadgeClass ?>">
                         <?= htmlspecialchars($subscriptionStatusText) ?>
                     </span>
                 </div>
@@ -263,6 +289,9 @@ $currentPlanPrice = (int)($dummyPlanPrices[strtolower($currentWorkspacePlanCode)
                     <span class="workspace-meta-chip"><i class="fa fa-tag"></i> Slug <strong><?= htmlspecialchars($workspaceSlug) ?></strong></span>
                     <span class="workspace-meta-chip"><i class="fa fa-shield"></i> Status <strong><?= htmlspecialchars($workspaceStatus) ?></strong></span>
                     <span class="workspace-meta-chip"><i class="fa fa-cubes"></i> Plan <strong><?= htmlspecialchars($currentWorkspacePlanCode) ?></strong></span>
+                    <?php if ($isFreeTrialStatus) { ?>
+                        <span class="workspace-meta-chip"><i class="fa fa-bolt"></i> Offer <strong><?= $isFreeTrialExpired ? 'Trial Expired' : 'Free Trial Active' ?></strong></span>
+                    <?php } ?>
                     <span class="workspace-meta-chip"><i class="fa fa-envelope-o"></i> Billing <strong><?= htmlspecialchars($workspaceBillingEmail) ?></strong></span>
                 </div>
             </section>
