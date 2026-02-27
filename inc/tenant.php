@@ -37,6 +37,13 @@ if (!function_exists('tenant_get_current_org_id')) {
     }
 }
 
+if (!function_exists('tenant_trial_days')) {
+    function tenant_trial_days()
+    {
+        return 2;
+    }
+}
+
 if (!function_exists('tenant_workspace_plan_catalog')) {
     function tenant_workspace_plan_catalog()
     {
@@ -280,7 +287,7 @@ if (!function_exists('tenant_ensure_subscription')) {
             return $existing;
         }
 
-        $trialEndsAt = date('Y-m-d H:i:s', strtotime('+14 days'));
+        $trialEndsAt = date('Y-m-d H:i:s', strtotime('+' . tenant_trial_days() . ' days'));
         $periodEndsAt = date('Y-m-d H:i:s', strtotime('+1 month'));
 
         try {
@@ -295,6 +302,64 @@ if (!function_exists('tenant_ensure_subscription')) {
         }
 
         return tenant_fetch_subscription($pdo, $orgId);
+    }
+}
+
+if (!function_exists('tenant_workspace_requires_payment')) {
+    function tenant_workspace_requires_payment($pdo, $orgId)
+    {
+        $orgId = (int)$orgId;
+        if ($orgId <= 0) {
+            return [
+                'required' => false,
+                'reason' => null,
+                'subscription_status' => null,
+                'trial_ends_at' => null,
+            ];
+        }
+
+        $subscription = tenant_ensure_subscription($pdo, $orgId);
+        $status = strtolower(trim((string)($subscription['status'] ?? 'active')));
+        $trialEndsAt = $subscription['trial_ends_at'] ?? null;
+
+        $blockedStatuses = [
+            'canceled',
+            'cancelled',
+            'suspended',
+            'inactive',
+            'unpaid',
+            'incomplete',
+            'incomplete_expired',
+            'paused',
+        ];
+
+        if ($status !== '' && in_array($status, $blockedStatuses, true)) {
+            return [
+                'required' => true,
+                'reason' => "Workspace subscription is '{$status}'. Please complete payment to continue.",
+                'subscription_status' => $status,
+                'trial_ends_at' => $trialEndsAt,
+            ];
+        }
+
+        if ($status === 'trialing' && !empty($trialEndsAt)) {
+            $trialTs = strtotime((string)$trialEndsAt);
+            if ($trialTs !== false && $trialTs <= time()) {
+                return [
+                    'required' => true,
+                    'reason' => 'Your 2-day free trial has ended. Please complete payment to continue.',
+                    'subscription_status' => $status,
+                    'trial_ends_at' => $trialEndsAt,
+                ];
+            }
+        }
+
+        return [
+            'required' => false,
+            'reason' => null,
+            'subscription_status' => $status !== '' ? $status : null,
+            'trial_ends_at' => $trialEndsAt,
+        ];
     }
 }
 

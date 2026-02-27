@@ -75,7 +75,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
             <div class="landing-hero-checks">
                 <span><span class="check-icon">&#10003;</span> No credit card required</span>
-                <span><span class="check-icon">&#10003;</span> 14-day free trial</span>
+                <span><span class="check-icon">&#10003;</span> 2-day free trial</span>
             </div>
         </div>
 

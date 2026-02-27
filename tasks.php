@@ -436,9 +436,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         <div class="tasks-shell">
             <section class="tasks-hero">
                 <div class="tasks-hero-main">
-                    <span class="tasks-eyebrow">
-                        <i class="fa fa-bolt"></i> TaskFlow Command Center
-                    </span>
                     <h2><?= htmlspecialchars((string)$text) ?> Board</h2>
                     <p>Track priorities, audit progress, and review completions from one focused control surface designed for daily task operations.</p>
                     <div class="tasks-filter-row">
@@ -473,11 +470,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                             <small>needs immediate focus</small>
                         </div>
                     </div>
-                    <?php if ($_SESSION['role'] == 'admin') { ?>
-                    <a href="create_task.php" class="tasks-create-btn">
-                        <i class="fa fa-plus"></i> Create Task
-                    </a>
-                    <?php } ?>
                 </div>
             </section>
 
@@ -500,7 +492,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         <h3><?= htmlspecialchars((string)$text) ?></h3>
                         <p>Open any card to inspect full details, subtasks, ratings, and review actions.</p>
                     </div>
-                    <span class="tasks-board-count"><?= (int)$shownTaskCount ?> record<?= $shownTaskCount === 1 ? '' : 's' ?></span>
+                    <div class="tasks-board-head-actions">
+                        <span class="tasks-board-count"><?= (int)$shownTaskCount ?> record<?= $shownTaskCount === 1 ? '' : 's' ?></span>
+                        <?php if ($_SESSION['role'] == 'admin') { ?>
+                        <a href="create_task.php" class="tasks-board-create-btn">
+                            <i class="fa fa-plus"></i> Create Task
+                        </a>
+                        <?php } ?>
+                    </div>
                 </div>
 
                 <div class="tasks-grid">

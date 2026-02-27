@@ -36,286 +36,133 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 	<link rel="stylesheet" href="css/dashboard.css">
-    <style>
-        @media (max-width: 768px) {
-            .dash-main {
-                padding: 70px 15px 30px !important; /* Extra top for mobile header */
-                display: block !important;
-                min-height: auto !important;
-                background: white !important; /* Cleaner on mobile */
-            }
-            .dash-main > div {
-                max-width: 100% !important;
-                box-shadow: none !important;
-                border-radius: 0 !important;
-            }
-            .dash-main > div > div:first-child,
-            .dash-main form {
-                padding: 15px !important;
-            }
-            .dash-main form .form-actions {
-                flex-direction: column !important;
-            }
-            .dash-main form .form-actions button,
-            .dash-main form .form-actions a {
-                width: 100% !important;
-                flex: none !important;
-            }
-        }
-        .member-picker {
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
-            overflow: hidden;
-            background: #fff;
-        }
-        .member-search {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .member-search i {
-            color: #9ca3af;
-        }
-        .member-search input {
-            border: none;
-            outline: none;
-            width: 100%;
-            font-size: 14px;
-        }
-        .member-list {
-            max-height: 260px;
-            overflow-y: auto;
-            display: none;
-        }
-        .member-picker.open .member-list {
-            display: block;
-        }
-        .member-picker.open .member-search {
-            border-bottom: 1px solid #e5e7eb;
-            box-shadow: inset 0 0 0 2px #8B5CF6;
-            border-radius: 10px 10px 0 0;
-        }
-        .user-option {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            padding: 10px 12px;
-            border-bottom: 1px solid #f3f4f6;
-            cursor: pointer;
-            transition: background 0.15s ease;
-        }
-        .user-option:last-child {
-            border-bottom: none;
-        }
-        .user-option:hover {
-            background: #f8fafc;
-        }
-        .user-option.selected {
-            background: #eef2ff;
-        }
-        .user-option.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: #e5e7eb;
-            color: #374151;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .user-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: #111827;
-        }
-        .user-meta {
-            font-size: 12px;
-            color: #6b7280;
-        }
-        .user-action {
-            color: #6C3CE1;
-            font-size: 18px;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 6px;
-        }
-        .user-option.selected .user-action {
-            color: #10b981;
-        }
-        .member-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .member-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #eef2ff;
-            color: #6C3CE1;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 13px;
-        }
-        .member-badge button {
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            color: #6b7280;
-            font-size: 16px;
-            line-height: 1;
-        }
-        .custom-modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.45);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            padding: 16px;
-        }
-        .custom-modal {
-            width: 100%;
-            max-width: 420px;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-        }
-        .custom-modal-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 18px;
-            font-weight: 600;
-            color: #991b1b;
-        }
-        .custom-modal-body {
-            padding: 18px 20px;
-            color: #374151;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        .custom-modal-actions {
-            padding: 0 20px 18px;
-            text-align: right;
-        }
-        .custom-modal-actions button {
-            border: none;
-            background: #8B5CF6;
-            color: #fff;
-            border-radius: 8px;
-            padding: 9px 14px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-    </style>
+    <link rel="stylesheet" href="css/create-task-page.css">
 </head>
-<body>
+<body class="create-task-page">
     
     <!-- Sidebar -->
     <?php include "inc/new_sidebar.php"; ?>
 
     <!-- Main Content -->
-    <div class="dash-main" style="background: #f3f4f6; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
+    <div class="dash-main create-task-main">
         
-        <div style="background: white; width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); overflow: hidden;">
-            <form action="app/add-task.php" method="POST" enctype="multipart/form-data" style="padding: 24px;">
+        <div class="create-task-shell">
+            <form action="app/add-task.php" method="POST" enctype="multipart/form-data" class="create-task-form">
                 <?= csrf_field('create_task_form') ?>
-                
                 <?php if (isset($_GET['error'])) {?>
-                    <div style="background: #FEF2F2; color: #991B1B; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
+                    <div class="create-task-alert error">
                         <?php echo stripcslashes($_GET['error']); ?>
                     </div>
                 <?php } ?>
                 
                 <?php if (isset($_GET['success'])) {?>
-                    <div style="background: #ECFDF5; color: #065F46; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
+                    <div class="create-task-alert success">
                         <?php echo stripcslashes($_GET['success']); ?>
                     </div>
                 <?php } ?>
 
                 <!-- Title -->
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Task Title <span style="color: red;">*</span></label>
-                    <input type="text" name="title" required placeholder="Enter task title" 
-                           style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;">
+                <div class="field">
+                    <label class="field-label">Task Title <span class="required-dot"></span></label>
+                    <input type="text" name="title" required placeholder="e.g. Design onboarding screens">
                 </div>
 
                 <!-- Description -->
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Description <span style="color: red;">*</span></label>
-                    <textarea name="description" required rows="4" placeholder="Enter task description"
-                              style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; resize: vertical; transition: border-color 0.2s;"></textarea>
+                <div class="field">
+                    <label class="field-label">Description <span class="required-dot"></span></label>
+                    <textarea name="description" required rows="5" placeholder="Describe the task scope, goals, and any relevant context..."
+                              class="task-textarea"></textarea>
                 </div>
 
+                <div class="divider"></div>
+
                 <!-- Assignment Mode -->
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Assignment Mode</label>
-                    <div style="display: flex; gap: 12px;">
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
-                            <input type="radio" name="assignment_mode" value="manual" checked onchange="toggleAssignmentMode()"> Manual (Leader + Members)
+                <div class="field">
+                    <label class="field-label">Assignment Mode</label>
+                    <div class="toggle-group">
+                        <label class="toggle-option">
+                            <input type="radio" name="assignment_mode" value="manual" checked onchange="toggleAssignmentMode()">
+                            <span class="toggle-label"><span class="radio-circle"></span>Manual (Leader + Members)</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
-                            <input type="radio" name="assignment_mode" value="group" onchange="toggleAssignmentMode()"> Select Group/Team
+                        <label class="toggle-option">
+                            <input type="radio" name="assignment_mode" value="group" onchange="toggleAssignmentMode()">
+                            <span class="toggle-label"><span class="radio-circle"></span>Select Group / Team</span>
                         </label>
                     </div>
                 </div>
 
                 <!-- Group Selection -->
-                <div id="groupSection" style="margin-bottom: 20px; display: none;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Group/Team</label>
-                    <select name="group_id" id="groupSelect" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none; background: white;">
-                        <option value="0">Select Group</option>
-                        <?php if (!empty($groups)) { foreach ($groups as $group) { 
-                            $members = get_group_members($pdo, $group['id']);
-                            $leaderName = '';
-                            $memberNames = [];
-                            foreach ($members as $m) {
-                                if ($m['role'] === 'leader') {
-                                    $leaderName = $m['full_name'];
-                                } else {
+                <div id="groupSection" class="field" style="display: none;">
+                    <label class="field-label">Group / Team</label>
+                    <input type="hidden" name="group_id" id="groupSelect" value="0">
+                    <div class="member-picker" id="groupPicker">
+                        <div class="search-input-wrap member-search">
+                            <span class="search-icon"><i class="fa fa-search"></i></span>
+                            <input type="text" id="groupSearch" placeholder="Search and select group...">
+                        </div>
+                        <div class="member-list" id="groupList">
+                            <?php if (!empty($groups)) { foreach ($groups as $group) {
+                                $members = get_group_members($pdo, $group['id']);
+                                $leaderName = 'Not set';
+                                $memberNames = [];
+                                foreach ($members as $m) {
+                                    if ($m['role'] === 'leader') {
+                                        $leaderName = $m['full_name'];
+                                    }
                                     $memberNames[] = $m['full_name'];
                                 }
-                            }
-                            $memberText = !empty($memberNames) ? implode(', ', $memberNames) : 'No members';
-                        ?>
-                            <option value="<?=$group['id']?>" data-leader="<?=htmlspecialchars($leaderName)?>" data-members="<?=htmlspecialchars($memberText)?>">
-                                <?=htmlspecialchars($group['name'])?>
-                            </option>
-                        <?php } } ?>
-                    </select>
-                    <div id="groupInfo" style="margin-top: 8px; font-size: 13px; color: #6B7280;"></div>
+                                $memberCount = count($members);
+                                $searchMeta = trim($group['name'] . ' ' . $leaderName . ' ' . implode(' ', $memberNames));
+                            ?>
+                                <div class="user-option group-option"
+                                     data-id="<?=$group['id']?>"
+                                     data-name="<?=htmlspecialchars($group['name'])?>"
+                                     data-leader="<?=htmlspecialchars($leaderName)?>"
+                                     data-member-count="<?=$memberCount?>"
+                                     data-meta="<?=htmlspecialchars($searchMeta)?>">
+                                    <div class="user-info">
+                                        <div class="group-avatar-stack">
+                                            <?php
+                                            $previewMembers = array_slice($members, 0, 3);
+                                            foreach ($previewMembers as $gm) {
+                                                $groupProfileImage = $gm['profile_image'] ?? '';
+                                                $groupHasImage = !empty($groupProfileImage) && $groupProfileImage !== 'default.png' && file_exists('uploads/' . $groupProfileImage);
+                                            ?>
+                                                <div class="group-avatar" title="<?=htmlspecialchars($gm['full_name'])?>">
+                                                    <?php if ($groupHasImage): ?>
+                                                        <img src="uploads/<?=$groupProfileImage?>" alt="<?=htmlspecialchars($gm['full_name'])?>">
+                                                    <?php else: ?>
+                                                        <?= strtoupper(substr($gm['full_name'], 0, 1)) ?>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php } ?>
+                                            <?php if ($memberCount > 3): ?>
+                                                <div class="group-avatar group-avatar-more">+<?=$memberCount - 3?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div>
+                                            <div class="user-name"><?=htmlspecialchars($group['name'])?></div>
+                                            <div class="user-meta">Leader: <?=htmlspecialchars($leaderName)?> | <?=$memberCount?> member<?= $memberCount === 1 ? '' : 's' ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="user-action">+</div>
+                                </div>
+                            <?php } } else { ?>
+                                <div class="member-empty">No groups available.</div>
+                            <?php } ?>
+                        </div>
+                    </div>
+                    <div id="groupSelected" class="member-badges"></div>
+                    <div id="groupInfo" class="field-help"></div>
                 </div>
 
                 <!-- Project Leader -->
-                <div id="manualLeaderSection" style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Project Leader</label>
+                <div id="manualLeaderSection" class="field">
+                    <label class="field-label">Project Leader</label>
                     <input type="hidden" name="leader_id" id="leaderIdInput" value="0">
                     <div class="member-picker">
-                        <div class="member-search">
-                            <i class="fa fa-search"></i>
+                        <div class="search-input-wrap member-search">
+                            <span class="search-icon"><i class="fa fa-search"></i></span>
                             <input type="text" id="leaderSearch" placeholder="Search and select leader...">
                         </div>
                         <div class="member-list" id="leaderList">
@@ -349,11 +196,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 </div>
 
                 <!-- Team Members -->
-                <div id="manualMembersSection" style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Team Members</label>
+                <div id="manualMembersSection" class="field">
+                    <label class="field-label">Team Members</label>
                     <div class="member-picker">
-                        <div class="member-search">
-                            <i class="fa fa-search"></i>
+                        <div class="search-input-wrap member-search">
+                            <span class="search-icon"><i class="fa fa-search"></i></span>
                             <input type="text" id="memberSearch" placeholder="Search and add members...">
                         </div>
                         <div class="member-list" id="memberList">
@@ -388,22 +235,50 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                     <div id="memberInputs"></div>
                 </div>
 
+                <div class="divider"></div>
+
                 <!-- Due Date -->
-                <div style="margin-bottom: 20px;">
-                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Due Date</label>
-                     <input type="date" name="due_date" value="<?= htmlspecialchars($prefill_due_date, ENT_QUOTES) ?>" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;">
+                <div class="field">
+                     <label class="field-label">Due Date</label>
+                     <div class="date-wrap">
+                        <input type="date" name="due_date" value="<?= htmlspecialchars($prefill_due_date, ENT_QUOTES) ?>">
+                        <span class="cal-icon"><i class="fa fa-calendar-o"></i></span>
+                     </div>
                 </div>
 
                  <!-- File -->
-                 <div style="margin-bottom: 30px;">
-                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Attachment (Optional) <span style="font-size: 12px; color: #6b7280; font-weight: normal;">(up to 50MB)</span></label>
-                     <input type="file" name="template_file" style="width: 100%; font-size: 14px;">
+                 <div class="field">
+                     <label class="field-label">Attachment <span class="optional-tag">Optional · up to 50MB</span></label>
+                     <label class="file-upload" id="dropZone">
+                        <input type="file" name="template_file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.zip">
+                        <div class="upload-idle" id="uploadIdle">
+                            <div class="upload-icon"><i class="fa fa-paperclip"></i></div>
+                            <div class="upload-text">
+                                <strong>Click to upload</strong> or drag and drop<br>
+                                PDF, PNG, DOCX, XLSX, ZIP
+                            </div>
+                        </div>
+                        <div class="upload-success" id="uploadSuccess" style="display:none;">
+                            <div class="file-preview">
+                                <div class="file-icon-wrap" id="fileIconWrap">📄</div>
+                                <div class="file-info">
+                                    <div class="file-name" id="fileName">document.pdf</div>
+                                    <div class="file-meta" id="fileMeta">2.4 MB · PDF</div>
+                                    <div class="file-progress">
+                                        <div class="file-progress-bar" id="progressBar"></div>
+                                    </div>
+                                    <div class="file-status" id="fileStatus">Uploading…</div>
+                                </div>
+                                <button class="file-remove" id="fileRemove" type="button">✕</button>
+                            </div>
+                        </div>
+                    </label>
                 </div>
 
                 <!-- Actions -->
-                <div class="form-actions" style="display: flex; gap: 10px;">
-                    <a href="tasks.php" style="flex: 1; text-align: center; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; color: #374151; text-decoration: none; font-weight: 500; background: white;">Cancel</a>
-                    <button type="submit" style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: #8B5CF6; color: white; font-weight: 500; cursor: pointer; font-size: 14px;">Create Task</button>
+                <div class="actions">
+                    <a href="tasks.php" class="btn btn-cancel">Cancel</a>
+                    <button type="submit" class="btn btn-create">Create Task →</button>
                 </div>
 
             </form>
@@ -433,6 +308,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         var leaderPicker = leaderList.closest('.member-picker');
         var memberPicker = memberList.closest('.member-picker');
         var leaderSelected = document.getElementById('leaderSelected');
+        var groupInput = document.getElementById('groupSelect');
+        var groupList = document.getElementById('groupList');
+        var groupPicker = document.getElementById('groupPicker');
+        var groupSearch = document.getElementById('groupSearch');
+        var groupSelected = document.getElementById('groupSelected');
+        var groupInfo = document.getElementById('groupInfo');
 
         function toggleAssignmentMode() {
             var mode = document.querySelector('input[name="assignment_mode"]:checked').value;
@@ -449,21 +330,78 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 groupSection.style.display = 'none';
                 leaderSection.style.display = 'block';
                 membersSection.style.display = 'block';
-                document.getElementById('groupSelect').value = "0";
-                document.getElementById('groupInfo').textContent = "";
+                clearGroup();
             }
         }
 
-        document.getElementById('groupSelect').addEventListener('change', function() {
-            var opt = this.options[this.selectedIndex];
-            if (!opt || this.value === "0") {
-                document.getElementById('groupInfo').textContent = "";
+        window.clearGroup = function() {
+            if (groupInput) groupInput.value = "0";
+            if (groupSearch) groupSearch.value = "";
+            if (groupInfo) groupInfo.textContent = "";
+            if (groupSelected) groupSelected.innerHTML = "";
+            if (!groupList) return;
+            groupList.querySelectorAll('.group-option').forEach(function(opt){
+                opt.classList.remove('selected');
+                opt.style.display = '';
+            });
+        };
+
+        function selectGroup(optionEl) {
+            if (!optionEl || !groupInput) return;
+            var groupId = optionEl.getAttribute('data-id');
+            var groupName = optionEl.getAttribute('data-name') || '';
+            var groupLeader = optionEl.getAttribute('data-leader') || 'Not set';
+            var groupMemberCount = optionEl.getAttribute('data-member-count') || '0';
+            if (!groupId || groupId === "0") {
+                clearGroup();
                 return;
             }
-            var leader = opt.getAttribute('data-leader') || 'Not set';
-            var members = opt.getAttribute('data-members') || 'No members';
-            document.getElementById('groupInfo').textContent = "Leader: " + leader + " | Members: " + members;
-        });
+
+            if (groupList) {
+                groupList.querySelectorAll('.group-option').forEach(function(opt){
+                    opt.classList.remove('selected');
+                });
+            }
+            optionEl.classList.add('selected');
+            groupInput.value = groupId;
+            if (groupSearch) groupSearch.value = groupName;
+            if (groupInfo) {
+                groupInfo.textContent = "Leader: " + groupLeader + " | Members: " + groupMemberCount;
+            }
+
+            if (groupSelected) {
+                groupSelected.innerHTML = '';
+                var badge = document.createElement('div');
+                badge.className = 'member-badge';
+                badge.id = 'group_badge_' + groupId;
+                badge.appendChild(document.createTextNode(groupName + ' '));
+                var removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.addEventListener('click', function() {
+                    clearGroup();
+                });
+                badge.appendChild(removeBtn);
+                groupSelected.appendChild(badge);
+            }
+            closePicker(groupPicker);
+        }
+
+        function filterGroupOptions() {
+            if (!groupSearch || !groupList) return;
+            var query = groupSearch.value.toLowerCase();
+            var items = groupList.querySelectorAll('.group-option');
+            items.forEach(function(item){
+                var name = (item.getAttribute('data-name') || '').toLowerCase();
+                var leader = (item.getAttribute('data-leader') || '').toLowerCase();
+                var meta = (item.getAttribute('data-meta') || '').toLowerCase();
+                if (name.indexOf(query) !== -1 || leader.indexOf(query) !== -1 || meta.indexOf(query) !== -1) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
 
         function clearMembers() {
             selectedMembers = {};
@@ -610,6 +548,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             filterOptions(this, memberList);
         });
 
+        if (groupSearch) {
+            groupSearch.addEventListener('focus', function(){
+                openPicker(groupPicker);
+            });
+            groupSearch.addEventListener('click', function(){
+                openPicker(groupPicker);
+            });
+            groupSearch.addEventListener('input', function(){
+                openPicker(groupPicker);
+                filterGroupOptions();
+            });
+        }
+
         leaderList.querySelectorAll('.user-option').forEach(function(opt){
             opt.addEventListener('click', function(){
                 selectLeader(opt);
@@ -630,6 +581,21 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 });
             }
         });
+        if (groupList) {
+            groupList.querySelectorAll('.group-option').forEach(function(opt){
+                opt.addEventListener('click', function(e){
+                    if (e.target && e.target.closest('button')) return;
+                    selectGroup(opt);
+                });
+                var action = opt.querySelector('.user-action');
+                if (action) {
+                    action.addEventListener('click', function(e){
+                        e.stopPropagation();
+                        selectGroup(opt);
+                    });
+                }
+            });
+        }
 
         document.addEventListener('click', function(e){
             if (leaderPicker && !leaderPicker.contains(e.target)) {
@@ -638,7 +604,122 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             if (memberPicker && !memberPicker.contains(e.target)) {
                 closePicker(memberPicker);
             }
+            if (groupPicker && !groupPicker.contains(e.target)) {
+                closePicker(groupPicker);
+            }
         });
+
+        var dropZone = document.getElementById('dropZone');
+        var fileInput = document.getElementById('fileInput');
+        var uploadIdle = document.getElementById('uploadIdle');
+        var uploadSuccess = document.getElementById('uploadSuccess');
+        var fileNameEl = document.getElementById('fileName');
+        var fileMetaEl = document.getElementById('fileMeta');
+        var progressBar = document.getElementById('progressBar');
+        var fileStatus = document.getElementById('fileStatus');
+        var fileIconWrap = document.getElementById('fileIconWrap');
+        var fileRemove = document.getElementById('fileRemove');
+        var uploadTimer = null;
+
+        var EXT_ICONS = {
+            pdf: '📄', png: '🖼️', jpg: '🖼️', jpeg: '🖼️',
+            docx: '📝', doc: '📝', xlsx: '📊', xls: '📊',
+            zip: '🗜️', default: '📁'
+        };
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function showUploadIdle() {
+            if (uploadTimer) {
+                clearInterval(uploadTimer);
+                uploadTimer = null;
+            }
+            if (uploadIdle) uploadIdle.style.display = 'flex';
+            if (uploadSuccess) uploadSuccess.style.display = 'none';
+            if (progressBar) progressBar.style.width = '0%';
+            if (dropZone) dropZone.classList.remove('has-file');
+        }
+
+        function simulateUpload(file) {
+            if (!file) return;
+            var parts = file.name.split('.');
+            var ext = parts.length > 1 ? parts.pop().toLowerCase() : '';
+
+            if (fileNameEl) fileNameEl.textContent = file.name;
+            if (fileMetaEl) fileMetaEl.textContent = formatSize(file.size) + ' · ' + ext.toUpperCase();
+            if (fileIconWrap) fileIconWrap.textContent = EXT_ICONS[ext] || EXT_ICONS.default;
+            if (progressBar) progressBar.style.width = '0%';
+            if (fileStatus) fileStatus.textContent = 'Uploading…';
+
+            if (uploadIdle) uploadIdle.style.display = 'none';
+            if (uploadSuccess) uploadSuccess.style.display = 'block';
+            if (dropZone) dropZone.classList.add('has-file');
+
+            var pct = 0;
+            if (uploadTimer) clearInterval(uploadTimer);
+            uploadTimer = setInterval(function() {
+                pct += Math.random() * 12 + 4;
+                if (pct >= 100) {
+                    pct = 100;
+                    clearInterval(uploadTimer);
+                    uploadTimer = null;
+                    if (fileStatus) fileStatus.textContent = '✓ Upload complete';
+                }
+                if (progressBar) progressBar.style.width = pct + '%';
+            }, 80);
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    simulateUpload(e.target.files[0]);
+                } else {
+                    showUploadIdle();
+                }
+            });
+        }
+
+        if (dropZone) {
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', function() {
+                dropZone.classList.remove('drag-over');
+            });
+
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                var file = (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) ? e.dataTransfer.files[0] : null;
+                if (!file) return;
+
+                if (fileInput) {
+                    try {
+                        var dt = new DataTransfer();
+                        dt.items.add(file);
+                        fileInput.files = dt.files;
+                    } catch (err) {
+                        // Keep visual state even if assignment is blocked by browser.
+                    }
+                }
+                simulateUpload(file);
+            });
+        }
+
+        if (fileRemove) {
+            fileRemove.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (fileInput) fileInput.value = '';
+                showUploadIdle();
+            });
+        }
 
         // Initialize mode on load
         toggleAssignmentMode();
