@@ -177,7 +177,7 @@ ALTER TABLE organization_members ADD CONSTRAINT organization_members_org_fk FORE
 ALTER TABLE organization_members ADD CONSTRAINT organization_members_user_fk FOREIGN KEY (user_id) REFERENCES users (id);
 
 INSERT INTO subscriptions (organization_id, provider, status, seat_limit, trial_ends_at, current_period_end)
-SELECT o.id, 'manual', 'trialing', 10, DATE_ADD(NOW(), INTERVAL 14 DAY), DATE_ADD(NOW(), INTERVAL 1 MONTH)
+SELECT o.id, 'manual', 'trialing', 10, DATE_ADD(NOW(), INTERVAL 2 DAY), DATE_ADD(NOW(), INTERVAL 1 MONTH)
 FROM organizations o
 LEFT JOIN subscriptions s ON s.organization_id = o.id
 WHERE s.id IS NULL;

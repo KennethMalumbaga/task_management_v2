@@ -167,6 +167,14 @@ if (isset($user['must_change_password']) && $user['must_change_password']) {
     exit();
 }
 
+if ($role === 'admin' && !$isSuperAdmin && $orgId) {
+    $billingGate = tenant_workspace_requires_payment($pdo, (int)$orgId);
+    if (!empty($billingGate['required'])) {
+        header("Location: ../workspace-billing.php?error=" . urlencode((string)$billingGate['reason']));
+        exit();
+    }
+}
+
 $_SESSION['toast_success'] = "Logged in successfully!";
 if ($isSuperAdmin) {
     header("Location: ../maintenance_dashboard.php");

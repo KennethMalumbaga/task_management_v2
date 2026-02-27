@@ -152,6 +152,13 @@ $seatUsageDisplay = $seatLimit !== null ? ($seatUsed . "/" . $seatLimit) : (stri
 $availablePlans = tenant_workspace_plan_catalog();
 $resolvedWorkspacePlan = tenant_resolve_workspace_plan($workspacePlanCode, 'starter');
 $currentWorkspacePlanCode = (string)($resolvedWorkspacePlan['code'] ?? 'starter');
+$currentWorkspacePlanName = (string)($resolvedWorkspacePlan['name'] ?? 'Starter');
+$dummyPlanPrices = [
+    'starter' => 399,
+    'professional' => 799,
+    'enterprise' => 1499,
+];
+$currentPlanPrice = (int)($dummyPlanPrices[strtolower($currentWorkspacePlanCode)] ?? $dummyPlanPrices['starter']);
 ?>
 <!DOCTYPE html>
 <html>
@@ -374,6 +381,63 @@ $currentWorkspacePlanCode = (string)($resolvedWorkspacePlan['code'] ?? 'starter'
                             <?php } ?>
                         </div>
                     </div>
+
+                    <div class="workspace-dummy-billing">
+                        <div class="workspace-panel-head">
+                            <div>
+                                <h4 class="workspace-panel-title">Temporary Dummy Checkout</h4>
+                                <p class="workspace-panel-sub">Sandbox-only payment simulation for local testing. No real charge is made.</p>
+                            </div>
+                            <span class="workspace-pill soft">Demo</span>
+                        </div>
+
+                        <div class="workspace-dummy-summary">
+                            <span>Current Plan</span>
+                            <strong><?= htmlspecialchars($currentWorkspacePlanName) ?></strong>
+                            <small>Simulated amount: PHP <?= number_format($currentPlanPrice) ?> / month</small>
+                        </div>
+
+                        <?php if ($canManageSeats) { ?>
+                            <form action="app/process-dummy-payment.php" method="POST" class="workspace-form-grid two-col">
+                                <?= csrf_field('workspace_dummy_payment_form') ?>
+
+                                <div class="workspace-field">
+                                    <label for="dummy_payment_method">Demo Payment Method</label>
+                                    <select id="dummy_payment_method" name="payment_method" class="workspace-input" required>
+                                        <option value="gcash">GCash (Demo)</option>
+                                        <option value="card">Credit/Debit Card (Demo)</option>
+                                        <option value="bank_transfer">Bank Transfer (Demo)</option>
+                                        <option value="over_the_counter">Over the Counter (Demo)</option>
+                                    </select>
+                                </div>
+
+                                <div class="workspace-field">
+                                    <label for="dummy_reference_note">Reference Note (Optional)</label>
+                                    <input
+                                        id="dummy_reference_note"
+                                        type="text"
+                                        name="reference_note"
+                                        maxlength="80"
+                                        class="workspace-input"
+                                        placeholder="Example: OR-1001"
+                                    >
+                                </div>
+
+                                <div class="workspace-action-row">
+                                    <button class="workspace-btn primary" type="submit">
+                                        <i class="fa fa-check-circle"></i>
+                                        Simulate Payment & Activate
+                                    </button>
+                                </div>
+                            </form>
+                        <?php } else { ?>
+                            <div class="workspace-alert info">
+                                <i class="fa fa-lock"></i>
+                                <div>You currently have read-only access and cannot run dummy checkout.</div>
+                            </div>
+                        <?php } ?>
+                    </div>
+
                     <?php if (!$canManageSeats) { ?>
                         <div class="workspace-alert info">
                             <i class="fa fa-lock"></i>
