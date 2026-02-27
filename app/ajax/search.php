@@ -27,15 +27,17 @@ if (isset($_SESSION['id'])) {
        if($stmt->rowCount() > 0){ 
            $users = $stmt->fetchAll();
            $hasUser = false;
-           foreach ($users as $user) {
-               if ($user['id'] == $_SESSION['id']) continue;
-               $hasUser = true;
-               
-               $lastMessage = lastChat($_SESSION['id'], $user['id'], $pdo);
-               $unreadCount = countUnreadChat($user['id'], $_SESSION['id'], $pdo);
-               $unreadClass = ($unreadCount > 0) ? "unread" : "";
-       ?>
-       <div class="chat-item <?=$unreadClass?>" data-id="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>" data-role="<?=ucfirst($user['role'])?>">
+            foreach ($users as $user) {
+                if ($user['id'] == $_SESSION['id']) continue;
+                $hasUser = true;
+                
+                $lastMessage = lastChat($_SESSION['id'], $user['id'], $pdo);
+                $lastTimestamp = !empty($lastMessage['created_at']) ? strtotime($lastMessage['created_at']) : 0;
+                if ($lastTimestamp === false) $lastTimestamp = 0;
+                $unreadCount = countUnreadChat($user['id'], $_SESSION['id'], $pdo);
+                $unreadClass = ($unreadCount > 0) ? "unread" : "";
+        ?>
+       <div class="chat-item <?=$unreadClass?>" data-id="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>" data-role="<?=ucfirst($user['role'])?>" data-last-ts="<?=$lastTimestamp?>">
             <div class="avatar-md">
                  <?php 
                  if (!empty($user['profile_image']) && file_exists('../../uploads/' . $user['profile_image'])) {
@@ -114,8 +116,10 @@ if (isset($_SESSION['id'])) {
                $lastMsgTime = !empty($lastGroupMsg['created_at'])
                    ? $lastGroupMsg['created_at']
                    : (!empty($group['created_at']) ? $group['created_at'] : null);
+               $groupLastTimestamp = !empty($lastGroupMsg['created_at']) ? strtotime($lastGroupMsg['created_at']) : 0;
+               if ($groupLastTimestamp === false) $groupLastTimestamp = 0;
        ?>
-       <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>">
+       <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>" data-last-ts="<?=$groupLastTimestamp?>">
             <div class="avatar-md" style="background:#EEF2FF; color:#6C3CE1;">
                 <i class="fa fa-users"></i>
             </div>

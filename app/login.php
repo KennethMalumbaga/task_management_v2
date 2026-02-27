@@ -82,8 +82,8 @@ if ($orgId && tenant_table_exists($pdo, 'organizations')) {
         $org = null;
     }
     $orgStatus = strtolower((string)(is_array($org) ? ($org['status'] ?? 'active') : 'active'));
-    if (in_array($orgStatus, ['suspended', 'canceled'], true) && !$isSuperAdmin) {
-        $em = "Workspace access is currently disabled. Please contact support.";
+    if ($orgStatus !== 'active' && !$isSuperAdmin) {
+        $em = "Workspace is currently turned off. Please contact your workspace admin.";
         header("Location: ../login.php?error=$em");
         exit();
     }

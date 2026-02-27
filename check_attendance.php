@@ -1,7 +1,8 @@
 <?php
 session_start();
+header('Content-Type: application/json');
 
-if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'employee') {
+if (!isset($_SESSION['id'], $_SESSION['role']) || $_SESSION['role'] !== 'employee') {
     http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;

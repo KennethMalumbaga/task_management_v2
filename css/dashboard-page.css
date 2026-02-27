@@ -16,7 +16,7 @@ body.dashboard-page .dash-main {
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 12px;
 }
 
 .dashboard-shell > * {
@@ -35,7 +35,7 @@ body.dashboard-page .dash-main {
 }
 
 body.dashboard-page .dash-top-grid {
-    gap: 18px;
+    gap: 14px;
     margin-bottom: 0;
     grid-template-columns: 1.12fr 0.88fr;
 }
@@ -48,6 +48,7 @@ body.dashboard-page .dash-card {
     background: linear-gradient(180deg, #ffffff 0%, #fbfbff 100%);
     box-shadow: 0 14px 32px rgba(17, 24, 39, 0.08);
     padding: 20px 22px;
+    height: auto;
 }
 
 body.dashboard-page .dash-card::before {
@@ -82,6 +83,625 @@ body.dashboard-page .admin-leaderboard-compact {
     max-height: none;
     min-height: 318px;
     padding: 18px 18px;
+}
+
+body.dashboard-page.role-admin .dash-top-grid {
+    grid-template-columns: 0.9fr 1.6fr;
+    align-items: start;
+}
+
+body.dashboard-page.role-employee .dash-top-grid {
+    grid-template-columns: 0.9fr 1.6fr;
+    align-items: start;
+}
+
+body.dashboard-page .dash-top-grid > * {
+    align-self: start;
+}
+
+body.dashboard-page.role-admin .dash-top-grid > .dash-card:first-child {
+    background: #fff;
+    border-color: #e5e7eb;
+}
+
+body.dashboard-page.role-admin .dash-top-grid > .dash-card:first-child::after {
+    display: none;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-compact {
+    padding: 0;
+    min-height: 0;
+}
+
+body.dashboard-page .employee-left-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+body.dashboard-page .employee-time-tracker-card {
+    padding: 10px;
+}
+
+body.dashboard-page .employee-time-tracker-card .btn-clock-in,
+body.dashboard-page .employee-time-tracker-card .btn-clock-out {
+    min-width: 110px;
+    border-radius: 10px;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    line-height: 1.2;
+}
+
+body.dashboard-page .ctt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+body.dashboard-page .ctt-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+}
+
+body.dashboard-page .ctt-camera {
+    color: #9ca3af;
+    font-size: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+body.dashboard-page .ctt-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+body.dashboard-page .ctt-stats {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    flex: 1;
+    border: 1px solid #e3defa;
+    border-radius: 10px;
+    background: #f5f3ff;
+    padding: 7px 10px;
+}
+
+body.dashboard-page .ctt-stat {
+    min-width: 0;
+    flex: 1;
+}
+
+body.dashboard-page .ctt-stat-right {
+    text-align: right;
+}
+
+body.dashboard-page .ctt-label {
+    color: #9ca3af;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+body.dashboard-page .ctt-value {
+    color: #6c3ce1;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+body.dashboard-page .ctt-divider {
+    width: 1px;
+    align-self: stretch;
+    background: #e5e7eb;
+}
+
+body.dashboard-page .ctt-box {
+    margin-top: 8px;
+    border: 1px solid #ddd6fe;
+    border-radius: 10px;
+    background: #f3efff;
+    padding: 8px 10px;
+}
+
+body.dashboard-page .ctt-box-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+body.dashboard-page .ctt-time-label {
+    color: #6c3ce1;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+body.dashboard-page .ctt-time-out {
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+body.dashboard-page .employee-time-tracker-card .employee-time-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+}
+
+body.dashboard-page .employee-tabbed-leaderboard {
+    padding: 0;
+    min-height: 0;
+}
+
+body.dashboard-page .employee-tabbed-leaderboard .admin-tab-panel {
+    flex: 0 0 auto;
+}
+
+body.dashboard-page .employee-tabbed-leaderboard .admin-tab-panel .leaderboard-list {
+    max-height: none;
+    overflow-y: visible;
+}
+
+body.dashboard-page .admin-leaderboard-tabs {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+body.dashboard-page .admin-tab-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 8px;
+}
+
+body.dashboard-page .admin-tab-btn {
+    border: none;
+    background: transparent;
+    border-bottom: 2.5px solid transparent;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    padding: 16px 8px 14px;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+body.dashboard-page .admin-tab-btn.active {
+    color: #6c3ce1;
+    border-bottom-color: #6c3ce1;
+}
+
+body.dashboard-page .admin-tab-panel {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    min-height: 0;
+    flex: 1;
+}
+
+body.dashboard-page .admin-tab-panel .leaderboard-list {
+    overflow-y: auto;
+    padding-right: 4px;
+    max-height: 520px;
+}
+
+body.dashboard-page .admin-tab-panel .leaderboard-item {
+    border-radius: 12px;
+    border: 1px solid #ebedf4;
+    background: #f9fafc;
+    margin-bottom: 8px;
+    padding: 10px 12px;
+}
+
+body.dashboard-page .admin-tab-panel .leaderboard-item:last-child {
+    margin-bottom: 0;
+}
+
+body.dashboard-page .admin-tab-panel .leaderboard-name {
+    font-size: 12px;
+}
+
+body.dashboard-page .admin-tab-panel .leaderboard-meta {
+    font-size: 10px;
+    line-height: 1.35;
+}
+
+body.dashboard-page .admin-tab-panel .rank-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    font-size: 10px;
+}
+
+body.dashboard-page .admin-tab-panel .leaderboard-avatar {
+    width: 28px;
+    height: 28px;
+}
+
+body.dashboard-page .admin-tab-panel .leaderboard-rating {
+    font-size: 12px;
+    min-width: 44px;
+    text-align: right;
+}
+
+body.dashboard-page .bulletin-card {
+    padding: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+body.dashboard-page .bulletin-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid #e8eaf6;
+}
+
+body.dashboard-page .bulletin-head-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body.dashboard-page .bulletin-icon-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6c3ce1 0%, #8b5cf6 100%);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+body.dashboard-page .bulletin-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+}
+
+body.dashboard-page .btn-post {
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6c3ce1 0%, #8b5cf6 100%);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 8px 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+body.dashboard-page .btn-post:hover {
+    background: linear-gradient(135deg, #5f35d9 0%, #7e4ff2 100%);
+}
+
+body.dashboard-page .bulletin-list {
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    max-height: none;
+}
+
+body.dashboard-page.role-employee .bulletin-list {
+    min-height: 250px;
+}
+
+body.dashboard-page.role-admin .bulletin-list {
+    min-height: 250px;
+}
+
+body.dashboard-page.role-employee .employee-inline-stats {
+    margin-top: 0;
+    padding: 8px 10px 10px;
+    border-top: 1px solid #ececf8;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+body.dashboard-page.role-employee .employee-inline-stats .stat-card {
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+body.dashboard-page.role-employee .employee-inline-stats .stat-info h4 {
+    font-size: 10px;
+    margin-bottom: 4px;
+}
+
+body.dashboard-page.role-employee .employee-inline-stats .stat-info span {
+    font-size: 25px;
+}
+
+body.dashboard-page.role-employee .employee-inline-stats .stat-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 15px;
+    border-radius: 10px;
+}
+
+body.dashboard-page .bulletin-list::-webkit-scrollbar,
+body.dashboard-page .admin-tab-panel .leaderboard-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+body.dashboard-page .bulletin-list::-webkit-scrollbar-thumb,
+body.dashboard-page .admin-tab-panel .leaderboard-list::-webkit-scrollbar-thumb {
+    background: #c4b5fd;
+    border-radius: 4px;
+}
+
+body.dashboard-page .bpost {
+    position: relative;
+    border-radius: 12px;
+    border: 1px solid #e7e8f7;
+    background: #f6f4fc;
+    padding: 9px 10px 9px 14px;
+}
+
+body.dashboard-page .bpost::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 4px 0 0 4px;
+}
+
+body.dashboard-page .bpost.ann::before {
+    background: #6c3ce1;
+}
+
+body.dashboard-page .bpost.rem::before {
+    background: #f59e0b;
+}
+
+body.dashboard-page .bpost.alt::before {
+    background: #ef4444;
+}
+
+body.dashboard-page .bpost-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 3px;
+}
+
+body.dashboard-page .bmeta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+body.dashboard-page .btag {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+body.dashboard-page .btag.ann {
+    background: #e9e3fd;
+    color: #6c3ce1;
+}
+
+body.dashboard-page .btag.rem {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+body.dashboard-page .btag.alt {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+body.dashboard-page .btime {
+    font-size: 10px;
+    color: #9ca3af;
+}
+
+body.dashboard-page .bdelete {
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    padding: 0;
+}
+
+body.dashboard-page .bdelete:hover {
+    color: #dc2626;
+    background: #fee2e2;
+}
+
+body.dashboard-page .btitle {
+    font-size: 12px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 2px;
+}
+
+body.dashboard-page .bbody {
+    font-size: 11px;
+    color: #5f6884;
+    line-height: 1.4;
+}
+
+body.dashboard-page .bulletin-empty {
+    text-align: center;
+    padding: 24px 10px;
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+body.dashboard-page.role-employee .bulletin-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+body.dashboard-page.role-admin .bulletin-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+body.dashboard-page .bulletin-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1005;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+body.dashboard-page .bulletin-modal {
+    width: min(420px, calc(100vw - 32px));
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 18px 48px rgba(17, 24, 39, 0.2);
+}
+
+body.dashboard-page .bulletin-modal h3 {
+    margin: 0 0 14px;
+    font-size: 18px;
+    color: #111827;
+}
+
+body.dashboard-page .bulletin-modal label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+body.dashboard-page .bulletin-modal select,
+body.dashboard-page .bulletin-modal input,
+body.dashboard-page .bulletin-modal textarea {
+    width: 100%;
+    border: 1px solid #ddd6fe;
+    background: #f6f4ff;
+    border-radius: 10px;
+    padding: 9px 11px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #1f2937;
+    font-family: "Inter", sans-serif;
+}
+
+body.dashboard-page .bulletin-modal textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+body.dashboard-page .bulletin-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+body.dashboard-page .bulletin-btn-cancel {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #4b5563;
+    border-radius: 9px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+body.dashboard-page .bulletin-btn-submit {
+    border: none;
+    background: #6c3ce1;
+    color: #fff;
+    border-radius: 9px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+body.dashboard-page .bulletin-btn-submit:hover {
+    background: #5f35d9;
+}
+
+body.dashboard-page .bulletin-delete-modal {
+    width: min(360px, calc(100vw - 32px));
+    text-align: center;
+}
+
+body.dashboard-page .bulletin-delete-icon-wrap {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.dashboard-page .bulletin-delete-icon {
+    font-size: 20px;
+}
+
+body.dashboard-page .bulletin-delete-text {
+    margin: 0 0 16px;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+body.dashboard-page .bulletin-btn-danger {
+    border: none;
+    background: #dc2626;
+    color: #fff;
+    border-radius: 9px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+body.dashboard-page .bulletin-btn-danger:hover {
+    background: #b91c1c;
 }
 
 body.dashboard-page .leaderboard-split {
@@ -276,7 +896,7 @@ body.dashboard-page .tasks-section-header {
 
 body.dashboard-page .tasks-section-header h3 {
     margin: 0;
-    font-size: 27px;
+    font-size: 24px;
     line-height: 1.1;
     letter-spacing: -0.02em;
     color: #111827;
@@ -324,7 +944,7 @@ body.dashboard-page .dashboard-task-head {
 
 body.dashboard-page .dashboard-recent-board .task-title {
     margin: 0;
-    font-size: 17px;
+    font-size: 15px;
     line-height: 1.28;
     letter-spacing: -0.01em;
 }
@@ -341,7 +961,7 @@ body.dashboard-page .dashboard-recent-board .badge-v2 {
 body.dashboard-page .dashboard-task-desc {
     margin: 0 0 12px;
     color: #59617a;
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.5;
     min-height: 40px;
 }
@@ -422,7 +1042,7 @@ body.dashboard-page .task-footer {
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px solid #eff1fb;
-    font-size: 11px;
+    font-size: 10px;
 }
 
 body.dashboard-page .dashboard-task-rating {
@@ -487,6 +1107,13 @@ body.dashboard-page .dashboard-view-all-link:hover {
         grid-template-columns: 1fr;
     }
 
+    body.dashboard-page.role-admin .admin-leaderboard-compact,
+    body.dashboard-page.role-admin .bulletin-card,
+    body.dashboard-page.role-employee .bulletin-card,
+    body.dashboard-page.role-employee .employee-tabbed-leaderboard {
+        min-height: 0;
+    }
+
     body.dashboard-page .dash-stats-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -522,6 +1149,83 @@ body.dashboard-page .dashboard-view-all-link:hover {
         grid-template-columns: 1fr;
         gap: 16px;
         margin-bottom: 16px;
+    }
+
+    body.dashboard-page .employee-left-stack {
+        gap: 12px;
+    }
+
+    body.dashboard-page .employee-time-tracker-card {
+        padding: 12px !important;
+    }
+
+    body.dashboard-page .employee-time-tracker-card .ctt-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    body.dashboard-page .employee-time-tracker-card .ctt-stats {
+        width: 100%;
+    }
+
+    body.dashboard-page .employee-time-tracker-card .btn-clock-in,
+    body.dashboard-page .employee-time-tracker-card .btn-clock-out {
+        width: 100% !important;
+        min-width: 0;
+    }
+
+    body.dashboard-page .employee-tabbed-leaderboard {
+        padding: 0 !important;
+    }
+
+    body.dashboard-page .admin-tab-btn {
+        padding: 12px 8px 10px;
+        font-size: 12px;
+    }
+
+    body.dashboard-page .admin-tab-panel {
+        padding: 10px;
+    }
+
+    body.dashboard-page .admin-tab-panel .leaderboard-list {
+        max-height: 220px;
+    }
+
+    body.dashboard-page .employee-tabbed-leaderboard .admin-tab-panel .leaderboard-list {
+        max-height: 190px;
+    }
+
+    body.dashboard-page .bulletin-card {
+        min-height: 0;
+    }
+
+    body.dashboard-page .bulletin-head {
+        padding: 12px 14px 10px;
+    }
+
+    body.dashboard-page .bulletin-list {
+        max-height: 260px;
+        padding: 10px 10px 12px;
+    }
+
+    body.dashboard-page.role-employee .bulletin-list {
+        min-height: 0 !important;
+    }
+
+    body.dashboard-page.role-admin .bulletin-list {
+        min-height: 0 !important;
+    }
+
+    body.dashboard-page .btn-post {
+        padding: 6px 12px;
+        font-size: 10px;
+    }
+
+    body.dashboard-page .bulletin-icon-box {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
     }
 
     body.dashboard-page .dash-card,
@@ -596,12 +1300,40 @@ body.dashboard-page .dashboard-view-all-link:hover {
         margin-top: 20px !important;
     }
 
+    body.dashboard-page.role-employee .employee-inline-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        margin-top: 0 !important;
+        padding: 8px 10px 10px !important;
+    }
+
     body.dashboard-page .stat-card {
         padding: 10px 4px !important;
         flex-direction: column !important;
         text-align: center !important;
         justify-content: center !important;
         min-height: 80px !important;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-card {
+        padding: 10px !important;
+        min-height: 74px !important;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-info h4 {
+        font-size: 8px !important;
+        white-space: nowrap !important;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-info span {
+        font-size: 20px !important;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-icon {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 13px !important;
+        border-radius: 8px !important;
     }
 
     body.dashboard-page .stat-info h4 {

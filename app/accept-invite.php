@@ -99,7 +99,7 @@ try {
     }
 
     $orgStatus = strtolower((string)($invite['organization_status'] ?? 'active'));
-    if (in_array($orgStatus, ['suspended', 'canceled'], true)) {
+    if ($orgStatus !== 'active') {
         throw new RuntimeException("This workspace is currently unavailable.");
     }
 

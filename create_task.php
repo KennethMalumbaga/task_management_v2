@@ -11,6 +11,20 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     $users = get_all_users($pdo, 'employee');
     $groups = get_all_groups($pdo);
     $show_duplicate_modal = isset($_GET['duplicate_title']) && $_GET['duplicate_title'] == '1';
+    $prefill_due_date = '';
+    if (isset($_GET['due_date'])) {
+        $dueDateRaw = trim((string)$_GET['due_date']);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dueDateRaw) === 1) {
+            $dueDateObj = DateTime::createFromFormat('Y-m-d', $dueDateRaw);
+            $dateErrors = DateTime::getLastErrors();
+            $hasParseErrors = is_array($dateErrors) && (
+                !empty($dateErrors['warning_count']) || !empty($dateErrors['error_count'])
+            );
+            if ($dueDateObj instanceof DateTime && !$hasParseErrors && $dueDateObj->format('Y-m-d') === $dueDateRaw) {
+                $prefill_due_date = $dueDateRaw;
+            }
+        }
+    }
  ?>
 <!DOCTYPE html>
 <html>
@@ -297,7 +311,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
                 <!-- Project Leader -->
                 <div id="manualLeaderSection" style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Project Leader (Optional)</label>
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Project Leader</label>
                     <input type="hidden" name="leader_id" id="leaderIdInput" value="0">
                     <div class="member-picker">
                         <div class="member-search">
@@ -336,7 +350,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
                 <!-- Team Members -->
                 <div id="manualMembersSection" style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Team Members (Optional)</label>
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Team Members</label>
                     <div class="member-picker">
                         <div class="member-search">
                             <i class="fa fa-search"></i>
@@ -376,8 +390,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
                 <!-- Due Date -->
                 <div style="margin-bottom: 20px;">
-                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Due Date (Optional)</label>
-                     <input type="date" name="due_date" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;">
+                     <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">Due Date</label>
+                     <input type="date" name="due_date" value="<?= htmlspecialchars($prefill_due_date, ENT_QUOTES) ?>" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;">
                 </div>
 
                  <!-- File -->

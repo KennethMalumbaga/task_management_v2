@@ -7,6 +7,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "app/model/user.php";
     include "app/model/Subtask.php";
     include "app/model/Group.php";
+    include "app/model/Bulletin.php";
     require_once "inc/csrf.php";
 
     // --- DATA FETCHING FOR DASHBOARD ---
@@ -68,6 +69,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     }
 
     $attendanceAjaxCsrfToken = csrf_token('attendance_ajax_actions');
+    $bulletinPostCsrfToken = csrf_token('bulletin_post_action');
+    $bulletinDeleteCsrfToken = csrf_token('bulletin_delete_action');
+    $bulletinPosts = get_recent_bulletin_posts($pdo, 30);
+    $bulletinPostsJson = json_encode($bulletinPosts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!DOCTYPE html>
 <html>
@@ -382,7 +387,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     </style>
     <link rel="stylesheet" href="css/dashboard-page.css">
 </head>
-<body class="dashboard-page">
+<body class="dashboard-page <?= ($_SESSION['role'] === 'admin') ? 'role-admin' : 'role-employee' ?>">
     
     <!-- Sidebar -->
     <?php include "inc/new_sidebar.php"; ?>
@@ -391,220 +396,261 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <div class="dash-main">
         <div class="dashboard-shell">
         
-        <!-- Top Section: Time Tracker & Welcome -->
+        <!-- Top Section: Dashboard Panels -->
         <div class="dash-top-grid">
-            
-            <!-- Time Tracker Card -->
-            <div class="dash-card <?= $_SESSION['role'] == 'admin' ? 'admin-leaderboard-compact' : 'employee-overview-card' ?>">
-                <?php if ($_SESSION['role'] == 'admin') { ?>
-                    <div class="leaderboard-split">
-                        <div class="leaderboard-pane">
-                            <div class="leaderboard-header">
-                                <div class="leaderboard-title">
-                                    <i class="fa fa-sitemap" style="color: #10B981;"></i>
-                                    Top Groups
-                                </div>
-                            </div>
-                            <?php if (!empty($top_groups)) { ?>
-                                <div class="leaderboard-list">
-                                    <?php foreach ($top_groups as $idx => $g) { 
-                                        $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#8B5CF6' : '#10B981');
-                                    ?>
-                                    <div class="leaderboard-item">
-                                        <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
-                                        <div class="leaderboard-info">
-                                            <div class="leaderboard-name"><?= htmlspecialchars($g['group_name']) ?></div>
-                                            <div class="leaderboard-meta"><?= (int)$g['member_count'] ?> member<?= ((int)$g['member_count'] !== 1 ? 's' : '') ?> • <?= (int)$g['rated_task_count'] ?> rated task<?= ((int)$g['rated_task_count'] !== 1 ? 's' : '') ?></div>
-                                        </div>
-                                        <div class="leaderboard-rating">
-                                            <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($g['avg_rating']) ?>
-                                        </div>
-                                    </div>
-                                    <?php } ?>
-                                </div>
-                            <?php } else { ?>
-                                <div class="leaderboard-empty">
-                                    <i class="fa fa-info-circle"></i> No group ratings yet.
-                                </div>
-                            <?php } ?>
-                        </div>
-
-                        <div class="leaderboard-pane">
-                            <div class="leaderboard-header">
-                                <div class="leaderboard-title">
-                                    <i class="fa fa-users" style="color: #6C3CE1;"></i>
-                                    Top Employees
-                                </div>
-                            </div>
-                            <?php if (!empty($top_users)) { ?>
-                                <div class="leaderboard-list">
-                                    <?php foreach ($top_users as $idx => $u) { 
-                                        $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#8B5CF6' : '#10B981');
-                                        $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
-                                    ?>
-                                    <div class="leaderboard-item">
-                                        <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
-                                        <img src="<?= $avatar ?>" class="leaderboard-avatar" alt="User">
-                                        <div class="leaderboard-info">
-                                            <div class="leaderboard-name"><?= htmlspecialchars($u['full_name']) ?></div>
-                                            <div class="leaderboard-meta">
-                                                <?= (int)$u['rated_task_count'] ?> task rate<?= ((int)$u['rated_task_count'] !== 1 ? 's' : '') ?>
-                                                •
-                                                <?= (int)$u['collab_score_count'] ?> collaborative rate<?= ((int)$u['collab_score_count'] !== 1 ? 's' : '') ?>
-                                            </div>
-                                        </div>
-                                        <div class="leaderboard-rating">
-                                            <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($u['avg_rating']) ?>
-                                        </div>
-                                    </div>
-                                    <?php } ?>
-                                </div>
-                            <?php } else { ?>
-                                <div class="leaderboard-empty">
-                                    <i class="fa fa-info-circle"></i> No user ratings yet.
-                                </div>
-                            <?php } ?>
-                        </div>
-                    </div>
-                <?php } else { ?>
-                    <?php $attStats = get_todays_attendance_stats($pdo, $_SESSION['id']); ?>
-                    <div>
-                        <h3 style="margin-top:0;">Welcome, <?= htmlspecialchars($_SESSION['full_name'] ?? 'User') ?>!</h3>
-                        <div class="welcome-role">Role: <span class="welcome-role-badge"><?= ucfirst($_SESSION['role']) ?></span></div>
-                        <div style="margin-top: 14px; font-size: 13px; color: #6B7280; line-height: 1.6;">
-                            You have <b><?= $num_task - $completed ?></b> active tasks remaining effectively. Keep up the good work!
-                        </div>
+            <?php if ($_SESSION['role'] == 'admin') { ?>
+            <div class="dash-card admin-leaderboard-compact">
+                <div class="admin-leaderboard-tabs">
+                    <div class="admin-tab-bar">
+                        <button type="button" class="admin-tab-btn active" id="adminTabEmployees" onclick="switchAdminLeaderboardTab('employees')">Top Employees</button>
+                        <button type="button" class="admin-tab-btn" id="adminTabGroups" onclick="switchAdminLeaderboardTab('groups')">Top Groups</button>
                     </div>
 
-                    <hr class="overview-divider">
+                    <div class="admin-tab-panel" id="adminPanelEmployees">
+                        <?php if (!empty($top_users)) { ?>
+                            <div class="leaderboard-list">
+                                <?php foreach (array_slice($top_users, 0, 6) as $idx => $u) {
+                                    $rankColor = $idx === 0 ? '#6C3CE1' : ($idx === 1 ? '#8B5CF6' : '#7C3AED');
+                                    $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
+                                ?>
+                                <div class="leaderboard-item">
+                                    <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
+                                    <img src="<?= $avatar ?>" class="leaderboard-avatar" alt="User">
+                                    <div class="leaderboard-info">
+                                        <div class="leaderboard-name"><?= htmlspecialchars($u['full_name']) ?></div>
+                                        <div class="leaderboard-meta">
+                                            <?= (int)$u['rated_task_count'] ?> task rate<?= ((int)$u['rated_task_count'] !== 1 ? 's' : '') ?>
+                                            &bull;
+                                            <?= (int)$u['collab_score_count'] ?> collaborative rate<?= ((int)$u['collab_score_count'] !== 1 ? 's' : '') ?>
+                                        </div>
+                                    </div>
+                                    <div class="leaderboard-rating">
+                                        <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($u['avg_rating']) ?>
+                                    </div>
+                                </div>
+                                <?php } ?>
+                            </div>
+                        <?php } else { ?>
+                            <div class="leaderboard-empty">
+                                <i class="fa fa-info-circle"></i> No employee ratings yet.
+                            </div>
+                        <?php } ?>
+                    </div>
 
-                    <div class="time-tracker-header">
-                        <div class="time-tracker-title">
-                            <i class="fa fa-clock-o" style="color: #6C3CE1;"></i> 
+                    <div class="admin-tab-panel" id="adminPanelGroups" style="display:none;">
+                        <?php if (!empty($top_groups)) { ?>
+                            <div class="leaderboard-list">
+                                <?php foreach (array_slice($top_groups, 0, 6) as $idx => $g) {
+                                    $rankColor = $idx === 0 ? '#6C3CE1' : ($idx === 1 ? '#8B5CF6' : '#7C3AED');
+                                ?>
+                                <div class="leaderboard-item">
+                                    <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
+                                    <div class="leaderboard-info">
+                                        <div class="leaderboard-name"><?= htmlspecialchars($g['group_name']) ?></div>
+                                        <div class="leaderboard-meta">
+                                            <?= (int)$g['member_count'] ?> member<?= ((int)$g['member_count'] !== 1 ? 's' : '') ?>
+                                            &bull;
+                                            <?= (int)$g['rated_task_count'] ?> rated task<?= ((int)$g['rated_task_count'] !== 1 ? 's' : '') ?>
+                                        </div>
+                                    </div>
+                                    <div class="leaderboard-rating">
+                                        <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($g['avg_rating']) ?>
+                                    </div>
+                                </div>
+                                <?php } ?>
+                            </div>
+                        <?php } else { ?>
+                            <div class="leaderboard-empty">
+                                <i class="fa fa-info-circle"></i> No group ratings yet.
+                            </div>
+                        <?php } ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dash-card bulletin-card">
+                <div class="bulletin-head">
+                    <div class="bulletin-head-left">
+                        <div class="bulletin-icon-box"><i class="fa fa-thumb-tack"></i></div>
+                        <span class="bulletin-title">Bulletin Board</span>
+                    </div>
+                    <button type="button" class="btn-post" onclick="openBulletinPostModal()">
+                        <i class="fa fa-plus"></i> Post
+                    </button>
+                </div>
+                <div class="bulletin-list" id="bulletinList"></div>
+            </div>
+            <?php } else { ?>
+            <?php $attStats = get_todays_attendance_stats($pdo, $_SESSION['id']); ?>
+            <div class="employee-left-stack">
+                <div class="dash-card employee-time-tracker-card">
+                    <div class="ctt-header">
+                        <div class="ctt-title">
+                            <i class="fa fa-clock-o" style="color:#6C3CE1;"></i>
                             Time Tracker
                         </div>
-                        <div style="color: #9CA3AF;">
-                            <i class="fa fa-camera"></i>
+                        <span class="ctt-camera"><i class="fa fa-camera"></i> Screen captures on</span>
+                    </div>
+
+                    <div class="ctt-row">
+                        <button id="btnTimeIn" class="btn-clock-in" style="display:flex;">
+                            <i class="fa fa-play"></i> Clock In
+                        </button>
+                        <button id="btnTimeOut" class="btn-clock-out" disabled style="display:none;">
+                            <i class="fa fa-pause"></i> Clock Out/Pause
+                        </button>
+                        <div class="ctt-stats">
+                            <div class="ctt-stat">
+                                <div class="ctt-label">Today</div>
+                                <div class="ctt-value"><?= htmlspecialchars((string)$attStats['daily_duration']) ?></div>
+                            </div>
+                            <div class="ctt-divider"></div>
+                            <div class="ctt-stat ctt-stat-right">
+                                <div class="ctt-label">All Time</div>
+                                <div class="ctt-value"><?= htmlspecialchars((string)$attStats['overall_duration']) ?></div>
+                            </div>
                         </div>
                     </div>
 
-                    <div style="margin-bottom: 6px;">
-                        <button id="btnTimeIn" class="btn-clock-in" style="display: flex; padding: 9px 12px; font-size: 16px;">
-                            <i class="fa fa-play"></i> Clock In
-                        </button>
-                        <button id="btnTimeOut" class="btn-clock-out" disabled style="display: none; padding: 9px 12px; font-size: 16px;">
-                            <i class="fa fa-pause"></i> Clock Out/Pause
-                        </button>
-                    </div>
                     <div class="employee-attendance-note">
                         <i class="fa fa-camera"></i>
                         <span id="attendanceStatus">Screen captures taken randomly</span>
                     </div>
 
-                    <div class="employee-attendance-box">
-                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 6px;">
+                    <div class="ctt-box">
+                        <div class="ctt-box-row">
                             <div class="employee-time-title">
-                                <i class="fa fa-clock-o" style="color: #6B7280; font-size: 16px; margin-right: 4px;"></i>
+                                <i class="fa fa-clock-o" style="color:#6B7280; font-size:14px; margin-right:4px;"></i>
                                 <span id="statTimeIn"><?= $attStats['time_in'] ?></span>
                             </div>
-                            <div style="font-size: 11px; color: #6C3CE1; font-weight:700;">TIME IN</div>
+                            <div class="ctt-time-label">TIME IN</div>
                         </div>
-                        <div style="font-size: 12px; color: #6B7280; margin-bottom: 6px;">
-                            OUT: <span id="statTimeOut"><?= $attStats['time_out'] ?></span>
-                        </div>
-                        <div style="border-top: 1px solid #C7D2FE; padding-top: 6px; margin-top: 6px; display: flex; justify-content: space-between; gap: 8px;">
-                             <div style="text-align: left;">
-                                 <div style="font-size: 10px; color: #6B7280; text-transform: uppercase; font-weight: 700;">Today</div>
-                                 <div style="font-size: 24px; font-weight: 800; color: #6C3CE1; line-height: 1;">
-                                    <?= $attStats['daily_duration'] ?>
-                                 </div>
-                             </div>
-                             <div style="text-align: right;">
-                                 <div style="font-size: 10px; color: #6B7280; text-transform: uppercase; font-weight: 700;">All Time</div>
-                                 <div style="font-size: 24px; font-weight: 800; color: #6C3CE1; line-height: 1;">
-                                    <?= $attStats['overall_duration'] ?>
-                                 </div>
-                             </div>
-                        </div>
-                    </div>
-                <?php } ?>
-            </div>
-
-            <?php if ($_SESSION['role'] == 'admin') { ?>
-            <div class="dash-card welcome-card">
-                <div>
-                    <h3>Welcome, <?= htmlspecialchars($_SESSION['full_name'] ?? 'User') ?>!</h3>
-                    <div class="welcome-role">Role: <?= ucfirst($_SESSION['role']) ?></div>
-                    <div style="margin-top: 20px; font-size: 13px; color: #6B7280; line-height: 1.6;">
-                        You have <b><?= $num_task - $completed ?></b> active tasks remaining effectively. <br>
-                        Keep up the good work!
+                        <div class="ctt-time-out">OUT: <span id="statTimeOut"><?= $attStats['time_out'] ?></span></div>
                     </div>
                 </div>
-            </div>
-            <?php } else { ?>
-            <div class="employee-right-panels">
-                <div class="dash-card employee-leaderboard-card groups">
-                    <div class="leaderboard-header">
-                        <div class="leaderboard-title"><i class="fa fa-sitemap" style="color: #10B981;"></i> Top Groups</div>
-                        <a href="groups.php" style="font-size:12px; color:#6C3CE1; text-decoration:none; font-weight:600;">View All</a>
+
+                <div class="dash-card employee-tabbed-leaderboard">
+                    <div class="admin-tab-bar">
+                        <button type="button" class="admin-tab-btn active" id="employeeTabEmployees" onclick="switchEmployeeLeaderboardTab('employees')">Top Employees</button>
+                        <button type="button" class="admin-tab-btn" id="employeeTabGroups" onclick="switchEmployeeLeaderboardTab('groups')">Top Groups</button>
                     </div>
-                    <?php if (!empty($top_groups)) { ?>
-                        <div class="leaderboard-list">
-                            <?php foreach (array_slice($top_groups, 0, 4) as $idx => $g) { 
-                                $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#8B5CF6' : '#10B981');
-                            ?>
-                            <div class="leaderboard-item">
-                                <div class="rank-badge" style="background: <?= $rankColor ?>;"><?= $idx + 1 ?></div>
-                                <div class="leaderboard-info">
-                                    <div class="leaderboard-name"><?= htmlspecialchars($g['group_name']) ?></div>
-                                    <div class="meta-row">
-                                        <div class="leaderboard-meta"><?= (int)$g['member_count'] ?> members</div>
-                                        <div class="leaderboard-meta"><?= (int)$g['rated_task_count'] ?> tasks</div>
+
+                    <div class="admin-tab-panel" id="employeePanelEmployees">
+                        <?php if (!empty($top_users)) { ?>
+                            <div class="leaderboard-list">
+                                <?php foreach (array_slice($top_users, 0, 4) as $idx => $u) {
+                                    $rankColor = $idx === 0 ? '#6C3CE1' : ($idx === 1 ? '#8B5CF6' : '#7C3AED');
+                                    $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
+                                ?>
+                                <div class="leaderboard-item">
+                                    <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
+                                    <img src="<?= $avatar ?>" class="leaderboard-avatar" alt="User">
+                                    <div class="leaderboard-info">
+                                        <div class="leaderboard-name"><?= htmlspecialchars($u['full_name']) ?></div>
+                                        <div class="leaderboard-meta">
+                                            <?= (int)$u['rated_task_count'] ?> task rate<?= ((int)$u['rated_task_count'] !== 1 ? 's' : '') ?>
+                                            &bull;
+                                            <?= (int)$u['collab_score_count'] ?> collaborative rate<?= ((int)$u['collab_score_count'] !== 1 ? 's' : '') ?>
+                                        </div>
+                                    </div>
+                                    <div class="leaderboard-rating">
+                                        <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($u['avg_rating']) ?>
                                     </div>
                                 </div>
-                                <div class="leaderboard-rating">
-                                    <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($g['avg_rating']) ?>
-                                </div>
+                                <?php } ?>
                             </div>
-                            <?php } ?>
-                        </div>
-                    <?php } else { ?>
-                        <div class="leaderboard-empty"><i class="fa fa-info-circle"></i> No group ratings yet.</div>
-                    <?php } ?>
-                </div>
-
-                <div class="dash-card employee-leaderboard-card">
-                    <div class="leaderboard-header">
-                        <div class="leaderboard-title"><i class="fa fa-crown" style="color: #D4A017;"></i> Top Users</div>
+                        <?php } else { ?>
+                            <div class="leaderboard-empty">
+                                <i class="fa fa-info-circle"></i> No employee ratings yet.
+                            </div>
+                        <?php } ?>
                     </div>
-                    <?php if (!empty($top_users)) { ?>
-                        <div class="leaderboard-list">
-                            <?php foreach ($top_users as $idx => $u) { 
-                                $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#8B5CF6' : '#10B981');
-                                $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
-                            ?>
-                            <div class="leaderboard-item">
-                                <div class="rank-badge" style="background: <?= $rankColor ?>;"><?= $idx + 1 ?></div>
-                                <img src="<?= $avatar ?>" class="leaderboard-avatar" alt="User">
-                                <div class="leaderboard-info">
-                                    <div class="leaderboard-name"><?= htmlspecialchars($u['full_name']) ?></div>
-                                    <div class="leaderboard-meta"><?= (int)$u['rated_task_count'] ?> tasks</div>
+
+                    <div class="admin-tab-panel" id="employeePanelGroups" style="display:none;">
+                        <?php if (!empty($top_groups)) { ?>
+                            <div class="leaderboard-list">
+                                <?php foreach (array_slice($top_groups, 0, 4) as $idx => $g) {
+                                    $rankColor = $idx === 0 ? '#6C3CE1' : ($idx === 1 ? '#8B5CF6' : '#7C3AED');
+                                ?>
+                                <div class="leaderboard-item">
+                                    <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
+                                    <div class="leaderboard-info">
+                                        <div class="leaderboard-name"><?= htmlspecialchars($g['group_name']) ?></div>
+                                        <div class="leaderboard-meta">
+                                            <?= (int)$g['member_count'] ?> member<?= ((int)$g['member_count'] !== 1 ? 's' : '') ?>
+                                            &bull;
+                                            <?= (int)$g['rated_task_count'] ?> rated task<?= ((int)$g['rated_task_count'] !== 1 ? 's' : '') ?>
+                                        </div>
+                                    </div>
+                                    <div class="leaderboard-rating">
+                                        <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($g['avg_rating']) ?>
+                                    </div>
                                 </div>
-                                <div class="leaderboard-rating">
-                                    <i class="fa fa-star" style="color:#F59E0B;"></i> <?= htmlspecialchars($u['avg_rating']) ?>
-                                </div>
+                                <?php } ?>
                             </div>
-                            <?php } ?>
+                        <?php } else { ?>
+                            <div class="leaderboard-empty">
+                                <i class="fa fa-info-circle"></i> No group ratings yet.
+                            </div>
+                        <?php } ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dash-card bulletin-card">
+                <div class="bulletin-head">
+                    <div class="bulletin-head-left">
+                        <div class="bulletin-icon-box"><i class="fa fa-thumb-tack"></i></div>
+                        <span class="bulletin-title">Bulletin Board</span>
+                    </div>
+                </div>
+                <div class="bulletin-list" id="bulletinList"></div>
+                <div class="dash-stats-grid employee-inline-stats">
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h4>Total Tasks</h4>
+                            <span><?= $num_task ?></span>
                         </div>
-                    <?php } else { ?>
-                        <div class="leaderboard-empty"><i class="fa fa-info-circle"></i> No employee ratings yet.</div>
-                    <?php } ?>
+                        <div class="stat-icon icon-blue">
+                            <i class="fa fa-check-square-o"></i>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h4>Completed Tasks</h4>
+                            <span><?= $completed ?></span>
+                        </div>
+                        <div class="stat-icon icon-green">
+                            <i class="fa fa-clock-o"></i>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h4>Collaborative Rate</h4>
+                            <span><?= $collaborative_rate ?></span>
+                        </div>
+                        <div class="stat-icon icon-purple">
+                            <i class="fa fa-users"></i>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h4>Avg Rating</h4>
+                            <span style="display:flex; align-items:center; gap:4px;"><?= $avg_rating ?></span>
+                        </div>
+                        <div class="stat-icon icon-yellow">
+                            <i class="fa fa-star-o"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
             <?php } ?>
         </div>
-
-            <!-- Stats Section (Moved Up) -->
+            <?php if ($_SESSION['role'] == 'admin') { ?>
+            <!-- Stats Section -->
             <div class="dash-stats-grid">
                 <!-- Total Tasks -->
                 <div class="stat-card">
@@ -650,6 +696,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     </div>
                 </div>
             </div>
+            <?php } ?>
 
             <section class="dashboard-recent-board">
                 <div class="tasks-section-header">
@@ -801,7 +848,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     // Store user ID from PHP session
     var currentUserId = <?= isset($_SESSION['id']) ? $_SESSION['id'] : 'null' ?>;
     var isEmployeeUser = <?= (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin') ? 'true' : 'false' ?>;
+    var isAdminUser = <?= (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ? 'true' : 'false' ?>;
     var attendanceAjaxCsrfToken = <?= json_encode($attendanceAjaxCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var bulletinPostCsrfToken = <?= json_encode($bulletinPostCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var bulletinDeleteCsrfToken = <?= json_encode($bulletinDeleteCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var bulletinPosts = <?= $bulletinPostsJson ?: '[]' ?>;
+    var bulletinTagLabels = { ann: 'Announcement', rem: 'Reminder', alt: 'Alert' };
 
     const btnIn = document.getElementById('btnTimeIn');
     const btnOut = document.getElementById('btnTimeOut');
@@ -817,6 +869,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     const clockInNavWarningKey = 'taskflow_nav_clockin_warned_once_user_' + String(currentUserId || 'guest');
     let hasSeenClockInNavWarning = false;
     let pendingNavTarget = null;
+    let pendingBulletinDeleteId = null;
     try {
         hasSeenClockInNavWarning = sessionStorage.getItem(clockInNavWarningKey) === '1';
     } catch (e) {
@@ -881,6 +934,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     window.addEventListener('message', function(event) {
         // Only accept from same origin
         if (event.origin !== window.location.origin) return;
+        if (!statusSpan) return;
         
         if (event.data.type === 'CAPTURE_STARTED') {
             statusSpan.textContent = 'Timed in. Screen capture active.';
@@ -1020,9 +1074,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         attendanceId = null;
         hasActiveAttendance = false;
         updateButtonState(false);
-        statusSpan.textContent = message || 'Timed out. Session ended.';
-        statusSpan.className = isError ? 'status-error' : '';
-        statusSpan.style.color = isError ? '#EF4444' : '';
+        if (statusSpan) {
+            statusSpan.textContent = message || 'Timed out. Session ended.';
+            statusSpan.className = isError ? 'status-error' : '';
+            statusSpan.style.color = isError ? '#EF4444' : '';
+        }
     }
 
     function signalCaptureStop(reason) {
@@ -1224,6 +1280,326 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         if (modal) modal.style.display = 'none';
     }
 
+    function switchAdminLeaderboardTab(tabName) {
+        var employeesTab = document.getElementById('adminTabEmployees');
+        var groupsTab = document.getElementById('adminTabGroups');
+        var employeesPanel = document.getElementById('adminPanelEmployees');
+        var groupsPanel = document.getElementById('adminPanelGroups');
+        if (!employeesTab || !groupsTab || !employeesPanel || !groupsPanel) return;
+
+        var showEmployees = tabName !== 'groups';
+        employeesTab.classList.toggle('active', showEmployees);
+        groupsTab.classList.toggle('active', !showEmployees);
+        employeesPanel.style.display = showEmployees ? 'flex' : 'none';
+        groupsPanel.style.display = showEmployees ? 'none' : 'flex';
+    }
+
+    function switchEmployeeLeaderboardTab(tabName) {
+        var employeesTab = document.getElementById('employeeTabEmployees');
+        var groupsTab = document.getElementById('employeeTabGroups');
+        var employeesPanel = document.getElementById('employeePanelEmployees');
+        var groupsPanel = document.getElementById('employeePanelGroups');
+        if (!employeesTab || !groupsTab || !employeesPanel || !groupsPanel) return;
+
+        var showEmployees = tabName !== 'groups';
+        employeesTab.classList.toggle('active', showEmployees);
+        groupsTab.classList.toggle('active', !showEmployees);
+        employeesPanel.style.display = showEmployees ? 'flex' : 'none';
+        groupsPanel.style.display = showEmployees ? 'none' : 'flex';
+        requestAnimationFrame(applyBulletinAndTileHeights);
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function limitBulletinListToThreeVisibleItems() {
+        var list = document.getElementById('bulletinList');
+        if (!list) return;
+
+        var posts = list.querySelectorAll('.bpost');
+        var listStyle = window.getComputedStyle(list);
+        var paddingTop = parseFloat(listStyle.paddingTop) || 0;
+        var paddingBottom = parseFloat(listStyle.paddingBottom) || 0;
+        var gap = parseFloat(listStyle.rowGap || listStyle.gap) || 0;
+        var targetHeight = 0;
+
+        if (posts.length >= 3) {
+            var thirdItemBottom = posts[2].offsetTop + posts[2].offsetHeight;
+            targetHeight = Math.ceil(thirdItemBottom + paddingBottom + gap);
+        } else {
+            var baseItemHeight = 82;
+            if (posts.length > 0) {
+                baseItemHeight = posts[0].offsetHeight || baseItemHeight;
+            } else {
+                var emptyState = list.querySelector('.bulletin-empty');
+                if (emptyState) {
+                    baseItemHeight = Math.max(72, Math.floor((emptyState.offsetHeight || 0) / 3));
+                }
+            }
+            targetHeight = Math.ceil((baseItemHeight * 3) + (gap * 2) + paddingTop + paddingBottom);
+        }
+
+        list.style.overflowY = posts.length > 3 ? 'auto' : 'hidden';
+        list.style.minHeight = targetHeight + 'px';
+        list.style.maxHeight = targetHeight + 'px';
+
+        if (posts.length === 0) {
+            var emptyStateEl = list.querySelector('.bulletin-empty');
+            if (emptyStateEl) {
+                emptyStateEl.style.minHeight = Math.max(0, targetHeight - paddingTop - paddingBottom) + 'px';
+            }
+        }
+    }
+
+    function limitAdminLeaderboardToFourVisibleItems() {
+        if (!isAdminUser) return;
+
+        var employeesPanel = document.getElementById('adminPanelEmployees');
+        var groupsPanel = document.getElementById('adminPanelGroups');
+        var activePanel = null;
+        if (employeesPanel && employeesPanel.style.display !== 'none') {
+            activePanel = employeesPanel;
+        } else if (groupsPanel && groupsPanel.style.display !== 'none') {
+            activePanel = groupsPanel;
+        } else {
+            activePanel = employeesPanel || groupsPanel;
+        }
+        if (!activePanel) return;
+
+        var list = activePanel.querySelector('.leaderboard-list');
+        if (!list) return;
+
+        var items = list.querySelectorAll('.leaderboard-item');
+        list.style.overflowY = 'auto';
+
+        if (items.length <= 4) {
+            list.style.maxHeight = 'none';
+            return;
+        }
+
+        var listStyle = window.getComputedStyle(list);
+        var paddingBottom = parseFloat(listStyle.paddingBottom) || 0;
+        var gap = parseFloat(listStyle.rowGap || listStyle.gap) || 0;
+        var fourthItemBottom = items[3].offsetTop + items[3].offsetHeight;
+        var targetHeight = Math.ceil(fourthItemBottom + paddingBottom + gap);
+
+        list.style.maxHeight = targetHeight + 'px';
+    }
+
+    function syncAdminBulletinHeightToLeaderboard() {
+        if (!isAdminUser) return;
+        if (window.innerWidth <= 1180) {
+            var smallScreenBulletinList = document.getElementById('bulletinList');
+            if (smallScreenBulletinList) {
+                smallScreenBulletinList.style.maxHeight = 'none';
+                smallScreenBulletinList.style.minHeight = '';
+            }
+            return;
+        }
+
+        var employeesPanel = document.getElementById('adminPanelEmployees');
+        var groupsPanel = document.getElementById('adminPanelGroups');
+        var activePanel = null;
+        if (employeesPanel && employeesPanel.style.display !== 'none') {
+            activePanel = employeesPanel;
+        } else if (groupsPanel && groupsPanel.style.display !== 'none') {
+            activePanel = groupsPanel;
+        } else {
+            activePanel = employeesPanel || groupsPanel;
+        }
+
+        var leaderboardList = activePanel ? activePanel.querySelector('.leaderboard-list') : null;
+        var bulletinList = document.getElementById('bulletinList');
+        if (!leaderboardList || !bulletinList) return;
+
+        var leaderRect = leaderboardList.getBoundingClientRect();
+        var bulletinRect = bulletinList.getBoundingClientRect();
+        var targetHeight = Math.floor(leaderRect.bottom - bulletinRect.top);
+        if (targetHeight <= 120) return;
+
+        var posts = bulletinList.querySelectorAll('.bpost');
+        bulletinList.style.overflowY = posts.length > 4 ? 'auto' : 'hidden';
+        bulletinList.style.minHeight = targetHeight + 'px';
+        bulletinList.style.maxHeight = targetHeight + 'px';
+
+        if (posts.length === 0) {
+            var style = window.getComputedStyle(bulletinList);
+            var paddingTop = parseFloat(style.paddingTop) || 0;
+            var paddingBottom = parseFloat(style.paddingBottom) || 0;
+            var emptyState = bulletinList.querySelector('.bulletin-empty');
+            if (emptyState) {
+                emptyState.style.minHeight = Math.max(0, targetHeight - paddingTop - paddingBottom) + 'px';
+            }
+        }
+    }
+
+    function applyBulletinAndTileHeights() {
+        if (isAdminUser) {
+            limitAdminLeaderboardToFourVisibleItems();
+            syncAdminBulletinHeightToLeaderboard();
+            return;
+        }
+        var employeeBulletinCard = document.querySelector('.bulletin-card');
+        if (employeeBulletinCard) {
+            employeeBulletinCard.style.height = '';
+        }
+        limitBulletinListToThreeVisibleItems();
+    }
+
+    function renderBulletins() {
+        var list = document.getElementById('bulletinList');
+        if (!list) return;
+
+        if (!Array.isArray(bulletinPosts) || bulletinPosts.length === 0) {
+            list.style.maxHeight = 'none';
+            list.innerHTML = '<div class=\"bulletin-empty\"><i class=\"fa fa-inbox\" style=\"font-size:22px; display:block; margin-bottom:8px;\"></i>No posts yet.</div>';
+            requestAnimationFrame(applyBulletinAndTileHeights);
+            return;
+        }
+
+        list.innerHTML = bulletinPosts.map(function (post) {
+            var type = (post && post.type) ? String(post.type) : 'ann';
+            if (!bulletinTagLabels[type]) {
+                type = 'ann';
+            }
+            var postId = post && post.id ? parseInt(post.id, 10) : 0;
+            var deleteAction = '';
+            if (isAdminUser && postId > 0) {
+                deleteAction = '<button type=\"button\" class=\"bdelete\" title=\"Delete post\" onclick=\"deleteBulletinPost(' + postId + ')\"><i class=\"fa fa-trash\"></i></button>';
+            }
+
+            return '' +
+                '<div class=\"bpost ' + type + '\">' +
+                    '<div class=\"bpost-top\">' +
+                        '<span class=\"btag ' + type + '\">' + escapeHtml(bulletinTagLabels[type]) + '</span>' +
+                        '<div class=\"bmeta\">' +
+                            '<span class=\"btime\">' + escapeHtml(post.time || '') + '</span>' +
+                            deleteAction +
+                        '</div>' +
+                    '</div>' +
+                    '<div class=\"btitle\">' + escapeHtml(post.title || '') + '</div>' +
+                    '<div class=\"bbody\">' + escapeHtml(post.body || '') + '</div>' +
+                '</div>';
+        }).join('');
+
+        requestAnimationFrame(applyBulletinAndTileHeights);
+    }
+
+    function openBulletinPostModal() {
+        var modal = document.getElementById('bulletinPostModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeBulletinPostModal() {
+        var modal = document.getElementById('bulletinPostModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function submitBulletinPost() {
+        if (!isAdminUser) return;
+        var typeEl = document.getElementById('bulletinType');
+        var titleEl = document.getElementById('bulletinTitle');
+        var bodyEl = document.getElementById('bulletinBody');
+        var submitBtn = document.querySelector('#bulletinPostModal .bulletin-btn-submit');
+        if (!typeEl || !titleEl || !bodyEl) return;
+
+        var type = typeEl.value;
+        var title = titleEl.value.trim();
+        var body = bodyEl.value.trim();
+        if (!title || !body) {
+            alert('Please fill in title and message.');
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Posting...';
+        }
+
+        var payload = 'csrf_token=' + encodeURIComponent(bulletinPostCsrfToken) +
+            '&type=' + encodeURIComponent(type) +
+            '&title=' + encodeURIComponent(title) +
+            '&body=' + encodeURIComponent(body);
+
+        ajax('bulletin_post.php', payload, function (res) {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Post to All Users';
+            }
+
+            if (!res || res.status !== 'success' || !res.post) {
+                alert((res && res.message) ? res.message : 'Unable to publish bulletin post.');
+                return;
+            }
+
+            bulletinPosts.unshift(res.post);
+            renderBulletins();
+            closeBulletinPostModal();
+            titleEl.value = '';
+            bodyEl.value = '';
+        });
+    }
+
+    function deleteBulletinPost(postId) {
+        if (!isAdminUser) return;
+        var id = parseInt(postId, 10);
+        if (!id) return;
+
+        pendingBulletinDeleteId = id;
+        openBulletinDeleteModal();
+    }
+
+    function openBulletinDeleteModal() {
+        var modal = document.getElementById('bulletinDeleteModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeBulletinDeleteModal() {
+        var modal = document.getElementById('bulletinDeleteModal');
+        if (modal) modal.style.display = 'none';
+        pendingBulletinDeleteId = null;
+    }
+
+    function confirmBulletinDelete() {
+        if (!isAdminUser) return;
+        var id = parseInt(pendingBulletinDeleteId, 10);
+        if (!id) {
+            closeBulletinDeleteModal();
+            return;
+        }
+        var btn = document.getElementById('bulletinDeleteConfirmBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Deleting...';
+        }
+
+        var payload = 'csrf_token=' + encodeURIComponent(bulletinDeleteCsrfToken) +
+            '&post_id=' + encodeURIComponent(String(id));
+
+        ajax('bulletin_delete.php', payload, function (res) {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Delete';
+            }
+            if (!res || res.status !== 'success') {
+                alert((res && res.message) ? res.message : 'Unable to delete bulletin post.');
+                return;
+            }
+
+            bulletinPosts = (bulletinPosts || []).filter(function (item) {
+                return parseInt(item && item.id ? item.id : 0, 10) !== id;
+            });
+            renderBulletins();
+            closeBulletinDeleteModal();
+        });
+    }
+
     if (isEmployeeUser) {
         document.addEventListener('click', function (e) {
             const link = e.target.closest('a[href]');
@@ -1237,8 +1613,66 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }, true);
     }
 
+    document.addEventListener('click', function (event) {
+        var postModalEl = document.getElementById('bulletinPostModal');
+        if (postModalEl && event.target === postModalEl) {
+            closeBulletinPostModal();
+        }
+        var deleteModalEl = document.getElementById('bulletinDeleteModal');
+        if (deleteModalEl && event.target === deleteModalEl) {
+            closeBulletinDeleteModal();
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        closeBulletinPostModal();
+        closeBulletinDeleteModal();
+    });
+
+    window.addEventListener('resize', function () {
+        applyBulletinAndTileHeights();
+    });
+
+    switchAdminLeaderboardTab('employees');
+    switchEmployeeLeaderboardTab('employees');
+    renderBulletins();
     setupIdleCheckPrompt();
 </script>
+<!-- Bulletin Post Modal -->
+<div id="bulletinPostModal" class="bulletin-modal-overlay">
+    <div class="bulletin-modal">
+        <h3><i class="fa fa-thumb-tack" style="color:#6C3CE1; margin-right:6px;"></i> New Bulletin Post</h3>
+        <label for="bulletinType">Type</label>
+        <select id="bulletinType">
+            <option value="ann">Announcement</option>
+            <option value="rem">Reminder</option>
+            <option value="alt">Alert</option>
+        </select>
+        <label for="bulletinTitle">Title</label>
+        <input type="text" id="bulletinTitle" placeholder="e.g. Team Meeting this Friday">
+        <label for="bulletinBody">Message</label>
+        <textarea id="bulletinBody" placeholder="Write your message here..."></textarea>
+        <div class="bulletin-modal-actions">
+            <button type="button" class="bulletin-btn-cancel" onclick="closeBulletinPostModal()">Cancel</button>
+            <button type="button" class="bulletin-btn-submit" onclick="submitBulletinPost()">Post to All Users</button>
+        </div>
+    </div>
+</div>
+<!-- Bulletin Delete Modal -->
+<div id="bulletinDeleteModal" class="bulletin-modal-overlay">
+    <div class="bulletin-modal bulletin-delete-modal">
+        <div class="bulletin-delete-icon-wrap">
+            <i class="fa fa-trash bulletin-delete-icon"></i>
+        </div>
+        <h3>Delete Announcement?</h3>
+        <p class="bulletin-delete-text">This post will be removed for everyone.</p>
+        <div class="bulletin-modal-actions">
+            <button type="button" class="bulletin-btn-cancel" onclick="closeBulletinDeleteModal()">Cancel</button>
+            <button type="button" id="bulletinDeleteConfirmBtn" class="bulletin-btn-danger" onclick="confirmBulletinDelete()">Delete</button>
+        </div>
+    </div>
+</div>
 <!-- Confirmation Modal -->
 <div id="confirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1001; align-items:center; justify-content:center;">
     <div style="background:white; padding:30px; border-radius:12px; width:350px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.15);">

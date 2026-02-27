@@ -2,6 +2,7 @@
 session_start();
 
 require_once "../DB_connection.php";
+require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 require_once __DIR__ . "/helpers/login_verification.php";
 
@@ -47,6 +48,27 @@ if ($role !== 'admin' && $role !== 'employee') {
     exit();
 }
 
+$isSuperAdmin = !empty($pending['is_super_admin']);
+$orgId = (int)($pending['organization_id'] ?? 0);
+if ($orgId > 0 && !$isSuperAdmin && tenant_table_exists($pdo, 'organizations')) {
+    $orgStmt = $pdo->prepare("SELECT status FROM organizations WHERE id = ? LIMIT 1");
+    $orgStmt->execute([$orgId]);
+    $org = $orgStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$org) {
+        unset($_SESSION['pending_login_verification']);
+        header("Location: ../login.php?error=" . urlencode("Account is not linked to a valid workspace."));
+        exit();
+    }
+
+    $orgStatus = strtolower((string)($org['status'] ?? 'active'));
+    if ($orgStatus !== 'active') {
+        unset($_SESSION['pending_login_verification']);
+        header("Location: ../login.php?error=" . urlencode("Workspace is currently turned off. Please contact your workspace admin."));
+        exit();
+    }
+}
+
 unset($_SESSION['pending_login_verification']);
 unset(
     $_SESSION['role'],
@@ -66,7 +88,6 @@ $_SESSION['id'] = $userId;
 $_SESSION['username'] = (string)($pending['username'] ?? '');
 $_SESSION['full_name'] = (string)($pending['full_name'] ?? '');
 
-$orgId = (int)($pending['organization_id'] ?? 0);
 if ($orgId > 0) {
     $_SESSION['organization_id'] = $orgId;
 
