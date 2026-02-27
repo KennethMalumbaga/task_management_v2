@@ -11,6 +11,20 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     $users = get_all_users($pdo, 'employee');
     $groups = get_all_groups($pdo);
     $show_duplicate_modal = isset($_GET['duplicate_title']) && $_GET['duplicate_title'] == '1';
+    $prefill_due_date = '';
+    if (isset($_GET['due_date'])) {
+        $dueDateRaw = trim((string)$_GET['due_date']);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dueDateRaw) === 1) {
+            $dueDateObj = DateTime::createFromFormat('Y-m-d', $dueDateRaw);
+            $dateErrors = DateTime::getLastErrors();
+            $hasParseErrors = is_array($dateErrors) && (
+                !empty($dateErrors['warning_count']) || !empty($dateErrors['error_count'])
+            );
+            if ($dueDateObj instanceof DateTime && !$hasParseErrors && $dueDateObj->format('Y-m-d') === $dueDateRaw) {
+                $prefill_due_date = $dueDateRaw;
+            }
+        }
+    }
  ?>
 <!DOCTYPE html>
 <html>
@@ -227,7 +241,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <div class="field">
                      <label class="field-label">Due Date</label>
                      <div class="date-wrap">
-                        <input type="date" name="due_date">
+                        <input type="date" name="due_date" value="<?= htmlspecialchars($prefill_due_date, ENT_QUOTES) ?>">
                         <span class="cal-icon"><i class="fa fa-calendar-o"></i></span>
                      </div>
                 </div>

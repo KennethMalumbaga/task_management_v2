@@ -33,6 +33,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     if (!empty($all_groups)) {
         foreach ($all_groups as $group) {
             $lastGroupMsg = get_last_group_message($pdo, $group['id']);
+            $group['last_msg_sort_time'] = (!empty($lastGroupMsg) && !empty($lastGroupMsg['created_at']))
+                ? $lastGroupMsg['created_at']
+                : null;
             if (!empty($lastGroupMsg) && !empty($lastGroupMsg['created_at'])) {
                 $group['last_msg_time'] = $lastGroupMsg['created_at'];
             } elseif (!empty($group['created_at'])) {
@@ -75,7 +78,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <?php include "inc/new_sidebar.php"; ?>
 
     <!-- Main Content -->
-    <div class="dash-main" style="height: 100vh; display: flex; flex-direction: column;">
+    <div class="dash-main messages-page-main">
         <div class="chat-layout">
             
             <!-- Chat Sidebar (Users) -->
@@ -86,16 +89,24 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <input type="text" id="searchText" placeholder="Search users or groups...">
                     </div>
                 </div>
+                <div class="chat-filter-tabs" role="tablist" aria-label="Filter chats">
+                    <button type="button" class="chat-filter-tab active" data-filter="all" role="tab" aria-selected="true">All</button>
+                    <button type="button" class="chat-filter-tab" data-filter="users" role="tab" aria-selected="false">Users</button>
+                    <button type="button" class="chat-filter-tab" data-filter="groups" role="tab" aria-selected="false">Groups</button>
+                </div>
+                <div class="chat-list" id="allChatList"></div>
                 
                 <div class="chat-list" id="chatList">
                     <?php 
                     if ($users != 0) {
                         foreach ($users as $user) {
                             $lastMessage = $user['last_message_data'];
+                            $lastTimestamp = (!empty($lastMessage['created_at'])) ? strtotime($lastMessage['created_at']) : 0;
+                            if ($lastTimestamp === false) $lastTimestamp = 0;
                             $unreadCount = countUnreadChat($user['id'], $_SESSION['id'], $pdo);
                             $unreadClass = ($unreadCount > 0) ? "unread" : "";
                     ?>
-                    <div class="chat-item <?=$unreadClass?>" data-id="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>" data-role="<?=ucfirst($user['role'])?>">
+                    <div class="chat-item <?=$unreadClass?>" data-id="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>" data-role="<?=ucfirst($user['role'])?>" data-last-ts="<?=$lastTimestamp?>">
                         <div class="avatar-md">
                              <?php if (!empty($user['profile_image']) && $user['profile_image'] != 'default.png' && file_exists('uploads/' . $user['profile_image'])): ?>
                                 <img src="uploads/<?=$user['profile_image']?>" alt="Profile" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
@@ -138,12 +149,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 </div>
 
                 <!-- Group Chats -->
-                <div style="margin-top: 12px; padding: 0 8px;">
-                    <div style="font-size: 11px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.5px; margin: 6px 0;">Groups</div>
+                <div class="chat-group-heading">
+                    <div class="chat-group-heading-label">Groups</div>
                 </div>
                 <div class="chat-list" id="groupList">
                     <?php if (!empty($groups)) { foreach ($groups as $group) { ?>
-                        <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>">
+                        <?php
+                            $groupLastTimestamp = !empty($group['last_msg_sort_time']) ? strtotime($group['last_msg_sort_time']) : 0;
+                            if ($groupLastTimestamp === false) $groupLastTimestamp = 0;
+                        ?>
+                        <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>" data-last-ts="<?=$groupLastTimestamp?>">
                             <div class="avatar-md" style="background:#EEF2FF; color:#6C3CE1;">
                                 <i class="fa fa-users"></i>
                             </div>
@@ -175,7 +190,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             <div class="chat-main">
                 
                 <!-- If no user selected -->
-                <div id="noChatSelected" style="height: 100%; display: flex; align-items: center; justify-content: center; color: #9CA3AF; flex-direction: column;">
+                <div id="noChatSelected" class="no-chat-state" style="height: 100%; display: flex; align-items: center; justify-content: center; color: #9CA3AF; flex-direction: column;">
                     <i class="fa fa-comments-o" style="font-size: 64px; margin-bottom: 16px; opacity: 0.2;"></i>
                     <p style="font-size: 16px; font-weight: 500;">Select a user to start messaging</p>
                 </div>
@@ -219,10 +234,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <div class="chat-input-wrapper">
                              <button type="button" class="btn-attach" id="attachBtn"><i class="fa fa-paperclip"></i></button>
                              <input type="file" id="fileInput" style="display: none;" multiple>
-                             <input type="text" id="messageInput" placeholder="Type a message...">
+                             <input type="text" id="messageInput" placeholder="Send a message...">
                              <div id="mentionSuggestions" class="mention-suggestions" style="display:none;"></div>
                         </div>
-                        <button id="sendBtn" class="btn-send"><i class="fa fa-paper-plane-o"></i></button>
+                        <button id="sendBtn" class="btn-send"><span class="btn-send-label">Send</span><i class="fa fa-paper-plane-o"></i></button>
                     </div>
                  </div>
 
@@ -255,6 +270,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             var groupMentionMembers = [];
             var mentionSuggestionsData = [];
             var mentionSelectionIndex = -1;
+            var currentListFilter = "all";
 
             // Search Filter
              $("#searchText").on("input", function(){
@@ -265,24 +281,29 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                }
                
                $.post('app/ajax/search.php', { key: searchText }, function(data, status){
-                   var res = JSON.parse(data);
-                   $("#chatList").html(res.users);
-                   $("#groupList").html(res.groups);
-                   bindChatClicks(); // Rebind clicks on new elements
-                   bindGroupClicks(); // Rebind group clicks on new elements
-               });
-            });
+                    var res = JSON.parse(data);
+                    $("#chatList").html(res.users);
+                    $("#groupList").html(res.groups);
+                    applyChatFilter(currentListFilter);
+                });
+             });
 
-            bindChatClicks();
-            bindGroupClicks();
+            bindFilterTabs();
+            applyChatFilter(currentListFilter);
 
             function bindChatClicks(){
-                $(".chat-item").click(function(){
+                $(".chat-item").off("click.chatUser").on("click.chatUser", function(){
                     if ($(this).hasClass("group-item")) return;
+
+                    // Data
+                    var userId = $(this).attr("data-id");
+                    var userName = $(this).attr("data-name");
+                    var userRole = $(this).attr("data-role");
+                    
                     // Styles
                     $(".chat-item").removeClass("active");
-                    $(this).addClass("active");
-                    $(this).removeClass("unread"); // Remove unread styling
+                    $('.chat-item[data-id="' + userId + '"]').addClass("active");
+                    $('.chat-item[data-id="' + userId + '"]').removeClass("unread");
 
                     // Mobile Toggle Class
                     $(".chat-layout").addClass("mobile-chat-active");
@@ -290,8 +311,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     // Clear Badge logic
                     var badge = $(this).find(".message-badge");
                     if(badge.length > 0){
-                         var count = parseInt(badge.text()) || 0;
-                         badge.remove(); // Remove badge from user list
+                         var count = parseInt(badge.first().text()) || 0;
+                         $('.chat-item[data-id="' + userId + '"] .message-badge').remove();
 
                           // Update Sidebar Badge
                           var sidebarBadge = $(".dash-nav-badge");
@@ -318,11 +339,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                           }
                     }
 
-                    // Data
-                    var userId = $(this).attr("data-id");
-                    var userName = $(this).attr("data-name");
-                    var userRole = $(this).attr("data-role");
-                    
                     // Avatar clone for header
                     var avatarHtml = $(this).find(".avatar-md").html();
 
@@ -354,18 +370,21 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
 
             function bindGroupClicks(){
-                $(".group-item").click(function(){
+                $(".group-item").off("click.chatGroup").on("click.chatGroup", function(){
+                    var groupId = $(this).attr("data-group-id");
+                    var groupName = $(this).attr("data-group-name");
+
                     // Styles
                     $(".chat-item").removeClass("active");
-                    $(this).addClass("active");
+                    $('.group-item[data-group-id="' + groupId + '"]').addClass("active");
 
                     $(".chat-layout").addClass("mobile-chat-active");
 
                     // Clear Badge logic
                     var badge = $(this).find(".message-badge");
                     if(badge.length > 0){
-                         var count = parseInt(badge.text()) || 0;
-                         badge.remove(); // Remove badge from list
+                         var count = parseInt(badge.first().text()) || 0;
+                         $('.group-item[data-group-id="' + groupId + '"] .message-badge').remove();
 
                          // Update Sidebar Badge
                          var sidebarBadge = $(".dash-nav-badge");
@@ -392,9 +411,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                          }
                     }
 
-                    var groupId = $(this).attr("data-group-id");
-                    var groupName = $(this).attr("data-group-name");
-
                     currentGroupId = groupId;
                     currentChatUserId = 0;
                     currentChatType = "group";
@@ -408,18 +424,87 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     
                     // UI Set for Group Chat
                     $("#chatInfoToggle").show();
+                    $("#rightSidebar").removeClass("active");
+                    $("#chatInfoOverlay").removeClass("active");
                     
                     // Reset attachment
                     resetAttachment();
                     loadMessages();
-                    
-                    // Clean up loading state if already active
-                    if($(window).width() > 900) {
-                        $("#rightSidebar").addClass("active");
-                    }
+
                     loadGroupDetails(groupId);
                     loadGroupMentionMembers(groupId);
                 });
+            }
+
+            function buildCombinedChatList(){
+                var combined = [];
+                $("#chatList .chat-item, #groupList .chat-item").each(function(){
+                    var ts = parseInt($(this).attr("data-last-ts"), 10);
+                    if (isNaN(ts)) ts = 0;
+                    combined.push({
+                        ts: ts,
+                        html: this.outerHTML
+                    });
+                });
+
+                combined.sort(function(a, b){
+                    return b.ts - a.ts;
+                });
+
+                if (combined.length === 0) {
+                    $("#allChatList").html('<div style="padding: 12px; color:#9CA3AF; font-size:13px;">No conversations yet.</div>');
+                    return;
+                }
+
+                var html = "";
+                for (var i = 0; i < combined.length; i++) {
+                    html += combined[i].html;
+                }
+                $("#allChatList").html(html);
+            }
+
+            function bindFilterTabs(){
+                $(".chat-filter-tab").off("click").on("click", function(){
+                    var selectedFilter = $(this).attr("data-filter") || "all";
+                    applyChatFilter(selectedFilter);
+                });
+            }
+
+            function applyChatFilter(filterType){
+                var allowedFilters = { all: true, users: true, groups: true };
+                currentListFilter = allowedFilters[filterType] ? filterType : "all";
+                var sidebar = $(".chat-sidebar");
+
+                buildCombinedChatList();
+
+                sidebar.removeClass("filter-all filter-users-only filter-groups-only");
+
+                $(".chat-filter-tab").removeClass("active").attr("aria-selected", "false");
+                $('.chat-filter-tab[data-filter="' + currentListFilter + '"]').addClass("active").attr("aria-selected", "true");
+
+                if(currentListFilter === "users"){
+                    sidebar.addClass("filter-users-only");
+                    $("#allChatList, #groupList, .chat-group-heading").hide();
+                    $("#chatList").show();
+                } else if(currentListFilter === "groups"){
+                    sidebar.addClass("filter-groups-only");
+                    $("#allChatList, #chatList").hide();
+                    $("#groupList, .chat-group-heading").show();
+                } else {
+                    sidebar.addClass("filter-all");
+                    $("#chatList, #groupList, .chat-group-heading").hide();
+                    $("#allChatList").show();
+                }
+
+                if(currentChatType === "user" && currentChatUserId != 0){
+                    $('.chat-item[data-id="' + currentChatUserId + '"]').addClass("active");
+                }
+                if(currentChatType === "group" && currentGroupId != 0){
+                    $('.group-item[data-group-id="' + currentGroupId + '"]').addClass("active");
+                }
+
+                bindChatClicks();
+                bindGroupClicks();
             }
 
             $("#chatInfoToggle").click(function(){
@@ -700,8 +785,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         $(`.group-item[data-group-id="${activeGroupId}"]`).addClass("active");
                     }
 
-                    bindChatClicks();
-                    bindGroupClicks();
+                    applyChatFilter(currentListFilter);
                 });
             }
 

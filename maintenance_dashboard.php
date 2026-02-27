@@ -136,15 +136,19 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Maintenance Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         :root {
-            --bg: #f5f7fb;
+            --bg: #f4f6fb;
             --card: #ffffff;
             --text: #0f172a;
             --muted: #64748b;
-            --border: #e2e8f0;
+            --border: #e5e7ef;
             --brand: #6c3ce1;
             --brand-2: #8b5cf6;
+            --brand-grad: linear-gradient(135deg, #6c3ce1 0%, #8b5cf6 100%);
             --success-bg: #dcfce7;
             --success-text: #166534;
             --warn-bg: #fee2e2;
@@ -152,771 +156,475 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             --soft: #eef2ff;
             --soft-border: #c7d2fe;
         }
-        body {
-            margin: 0;
-            padding: 16px;
-            font-family: Inter, Arial, sans-serif;
-            background: radial-gradient(circle at top left, #f8fbff 0%, var(--bg) 45%);
-            color: var(--text);
-            position: relative;
-            overflow-x: hidden;
-        }
-        body::before,
-        body::after {
-            content: "";
-            position: fixed;
-            border-radius: 999px;
-            filter: blur(4px);
-            z-index: -1;
-            pointer-events: none;
-        }
-        body::before {
-            width: 220px;
-            height: 220px;
-            right: -80px;
-            top: 70px;
-            background: radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, rgba(139, 92, 246, 0) 70%);
-        }
-        body::after {
-            width: 260px;
-            height: 260px;
-            left: -100px;
-            bottom: 20px;
-            background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0) 70%);
-        }
-        .container {
-            max-width: 1280px;
-            margin: 0 auto;
-        }
-        .panel {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            margin-bottom: 14px;
-            overflow: hidden;
-            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
-            position: relative;
-            transition: transform .2s ease, box-shadow .2s ease;
-        }
-        .panel::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--brand), var(--brand-2));
-            opacity: 0.85;
-        }
-        .panel:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
-        }
-        .panel-head {
-            padding: 14px 18px;
-            border-bottom: 1px solid var(--border);
-        }
-        .panel-body {
-            padding: 14px 18px;
-        }
-        .hero {
-            background: linear-gradient(135deg, #f7f3ff 0%, #eef2ff 70%, #f8fafc 100%);
-        }
-        .hero .panel-body {
-            position: relative;
-        }
-        .hero .panel-body::after {
-            content: "";
-            position: absolute;
-            right: -40px;
-            bottom: -60px;
-            width: 190px;
-            height: 190px;
-            border-radius: 999px;
-            background: radial-gradient(circle, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0) 70%);
-            pointer-events: none;
-        }
-        .topbar {
-            display: flex;
-            align-items: flex-start;
-            justify-content: flex-start;
-            gap: 12px;
-        }
-        .maintenance-logout-btn {
-            position: fixed;
-            right: 16px;
-            top: 16px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            border-radius: 10px;
-            border: 1px solid #fca5a5;
-            background: #ef4444;
-            color: #fff;
-            font-size: 12px;
-            font-weight: 600;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all .2s ease;
-            z-index: 1100;
-        }
-        .maintenance-logout-btn:hover {
-            border-color: #f87171;
-            transform: translateY(-1px);
-            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
-            background: #dc2626;
-        }
-        .maintenance-modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,.45);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1200;
-        }
-        .maintenance-modal-box {
-            background: #fff;
-            width: min(92vw, 380px);
-            border-radius: 12px;
-            padding: 22px;
-            text-align: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-        }
-        .maintenance-modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 14px;
-        }
-        .maintenance-modal-btn {
-            border: none;
-            border-radius: 8px;
-            padding: 10px 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .maintenance-modal-btn.cancel {
-            background: #F3F4F6;
-            color: #374151;
-        }
-        .maintenance-modal-btn.confirm {
-            background: #EF4444;
-            color: #fff;
-        }
-        h1 {
-            margin: 0 0 8px;
-            font-size: 32px;
-            line-height: 1.15;
-            letter-spacing: -.4px;
-        }
-        h2 {
-            margin: 0;
-            font-size: 21px;
-        }
-        p {
-            margin: 6px 0;
-            color: var(--muted);
-            font-size: 14px;
-        }
-        .subtitle {
-            margin: 0;
-            max-width: 900px;
-            color: #334155;
-        }
-        .note {
-            background: var(--soft);
-            border: 1px solid var(--soft-border);
-            color: #3730a3;
-            border-radius: 10px;
-            padding: 10px 12px;
-            margin-top: 12px;
-            font-size: 13px;
-        }
-        .error {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #991b1b;
-            border-radius: 10px;
-            padding: 10px 12px;
-        }
-        .status-row {
-            margin-top: 10px;
-        }
-        .pill {
-            display: inline-block;
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-right: 6px;
-            background: #e5e7eb;
-            color: #111827;
-        }
-        .ok {
-            background: var(--success-bg);
-            color: var(--success-text);
-        }
-        .warn {
-            background: var(--warn-bg);
-            color: var(--warn-text);
-        }
-        .neutral {
-            background: #e2e8f0;
-            color: #334155;
-        }
-        .panel-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 20px;
-            font-weight: 700;
-        }
-        .toolbar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-        .toolbar input,
-        .toolbar select {
-            height: 36px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0 10px;
-            background: #fff;
-            color: #334155;
-            font-size: 13px;
-        }
-        .toolbar input {
-            min-width: 240px;
-        }
-        .panel-title .title-mark {
-            width: 20px;
-            height: 20px;
-            border-radius: 6px;
-            background: linear-gradient(135deg, var(--brand), var(--brand-2));
-            box-shadow: 0 6px 14px rgba(139, 92, 246, 0.28);
-            position: relative;
-        }
-        .panel-title .title-mark::after {
-            content: "";
-            position: absolute;
-            inset: 5px;
-            border-radius: 3px;
-            border: 1px solid rgba(255, 255, 255, 0.85);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            text-align: left;
-            padding: 12px 8px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: top;
-            font-size: 13px;
-        }
-        th {
-            color: #475569;
-            font-weight: 700;
-            letter-spacing: .02em;
-            text-transform: uppercase;
-            font-size: 12px;
-            background: #f8fafc;
-        }
-        tbody tr:hover {
-            background: #f8fafc;
-        }
-        tbody tr:nth-child(even) {
-            background: #fcfdff;
-        }
-        tbody tr:nth-child(even):hover {
-            background: #f4f8ff;
-        }
-        .workspace-name {
-            font-size: 16px;
-            font-weight: 700;
-            color: #0f172a;
-            line-height: 1.15;
-        }
-        .workspace-slug {
-            margin-top: 3px;
-            color: #64748b;
-            font-size: 13px;
-        }
-        .muted-small {
-            color: #64748b;
-            font-size: 12px;
-        }
-        .num-strong {
-            font-size: 17px;
-            font-weight: 700;
-            color: #0f172a;
-        }
-        .actions a {
-            display: inline-block;
-            margin: 3px 6px 3px 0;
-            padding: 7px 10px;
-            border-radius: 9px;
-            text-decoration: none;
-            background: #eef2ff;
-            color: #3730a3;
-            border: 1px solid #c7d2fe;
-            font-size: 12px;
-            font-weight: 600;
-            transition: all .2s ease;
-        }
-        .actions a:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(139, 92, 246, 0.15);
-            filter: saturate(115%);
-        }
-        .actions a.is-running {
-            pointer-events: none;
-            opacity: .65;
-            position: relative;
-        }
-        .actions a.is-running::after {
-            content: "Running...";
-            margin-left: 6px;
-            font-weight: 700;
-        }
-        .actions a.destructive {
-            background: #fef2f2;
-            border-color: #fecaca;
-            color: #991b1b;
-        }
-        .actions a.global {
-            background: #f5f3ff;
-            border-color: #ddd6fe;
-            color: #5b21b6;
-        }
-        code {
-            background: #eef2f7;
-            border-radius: 6px;
-            padding: 3px 7px;
-            font-size: 12px;
-        }
-        .cli-list {
-            display: grid;
-            gap: 12px;
-        }
-        .cli-item {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            align-items: center;
-            border-radius: 12px;
-            background: #08152f;
-            color: #93c5fd;
-            padding: 12px 14px;
-            border: 1px solid #132547;
-            position: relative;
-        }
-        .cli-item::before {
-            content: "";
-            position: absolute;
-            left: 0;
-            top: 8px;
-            bottom: 8px;
-            width: 3px;
-            border-radius: 6px;
-            background: linear-gradient(180deg, #00ffa2, #22d3ee);
-        }
-        .cli-item .cmd {
-            color: #00ffa2;
-            font-family: Consolas, monospace;
-            font-size: 15px;
-            word-break: break-word;
-            padding-left: 8px;
-        }
-        .cli-item .desc {
-            color: #94a3b8;
-            font-size: 13px;
-            margin-top: 4px;
-            padding-left: 8px;
-        }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-            margin-top: 18px;
-        }
-        .accordion {
-            margin-top: 12px;
-            border: 1px solid #fecaca;
-            background: #fff7f7;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .accordion-btn {
-            width: 100%;
-            background: transparent;
-            border: none;
-            text-align: left;
-            padding: 10px 12px;
-            color: #991b1b;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .accordion-body {
-            display: none;
-            padding: 0 12px 12px;
-        }
-        .accordion.open .accordion-body {
-            display: block;
-        }
-        .run-log {
-            margin-top: 12px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            background: #fff;
-            overflow: hidden;
-        }
-        .run-log-head {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border);
-            font-size: 13px;
-            font-weight: 700;
-            color: #334155;
-            background: #f8fafc;
-        }
-        .run-log-list {
-            max-height: 180px;
-            overflow-y: auto;
-        }
-        .run-log-item {
-            padding: 9px 12px;
-            border-bottom: 1px solid #eef2f7;
-            font-size: 12px;
-            color: #475569;
-        }
-        .run-log-item:last-child {
-            border-bottom: none;
-        }
-        .run-log-time {
-            color: #94a3b8;
-            margin-right: 8px;
-            font-family: Consolas, monospace;
-        }
-        .stat-card {
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 12px 14px;
-            background: #fff;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            position: relative;
-        }
-        .stat-card::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, #e2e8f0, #cbd5e1);
-        }
-        .stat-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 17px;
-            color: #fff;
-            flex-shrink: 0;
-        }
-        .stat-icon.w { background: linear-gradient(135deg, #8B5CF6, #8b5cf6); }
-        .stat-icon.a { background: linear-gradient(135deg, #22c55e, #16a34a); }
-        .stat-icon.m { background: linear-gradient(135deg, #0ea5e9, #3b82f6); }
-        .stat-label {
-            color: #64748b;
-            font-size: 14px;
-        }
-        .stat-value {
-            font-size: 30px;
-            font-weight: 800;
-            color: #0f172a;
-            line-height: 1.2;
-        }
-        .stat-content {
-            min-width: 0;
-        }
-        @media (max-width: 900px) {
-            body { padding: 12px; }
-            h1 { font-size: 27px; }
-            h2 { font-size: 20px; }
-            .topbar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .toolbar input {
-                min-width: 0;
-                width: 100%;
-            }
-            th, td { font-size: 12px; }
-            .actions a { margin-bottom: 4px; }
-            .stats {
-                grid-template-columns: 1fr;
-            }
-            .panel-body, .panel-head {
-                padding: 14px;
-            }
-            .cli-item .cmd {
-                font-size: 13px;
-            }
-        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .maintenance-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 1200; }
+        .maintenance-modal-box { background: #fff; width: min(92vw, 380px); border-radius: 14px; padding: 24px; text-align: center; box-shadow: 0 12px 30px rgba(0,0,0,.18); }
+        .maintenance-modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+        .maintenance-modal-btn { border: none; border-radius: 9px; padding: 10px 18px; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .maintenance-modal-btn.cancel { background: #f3f4f6; color: #374151; }
+        .maintenance-modal-btn.confirm { background: #ef4444; color: #fff; }
+        .md-navbar { display: flex; align-items: center; justify-content: space-between; padding: 0 28px; height: 60px; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 6px rgba(15,23,42,.06); }
+        .md-navbar-brand { display: flex; align-items: center; gap: 12px; }
+        .md-navbar-logo { width: 38px; height: 38px; border-radius: 10px; background: var(--brand-grad); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; flex-shrink: 0; }
+        .md-navbar-title { font-size: 17px; font-weight: 700; color: var(--text); line-height: 1.2; }
+        .md-navbar-sub { font-size: 12px; color: var(--muted); font-weight: 400; }
+        .md-exit-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 18px; border-radius: 10px; border: none; background: #ef4444; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s, transform .2s; text-decoration: none; }
+        .md-exit-btn:hover { background: #dc2626; transform: translateY(-1px); }
+        .md-container { max-width: 1280px; margin: 0 auto; padding: 28px 24px; }
+        .md-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 32px; }
+        .md-stat-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 20px 22px; display: flex; align-items: flex-start; justify-content: space-between; box-shadow: 0 2px 12px rgba(15,23,42,.04); transition: box-shadow .2s, transform .2s; }
+        .md-stat-card:hover { box-shadow: 0 6px 20px rgba(108,60,225,.1); transform: translateY(-2px); }
+        .md-stat-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--brand-grad); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; flex-shrink: 0; }
+        .md-stat-icon.green { background: linear-gradient(135deg,#22c55e,#16a34a); }
+        .md-stat-icon.blue  { background: linear-gradient(135deg,#0ea5e9,#3b82f6); }
+        .md-stat-label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+        .md-stat-value { font-size: 34px; font-weight: 800; color: var(--text); line-height: 1.1; }
+        .md-stat-trend { color: #a78bfa; font-size: 18px; }
+        .md-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .md-section-title { font-size: 22px; font-weight: 700; color: var(--text); margin: 0 0 2px; }
+        .md-section-sub { font-size: 13px; color: var(--brand); font-weight: 500; }
+        .md-search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 0 14px; height: 38px; color: var(--muted); font-size: 13px; min-width: 220px; }
+        .md-search input { border: none; outline: none; font-size: 13px; color: var(--text); background: transparent; width: 100%; }
+        .md-search input::placeholder { color: var(--muted); }
+        .md-workspaces-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+        .md-ws-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px 18px 14px; box-shadow: 0 2px 10px rgba(15,23,42,.04); transition: box-shadow .2s, transform .2s; }
+        .md-ws-card:hover { box-shadow: 0 6px 22px rgba(108,60,225,.1); transform: translateY(-2px); }
+        .md-ws-card.is-off { background: #f1f5f9; border-color: #cbd5e1; box-shadow: none; }
+        .md-ws-card.is-off:hover { box-shadow: 0 4px 14px rgba(100,116,139,.15); transform: translateY(-1px); }
+        .md-ws-card.is-off .md-ws-name,
+        .md-ws-card.is-off .md-ws-slug,
+        .md-ws-card.is-off .md-ws-meta-value,
+        .md-ws-card.is-off .md-ws-sub-row { color: #475569; }
+        .md-ws-card.is-off .md-ws-meta { background: #e2e8f0; }
+        .md-ws-card.is-off .md-ws-meta-item:first-child { border-right-color: #cbd5e1; }
+        .md-ws-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; }
+        .md-ws-name { font-size: 15px; font-weight: 700; color: var(--text); }
+        .md-ws-more-wrap { position: relative; }
+        .md-ws-more { border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+        .md-ws-more:hover { background: #f1f5f9; color: #334155; }
+        .md-ws-menu { position: absolute; right: 0; top: 32px; min-width: 170px; background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 14px 26px rgba(15,23,42,.12); padding: 6px; display: none; z-index: 20; }
+        .md-ws-menu.open { display: block; }
+        .md-ws-menu-item { width: 100%; border: none; background: transparent; text-align: left; padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+        .md-ws-menu-item:hover { background: #f8fafc; }
+        .md-ws-menu-item.danger { color: #dc2626; }
+        .md-ws-menu-item.danger:hover { background: #fee2e2; }
+        .md-ws-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+        .md-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+        .md-badge.active   { background:#dcfce7; color:#166534; }
+        .md-badge.trial    { background:#ede9fe; color:#5b21b6; }
+        .md-badge.legacy   { background:#fef3c7; color:#92400e; }
+        .md-badge.inactive { background:#e2e8f0; color:#475569; }
+        .md-badge.suspended{ background:#fee2e2; color:#991b1b; }
+        .md-ws-slug { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+        .md-ws-meta { display: grid; grid-template-columns: 1fr 1fr; background: #f8f7ff; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+        .md-ws-meta-item { padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+        .md-ws-meta-item:first-child { border-right: 1px solid #ede9fe; }
+        .md-ws-meta-icon { color: var(--brand-2); font-size: 13px; }
+        .md-ws-meta-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+        .md-ws-meta-value { font-size: 16px; font-weight: 700; color: var(--text); }
+        .md-ws-sub-row { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; margin-bottom: 10px; }
+        .md-ws-sub-row i { color: var(--brand-2); }
+        .md-ws-actions { display: flex; gap: 8px; justify-content: center; border-top: 1px solid var(--border); padding-top: 10px; }
+        .md-ws-action-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; text-decoration: none; color: var(--brand); padding: 4px 10px; border-radius: 8px; transition: background .15s, transform .15s; }
+        .md-ws-action-btn:hover { background: var(--soft); transform: translateY(-1px); }
+        .md-ws-action-btn.destructive { color: #ef4444; }
+        .md-ws-action-btn.destructive:hover { background: #fee2e2; }
+        .md-ws-action-btn.success { color: #16a34a; }
+        .md-ws-action-btn.success:hover { background: #dcfce7; }
+        .md-ws-action-btn.is-running { pointer-events:none; opacity:.6; }
+        .md-bottom-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 24px; }
+        .md-panel { background: #fff; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(15,23,42,.04); }
+        .md-panel-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; }
+        .md-panel-head-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--brand-grad); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; flex-shrink: 0; }
+        .md-panel-head-icon.green { background: linear-gradient(135deg,#22c55e,#16a34a); }
+        .md-panel-title { font-size: 16px; font-weight: 700; color: var(--text); margin: 0 0 1px; }
+        .md-panel-sub { font-size: 12px; color: var(--muted); }
+        .md-panel-body { padding: 0 20px 20px; }
+        .md-status-list { display: flex; flex-direction: column; }
+        .md-status-item { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 500; }
+        .md-status-item:last-child { border-bottom: none; }
+        .md-status-left { display: flex; align-items: center; gap: 8px; color: #374151; }
+        .md-status-left i { font-size: 14px; }
+        .md-status-badge-ok    { color: #16a34a; font-weight: 700; font-size: 12px; }
+        .md-status-badge-warn  { color: #dc2626; font-weight: 700; font-size: 12px; }
+        .md-status-badge-muted { color: var(--muted); font-weight: 600; font-size: 12px; }
+        .md-global-btn { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; padding: 13px 14px; border-radius: 12px; border: none; background: var(--brand-grad); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity .2s, transform .2s; margin-bottom: 10px; }
+        .md-global-btn:hover { opacity: .88; transform: translateY(-1px); }
+        .md-global-btn.disabled { background: #e5e7ef; color: #9ca3af; cursor: not-allowed; pointer-events: none; }
+        .md-danger-box { margin-top: 14px; border: 1px solid #fca5a5; border-radius: 12px; padding: 14px; background: #fff9f9; }
+        .md-danger-title { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #b91c1c; margin-bottom: 4px; }
+        .md-danger-sub { font-size: 11px; color: #ef4444; margin-bottom: 10px; }
+        .md-cli-list { display: flex; flex-direction: column; gap: 12px; }
+        .md-cli-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: #fafbff; }
+        .md-cli-info { flex: 1; min-width: 0; }
+        .md-cli-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+        .md-cli-label i { font-size: 12px; }
+        .md-cli-label i.destructive { color: #ef4444; }
+        .md-cli-cmd { font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #1e293b; word-break: break-all; }
+        .md-cli-copy { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; flex-shrink: 0; padding: 4px; border-radius: 6px; transition: color .15s, background .15s; }
+        .md-cli-copy:hover { color: var(--brand); background: var(--soft); }
+        .md-run-log { margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .md-run-log-head { padding: 10px 14px; font-size: 12px; font-weight: 700; color: #334155; background: #f8fafc; border-bottom: 1px solid var(--border); }
+        .md-run-log-list { max-height: 160px; overflow-y: auto; }
+        .md-run-log-item { padding: 8px 14px; border-bottom: 1px solid #eef2f7; font-size: 12px; color: #475569; }
+        .md-run-log-item:last-child { border-bottom: none; }
+        .md-run-log-time { color: #94a3b8; margin-right: 7px; font-family: Consolas, monospace; }
+        .md-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .md-filter-bar select { height: 36px; border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; background: #fff; color: #374151; font-size: 13px; outline: none; }
+        @media (max-width: 1024px) { .md-workspaces-grid { grid-template-columns: repeat(2,1fr); } .md-bottom-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 640px) { .md-stats-row { grid-template-columns: 1fr; } .md-workspaces-grid { grid-template-columns: 1fr; } .md-container { padding: 16px; } }
     </style>
 </head>
 <body>
 <?php include "inc/toast.php"; ?>
-<div class="container">
-    <div class="panel hero">
-        <div class="panel-body">
-            <div class="topbar">
-                <div>
-                    <h1>Maintenance Dashboard</h1>
-                    <p class="subtitle">Run maintenance and debug tools per workspace without manually typing <code>--org-id</code>.</p>
-                    <div class="status-row">
-                        <?php if ($tenantEnabled) { ?>
-                            <span class="pill ok">Tenant mode enabled</span>
-                        <?php } else { ?>
-                            <span class="pill warn">Tenant mode not detected</span>
-                        <?php } ?>
-                        <?php if ($globalOverrideAllowed) { ?>
-                            <span class="pill warn">Global override enabled</span>
-                        <?php } else { ?>
-                            <span class="pill neutral">Global override disabled</span>
-                        <?php } ?>
+
+<!-- NAVBAR -->
+<nav class="md-navbar">
+    <div class="md-navbar-brand">
+        <div class="md-navbar-logo"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+            <div class="md-navbar-title">Super Admin Control</div>
+            <div class="md-navbar-sub">Workspace Management &amp; Maintenance</div>
+        </div>
+    </div>
+    <button type="button" class="md-exit-btn" id="maintenanceLogoutBtn" aria-label="Exit Dashboard">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> Exit Dashboard
+    </button>
+</nav>
+
+<div class="md-container">
+
+    <!-- STAT CARDS -->
+    <div class="md-stats-row">
+        <div class="md-stat-card">
+            <div>
+                <div class="md-stat-icon"><i class="fa-solid fa-database"></i></div>
+            </div>
+            <div style="flex:1;padding-left:14px;">
+                <div class="md-stat-label">Total Workspaces</div>
+                <div class="md-stat-value"><?= (int)$totalWorkspaces ?></div>
+            </div>
+            <div class="md-stat-trend"><i class="fa-solid fa-arrow-trend-up"></i></div>
+        </div>
+        <div class="md-stat-card">
+            <div>
+                <div class="md-stat-icon green"><i class="fa-solid fa-users"></i></div>
+            </div>
+            <div style="flex:1;padding-left:14px;">
+                <div class="md-stat-label">Total Users</div>
+                <div class="md-stat-value"><?= (int)$totalMembers ?></div>
+            </div>
+            <div class="md-stat-trend"><i class="fa-solid fa-user-slash" style="color:#a3aab8;"></i></div>
+        </div>
+        <div class="md-stat-card">
+            <div>
+                <div class="md-stat-icon blue"><i class="fa-solid fa-chart-line"></i></div>
+            </div>
+            <div style="flex:1;padding-left:14px;">
+                <div class="md-stat-label">Avg. Users</div>
+                <div class="md-stat-value"><?= $totalWorkspaces > 0 ? round($totalMembers / $totalWorkspaces) : 0 ?></div>
+            </div>
+            <div class="md-stat-trend"><i class="fa-solid fa-wave-square" style="color:#a3aab8;"></i></div>
+        </div>
+    </div>
+
+    <!-- WORKSPACES SECTION -->
+    <div class="md-section-header">
+        <div>
+            <div class="md-section-title">Workspaces</div>
+            <div class="md-section-sub">Manage and monitor all workspaces</div>
+        </div>
+        <div class="md-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="workspaceSearch" placeholder="Search workspaces...">
+        </div>
+    </div>
+
+    <div class="md-filter-bar">
+        <select id="workspaceStatusFilter">
+            <option value="">All status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
+        </select>
+        <select id="workspacePlanFilter">
+            <option value="">All plans</option>
+            <option value="trial">Trial</option>
+            <option value="legacy">Legacy</option>
+            <option value="starter">Starter</option>
+            <option value="professional">Professional</option>
+            <option value="enterprise">Enterprise</option>
+        </select>
+    </div>
+
+    <?php if ($queryError !== null) { ?>
+        <div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+            Failed to load organizations: <?= htmlspecialchars($queryError) ?>
+        </div>
+    <?php } elseif (!$tenantEnabled) { ?>
+        <p style="color:var(--muted);">Tenant columns are not enabled yet. Run your tenancy migration first.</p>
+    <?php } elseif (empty($orgRows)) { ?>
+        <p style="color:var(--muted);">No organizations found.</p>
+    <?php } else { ?>
+    <div class="md-workspaces-grid" id="workspaceTableBody">
+        <?php foreach ($orgRows as $org) {
+            $statusClass = strtolower((string)$org['status']);
+            $planClass   = strtolower((string)$org['plan_code']);
+            $workspaceName = trim((string)($org['name'] ?? ''));
+            if ($workspaceName === '') {
+                $workspaceName = 'this workspace';
+            }
+            $isWorkspaceOff = $statusClass !== 'active';
+            $nextWorkspaceStatus = $isWorkspaceOff ? 'active' : 'inactive';
+            $toggleLabel = $isWorkspaceOff ? 'Turn On Workspace' : 'Turn Off Workspace';
+            $toggleText = $isWorkspaceOff ? 'Turn On' : 'Turn Off';
+            $toggleClass = $isWorkspaceOff ? 'success' : 'destructive';
+            $togglePrompt = $isWorkspaceOff
+                ? ("Turn ON \"" . $workspaceName . "\"? Users in this workspace will be allowed to login again.")
+                : ("Turn OFF \"" . $workspaceName . "\"? Users in this workspace will be blocked from logging in.");
+            $toggleHref  = maintenance_build_link('toggle_workspace_status.php', (int)$org['id'])
+                . '&set_status=' . urlencode($nextWorkspaceStatus)
+                . '&return_to=maintenance_dashboard';
+            $deleteHref  = maintenance_build_link('delete_workspace.php', (int)$org['id']) . '&return_to=maintenance_dashboard';
+        ?>
+        <div class="md-ws-card<?= $isWorkspaceOff ? ' is-off' : '' ?>"
+             data-workspace-name="<?= htmlspecialchars(strtolower((string)$org['name'])) ?>"
+             data-workspace-slug="<?= htmlspecialchars(strtolower((string)$org['slug'])) ?>"
+             data-workspace-status="<?= htmlspecialchars($statusClass) ?>"
+             data-workspace-plan="<?= htmlspecialchars($planClass) ?>">
+
+            <div class="md-ws-card-header">
+                <div class="md-ws-name"><?= htmlspecialchars((string)$org['name']) ?></div>
+                <div class="md-ws-more-wrap">
+                    <button type="button" class="md-ws-more js-ws-menu-toggle" aria-label="Workspace options" aria-expanded="false">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+                    <div class="md-ws-menu" role="menu">
+                        <button
+                            type="button"
+                            class="md-ws-menu-item danger js-delete-workspace-btn"
+                            data-delete-href="<?= htmlspecialchars($deleteHref) ?>"
+                            data-delete-workspace="<?= htmlspecialchars((string)$org['name']) ?>">
+                            <i class="fa-solid fa-trash-can"></i>
+                            Delete Workspace
+                        </button>
                     </div>
                 </div>
             </div>
-            <div class="note">
-                Global scripts and global reset are powerful. In tenant mode, prefer per-workspace actions.
+
+            <div class="md-ws-badges">
+                <span class="md-badge <?= htmlspecialchars($statusClass) ?>"><?= htmlspecialchars((string)$org['status']) ?></span>
+                <?php if ($planClass): ?>
+                <span class="md-badge <?= htmlspecialchars($planClass) ?>"><?= htmlspecialchars((string)$org['plan_code']) ?></span>
+                <?php endif; ?>
+            </div>
+
+            <div class="md-ws-slug">/<?= htmlspecialchars((string)$org['slug']) ?></div>
+
+            <div class="md-ws-meta">
+                <div class="md-ws-meta-item">
+                    <i class="fa-solid fa-database md-ws-meta-icon"></i>
+                    <div>
+                        <div class="md-ws-meta-label">ID</div>
+                        <div class="md-ws-meta-value"><?= (int)$org['id'] ?></div>
+                    </div>
+                </div>
+                <div class="md-ws-meta-item">
+                    <i class="fa-solid fa-users md-ws-meta-icon"></i>
+                    <div>
+                        <div class="md-ws-meta-label">MEMBERS</div>
+                        <div class="md-ws-meta-value"><?= (int)$org['member_count'] ?></div>
+                    </div>
+                </div>
+            </div>
+
+            <?php if (!empty($org['subscription_status'])) { ?>
+            <div class="md-ws-sub-row">
+                <i class="fa-solid fa-wave-square"></i>
+                <strong>Subscription</strong>
+                &middot; <?= htmlspecialchars((string)$org['subscription_status']) ?>
+                <?php if (!empty($org['seat_limit'])) { ?>
+                    &middot; <?= (int)$org['seat_limit'] ?> seats
+                <?php } ?>
+            </div>
+            <?php } ?>
+
+            <div class="md-ws-actions">
+                <a href="<?= htmlspecialchars($toggleHref) ?>"
+                   target="_self"
+                   rel="noopener noreferrer"
+                   data-action-label="<?= htmlspecialchars($toggleLabel) ?>"
+                   data-action-workspace="<?= htmlspecialchars((string)$org['name']) ?>"
+                   data-toggle-href="<?= htmlspecialchars($toggleHref) ?>"
+                   data-toggle-prompt="<?= htmlspecialchars($togglePrompt, ENT_QUOTES) ?>"
+                   data-toggle-button-text="<?= htmlspecialchars($toggleText) ?>"
+                   class="md-ws-action-btn <?= htmlspecialchars($toggleClass) ?> js-toggle-workspace-btn"
+                   >
+                    <i class="fa-solid fa-power-off"></i> <?= htmlspecialchars($toggleText) ?>
+                </a>
             </div>
         </div>
-    </div>
-
-    <div class="panel">
-        <div class="panel-head">
-            <h2 class="panel-title"><span class="title-mark" aria-hidden="true"></span>Workspace Actions</h2>
-        </div>
-        <div class="panel-body">
-        <div class="toolbar">
-            <input type="text" id="workspaceSearch" placeholder="Search workspace name or slug...">
-            <select id="workspaceStatusFilter">
-                <option value="">All status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option>
-            </select>
-            <select id="workspacePlanFilter">
-                <option value="">All plans</option>
-                <option value="trial">Trial</option>
-                <option value="legacy">Legacy</option>
-                <option value="starter">Starter</option>
-                <option value="professional">Professional</option>
-                <option value="enterprise">Enterprise</option>
-            </select>
-        </div>
-        <?php if ($queryError !== null) { ?>
-            <div class="error">Failed to load organizations: <?= htmlspecialchars($queryError) ?></div>
-        <?php } elseif (!$tenantEnabled) { ?>
-            <p>Tenant columns are not enabled yet. Run your tenancy migration first.</p>
-        <?php } elseif (empty($orgRows)) { ?>
-            <p>No organizations found.</p>
-        <?php } else { ?>
-            <table>
-                <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Workspace</th>
-                    <th>Status</th>
-                    <th>Plan</th>
-                    <th>Members</th>
-                    <th>Subscription</th>
-                    <th>Run Script</th>
-                </tr>
-                </thead>
-                <tbody id="workspaceTableBody">
-                <?php foreach ($orgRows as $org) { ?>
-                    <tr
-                        data-workspace-name="<?= htmlspecialchars(strtolower((string)$org['name'])) ?>"
-                        data-workspace-slug="<?= htmlspecialchars(strtolower((string)$org['slug'])) ?>"
-                        data-workspace-status="<?= htmlspecialchars(strtolower((string)$org['status'])) ?>"
-                        data-workspace-plan="<?= htmlspecialchars(strtolower((string)$org['plan_code'])) ?>"
-                    >
-                        <td><code><?= (int)$org['id'] ?></code></td>
-                        <td>
-                            <div class="workspace-name"><?= htmlspecialchars((string)$org['name']) ?></div>
-                            <div class="workspace-slug">slug: <?= htmlspecialchars((string)$org['slug']) ?></div>
-                        </td>
-                        <td><span class="pill ok" style="margin:0;"><?= htmlspecialchars((string)$org['status']) ?></span></td>
-                        <td><span class="pill neutral" style="margin:0;"><?= htmlspecialchars((string)$org['plan_code']) ?></span></td>
-                        <td><span class="num-strong"><?= (int)$org['member_count'] ?></span></td>
-                        <td>
-                            <strong><?= htmlspecialchars((string)($org['subscription_status'] ?? '-')) ?></strong>
-                            <?php if (!empty($org['seat_limit'])) { ?>
-                                <br><span class="muted-small">seats: <?= (int)$org['seat_limit'] ?></span>
-                            <?php } ?>
-                        </td>
-                        <td class="actions">
-                            <?php foreach ($tenantScripts as $script) {
-                                $href = maintenance_build_link($script['path'], (int)$org['id']);
-                                $linkTarget = '_blank';
-                                if ($script['path'] === 'reset_database.php') {
-                                    $href .= '&return_to=maintenance_dashboard';
-                                    $linkTarget = '_self';
-                                }
-                                $confirm = '';
-                                if (!empty($script['destructive'])) {
-                                    $confirm = "return confirm('Run {$script['label']} for workspace ID {$org['id']}? This can delete data.');";
-                                }
-                                ?>
-                                <a
-                                    href="<?= htmlspecialchars($href) ?>"
-                                    title="<?= htmlspecialchars($script['description']) ?>"
-                                    target="<?= htmlspecialchars($linkTarget) ?>"
-                                    rel="noopener noreferrer"
-                                    data-action-label="<?= htmlspecialchars($script['label']) ?>"
-                                    data-action-workspace="<?= htmlspecialchars((string)$org['name']) ?>"
-                                    class="<?= !empty($script['destructive']) ? 'destructive' : '' ?>"
-                                    <?= $confirm ? 'onclick="' . htmlspecialchars($confirm) . '"' : '' ?>
-                                ><?= htmlspecialchars($script['label']) ?></a>
-                            <?php } ?>
-                        </td>
-                    </tr>
-                <?php } ?>
-                </tbody>
-            </table>
         <?php } ?>
-        </div>
     </div>
+    <?php } ?>
 
-    <div class="panel">
-        <div class="panel-head">
-            <h2 class="panel-title"><span class="title-mark" aria-hidden="true"></span>Global Scripts</h2>
-            <p>These are not tenant-scoped diagnostics.</p>
+    <!-- BOTTOM 3-COLUMN SECTION -->
+    <div class="md-bottom-grid">
+
+        <!-- System Status -->
+        <div class="md-panel">
+            <div class="md-panel-head">
+                <div class="md-panel-head-icon green"><i class="fa-solid fa-wave-square"></i></div>
+                <div>
+                    <div class="md-panel-title">System Status</div>
+                    <div class="md-panel-sub">Real-time monitoring</div>
+                </div>
+            </div>
+            <div class="md-panel-body">
+                <div class="md-status-list">
+                    <div class="md-status-item">
+                        <div class="md-status-left">
+                            <i class="fa-regular fa-circle-check" style="color:#22c55e;"></i>
+                            Tenant Mode
+                        </div>
+                        <?php if ($tenantEnabled) { ?>
+                            <span class="md-status-badge-ok">ENABLED</span>
+                        <?php } else { ?>
+                            <span class="md-status-badge-warn">DISABLED</span>
+                        <?php } ?>
+                    </div>
+                    <div class="md-status-item">
+                        <div class="md-status-left">
+                            <i class="fa-regular fa-circle-xmark" style="color:#ef4444;"></i>
+                            Global Override
+                        </div>
+                        <?php if ($globalOverrideAllowed) { ?>
+                            <span class="md-status-badge-ok">ENABLED</span>
+                        <?php } else { ?>
+                            <span class="md-status-badge-warn">DISABLED</span>
+                        <?php } ?>
+                    </div>
+                    <div class="md-status-item">
+                        <div class="md-status-left">
+                            <i class="fa-regular fa-clock" style="color:#a78bfa;"></i>
+                            Last Activity
+                        </div>
+                        <span class="md-status-badge-muted" id="lastActivityTime">just now</span>
+                    </div>
+                </div>
+                <div class="md-run-log" style="margin-top:16px;">
+                    <div class="md-run-log-head">Recent Actions (This Browser)</div>
+                    <div class="md-run-log-list" id="runLogList">
+                        <div class="md-run-log-item">No actions run yet.</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="panel-body">
-            <div class="actions">
-            <?php foreach ($globalScripts as $script) { ?>
+
+        <!-- Global Actions -->
+        <div class="md-panel">
+            <div class="md-panel-head">
+                <div class="md-panel-head-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316);"><i class="fa-solid fa-bolt"></i></div>
+                <div>
+                    <div class="md-panel-title">Global Actions</div>
+                    <div class="md-panel-sub">System-wide operations</div>
+                </div>
+            </div>
+            <div class="md-panel-body">
+                <?php foreach ($globalScripts as $script) { ?>
                 <a
                     href="<?= htmlspecialchars($script['path']) ?>"
                     title="<?= htmlspecialchars($script['description']) ?>"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="global"
+                    class="md-global-btn"
                     data-action-label="<?= htmlspecialchars($script['label']) ?>"
                     data-action-workspace="Global"
-                ><?= htmlspecialchars($script['label']) ?></a>
-            <?php } ?>
-            </div>
-            <div class="accordion" id="dangerZone">
-                <button type="button" class="accordion-btn" id="dangerToggleBtn">
-                    <span>Danger Zone: Global Reset</span>
-                    <span id="dangerArrow">&#9662;</span>
-                </button>
-                <div class="accordion-body">
-                    <p style="margin-top:10px;">
-                        <strong>Global reset link:</strong>
-                        <?php if ($globalOverrideAllowed) { ?>
-                            <a
-                                class="destructive"
-                                href="<?= htmlspecialchars(maintenance_build_link('reset_database.php', null, true)) ?>"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                data-action-label="Global Reset"
-                                data-action-workspace="Global"
-                                onclick="return confirm('Run GLOBAL reset? This will clear all tenants.');"
-                            >reset_database.php?global=1</a>
-                        <?php } else { ?>
-                            <code>Disabled (set ALLOW_GLOBAL_MAINTENANCE=1 to enable)</code>
-                        <?php } ?>
-                    </p>
-                </div>
-            </div>
-            <div class="run-log">
-                <div class="run-log-head">Recent Actions (This Browser)</div>
-                <div class="run-log-list" id="runLogList">
-                    <div class="run-log-item">No actions run yet.</div>
-                </div>
-            </div>
-        </div>
-    </div>
+                >
+                    <?php
+                        $icon = 'fa-solid fa-play';
+                        if (stripos($script['label'],'debug') !== false) $icon = 'fa-solid fa-bug';
+                        elseif (stripos($script['label'],'constraint') !== false) $icon = 'fa-solid fa-link';
+                        elseif (stripos($script['label'],'schema') !== false) $icon = 'fa-solid fa-table-columns';
+                    ?>
+                    <i class="<?= $icon ?>"></i> <?= htmlspecialchars($script['label']) ?>
+                </a>
+                <?php } ?>
 
-    <div class="panel">
-        <div class="panel-head">
-            <h2 class="panel-title"><span class="title-mark" aria-hidden="true"></span>CLI Examples</h2>
-            <p>Manual command-line scripts for advanced operations.</p>
-        </div>
-        <div class="panel-body">
-            <div class="cli-list">
-                <div class="cli-item">
-                    <div>
-                        <div class="cmd">php reset_database.php --org-id=1</div>
-                        <div class="desc">Reset database for one organization</div>
+                <div class="md-danger-box" id="dangerZone">
+                    <div class="md-danger-title">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
                     </div>
-                </div>
-                <div class="cli-item">
-                    <div>
-                        <div class="cmd">php run_cleanup_orphan_task_chats.php --org-id=1</div>
-                        <div class="desc">Cleanup orphan task chats</div>
-                    </div>
-                </div>
-                <div class="cli-item">
-                    <div>
-                        <div class="cmd">php debug_task_chats.php --org-id=1</div>
-                        <div class="desc">Inspect task chat records</div>
-                    </div>
-                </div>
-                <div class="cli-item">
-                    <div>
-                        <div class="cmd">php reset_database.php --global=1</div>
-                        <div class="desc">Global reset (requires ALLOW_GLOBAL_MAINTENANCE=1)</div>
-                    </div>
-                </div>
-            </div>
-            <div class="note" style="margin-top:14px;">
-                Note: Run commands from the project root and keep backups before destructive operations.
-            </div>
-            <div class="stats">
-                <div class="stat-card">
-                    <span class="stat-icon w"><i class="fa fa-database" aria-hidden="true"></i></span>
-                    <div class="stat-content">
-                        <div class="stat-label">Total Workspaces</div>
-                        <div class="stat-value"><?= (int)$totalWorkspaces ?></div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-icon a"><i class="fa fa-check-circle-o" aria-hidden="true"></i></span>
-                    <div class="stat-content">
-                        <div class="stat-label">Active Workspaces</div>
-                        <div class="stat-value"><?= (int)$activeWorkspaces ?></div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-icon m"><i class="fa fa-users" aria-hidden="true"></i></span>
-                    <div class="stat-content">
-                        <div class="stat-label">Total Members</div>
-                        <div class="stat-value"><?= (int)$totalMembers ?></div>
-                    </div>
+                    <div class="md-danger-sub">Global reset will affect all workspaces</div>
+                    <?php if ($globalOverrideAllowed) { ?>
+                        <a
+                            href="<?= htmlspecialchars(maintenance_build_link('reset_database.php', null, true)) ?>"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-action-label="Global Reset"
+                            data-action-workspace="Global"
+                            class="md-global-btn"
+                            style="background:linear-gradient(135deg,#ef4444,#dc2626);margin-bottom:0;"
+                            onclick="return confirm('Run GLOBAL reset? This will clear all tenants.');">
+                            <i class="fa-solid fa-rotate"></i> Global Reset
+                        </a>
+                    <?php } else { ?>
+                        <button type="button" class="md-global-btn disabled" disabled>
+                            Global Reset (Disabled)
+                        </button>
+                    <?php } ?>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-<button type="button" class="maintenance-logout-btn" id="maintenanceLogoutBtn" aria-label="Logout">
+
+        <!-- CLI Commands -->
+        <div class="md-panel">
+            <div class="md-panel-head">
+                <div class="md-panel-head-icon" style="background:linear-gradient(135deg,#0f172a,#1e293b);"><i class="fa-solid fa-terminal"></i></div>
+                <div>
+                    <div class="md-panel-title">CLI Commands</div>
+                    <div class="md-panel-sub">Quick copy snippets</div>
+                </div>
+            </div>
+            <div class="md-panel-body">
+                <div class="md-cli-list">
+                    <div class="md-cli-item">
+                        <div class="md-cli-info">
+                            <div class="md-cli-label"><i class="fa-solid fa-rotate-left destructive"></i> Reset database for one organization</div>
+                            <div class="md-cli-cmd">php reset_database.php --org-id=1</div>
+                        </div>
+                        <button type="button" class="md-cli-copy" onclick="navigator.clipboard.writeText('php reset_database.php --org-id=1')" title="Copy"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                    <div class="md-cli-item">
+                        <div class="md-cli-info">
+                            <div class="md-cli-label"><i class="fa-solid fa-trash-can destructive"></i> Cleanup orphan task chats</div>
+                            <div class="md-cli-cmd">php run_cleanup_orphan_task_chats.php --org-id=1</div>
+                        </div>
+                        <button type="button" class="md-cli-copy" onclick="navigator.clipboard.writeText('php run_cleanup_orphan_task_chats.php --org-id=1')" title="Copy"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                    <div class="md-cli-item">
+                        <div class="md-cli-info">
+                            <div class="md-cli-label"><i class="fa-solid fa-table-columns"></i> Inspect task chat records</div>
+                            <div class="md-cli-cmd">php debug_task_chats.php --org-id=1</div>
+                        </div>
+                        <button type="button" class="md-cli-copy" onclick="navigator.clipboard.writeText('php debug_task_chats.php --org-id=1')" title="Copy"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                    <div class="md-cli-item">
+                        <div class="md-cli-info">
+                            <div class="md-cli-label"><i class="fa-solid fa-triangle-exclamation destructive"></i> Global reset (requires ALLOW_GLOBAL_MAINTENANCE=1)</div>
+                            <div class="md-cli-cmd">php reset_database.php --global=1</div>
+                        </div>
+                        <button type="button" class="md-cli-copy" onclick="navigator.clipboard.writeText('php reset_database.php --global=1')" title="Copy"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end .md-bottom-grid -->
+
+</div><!-- end .md-container -->
+<button type="button" class="maintenance-logout-btn" id="maintenanceLogoutBtn2" aria-label="Logout" style="display:none;"> id="maintenanceLogoutBtn" aria-label="Logout">
     <i class="fa fa-sign-out" aria-hidden="true"></i>
     <span>Logout</span>
 </button>
@@ -949,6 +657,38 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         </div>
     </div>
 </div>
+
+<div class="maintenance-modal-overlay" id="deleteWorkspaceModal">
+    <div class="maintenance-modal-box">
+        <div style="width:46px; height:46px; margin:0 auto 12px; border-radius:50%; background:#FEE2E2; color:#991B1B; display:flex; align-items:center; justify-content:center; font-size:18px;">
+            <i class="fa-solid fa-trash-can"></i>
+        </div>
+        <h3 style="margin:0 0 8px; font-size:20px; color:#111827;">Delete Workspace?</h3>
+        <p style="margin:0; font-size:14px; color:#6B7280;" id="deleteWorkspaceMessage">
+            This will permanently remove workspace users and data.
+        </p>
+        <div class="maintenance-modal-actions">
+            <button type="button" class="maintenance-modal-btn cancel" id="deleteWorkspaceCancelBtn">Cancel</button>
+            <button type="button" class="maintenance-modal-btn confirm" id="deleteWorkspaceConfirmBtn">Delete</button>
+        </div>
+    </div>
+</div>
+
+<div class="maintenance-modal-overlay" id="toggleWorkspaceModal">
+    <div class="maintenance-modal-box">
+        <div style="width:46px; height:46px; margin:0 auto 12px; border-radius:50%; background:#FEE2E2; color:#991B1B; display:flex; align-items:center; justify-content:center; font-size:18px;">
+            <i class="fa-solid fa-power-off"></i>
+        </div>
+        <h3 style="margin:0 0 8px; font-size:20px; color:#111827;" id="toggleWorkspaceTitle">Confirm Workspace Action</h3>
+        <p style="margin:0; font-size:14px; color:#6B7280;" id="toggleWorkspaceMessage">
+            Are you sure you want to continue?
+        </p>
+        <div class="maintenance-modal-actions">
+            <button type="button" class="maintenance-modal-btn cancel" id="toggleWorkspaceCancelBtn">Cancel</button>
+            <button type="button" class="maintenance-modal-btn confirm" id="toggleWorkspaceConfirmBtn">Continue</button>
+        </div>
+    </div>
+</div>
 <script>
     (function () {
         var searchInput = document.getElementById('workspaceSearch');
@@ -959,7 +699,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         var dangerZone = document.getElementById('dangerZone');
         var dangerArrow = document.getElementById('dangerArrow');
         var runLogList = document.getElementById('runLogList');
-        var actionLinks = document.querySelectorAll('.actions a, .destructive');
+        var actionLinks = document.querySelectorAll('[data-action-label]:not(.js-toggle-workspace-btn)');
         var runLogKey = 'maintenance_dashboard_action_log_v1';
         var logoutBtn = document.getElementById('maintenanceLogoutBtn');
         var logoutConfirmModal = document.getElementById('logoutConfirmModal');
@@ -967,13 +707,30 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         var logoutConfirmBtn = document.getElementById('logoutConfirmBtn');
         var restrictedErrorModal = document.getElementById('restrictedErrorModal');
         var restrictedOkBtn = document.getElementById('restrictedOkBtn');
+        var workspaceMenuToggles = document.querySelectorAll('.js-ws-menu-toggle');
+        var deleteWorkspaceButtons = document.querySelectorAll('.js-delete-workspace-btn');
+        var deleteWorkspaceModal = document.getElementById('deleteWorkspaceModal');
+        var deleteWorkspaceMessage = document.getElementById('deleteWorkspaceMessage');
+        var deleteWorkspaceCancelBtn = document.getElementById('deleteWorkspaceCancelBtn');
+        var deleteWorkspaceConfirmBtn = document.getElementById('deleteWorkspaceConfirmBtn');
+        var pendingDeleteWorkspaceHref = '';
+        var pendingDeleteWorkspaceName = '';
+        var toggleWorkspaceButtons = document.querySelectorAll('.js-toggle-workspace-btn');
+        var toggleWorkspaceModal = document.getElementById('toggleWorkspaceModal');
+        var toggleWorkspaceTitle = document.getElementById('toggleWorkspaceTitle');
+        var toggleWorkspaceMessage = document.getElementById('toggleWorkspaceMessage');
+        var toggleWorkspaceCancelBtn = document.getElementById('toggleWorkspaceCancelBtn');
+        var toggleWorkspaceConfirmBtn = document.getElementById('toggleWorkspaceConfirmBtn');
+        var pendingToggleWorkspaceHref = '';
+        var pendingToggleWorkspaceAction = '';
+        var pendingToggleWorkspaceName = '';
 
         function filterRows() {
             if (!tableBody) return;
             var q = (searchInput && searchInput.value ? searchInput.value : '').toLowerCase().trim();
             var statusVal = (statusFilter && statusFilter.value ? statusFilter.value : '').toLowerCase();
             var planVal = (planFilter && planFilter.value ? planFilter.value : '').toLowerCase();
-            var rows = tableBody.querySelectorAll('tr');
+            var rows = tableBody.querySelectorAll('.md-ws-card');
 
             rows.forEach(function (row) {
                 var name = row.getAttribute('data-workspace-name') || '';
@@ -987,6 +744,16 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             });
         }
 
+        function closeAllWorkspaceMenus() {
+            var openMenus = document.querySelectorAll('.md-ws-menu.open');
+            openMenus.forEach(function (menu) {
+                menu.classList.remove('open');
+            });
+            workspaceMenuToggles.forEach(function (toggle) {
+                toggle.setAttribute('aria-expanded', 'false');
+            });
+        }
+
         function renderRunLog() {
             if (!runLogList) return;
             var items = [];
@@ -996,11 +763,11 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                 items = [];
             }
             if (!items.length) {
-                runLogList.innerHTML = '<div class="run-log-item">No actions run yet.</div>';
+                runLogList.innerHTML = '<div class="md-run-log-item">No actions run yet.</div>';
                 return;
             }
             runLogList.innerHTML = items.map(function (item) {
-                return '<div class="run-log-item"><span class="run-log-time">' +
+                return '<div class="md-run-log-item"><span class="md-run-log-time">' +
                     item.time + '</span>' + item.workspace + ' - ' + item.action + '</div>';
             }).join('');
         }
@@ -1037,6 +804,30 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             });
         }
 
+        workspaceMenuToggles.forEach(function (toggle) {
+            toggle.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                var menu = toggle.parentElement ? toggle.parentElement.querySelector('.md-ws-menu') : null;
+                var isOpen = menu ? menu.classList.contains('open') : false;
+                closeAllWorkspaceMenus();
+                if (menu && !isOpen) {
+                    menu.classList.add('open');
+                    toggle.setAttribute('aria-expanded', 'true');
+                }
+            });
+        });
+
+        document.querySelectorAll('.md-ws-menu').forEach(function (menu) {
+            menu.addEventListener('click', function (event) {
+                event.stopPropagation();
+            });
+        });
+
+        document.addEventListener('click', function () {
+            closeAllWorkspaceMenus();
+        });
+
         actionLinks.forEach(function (link) {
             link.addEventListener('click', function () {
                 if (link.classList.contains('is-running')) {
@@ -1057,6 +848,45 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         function closeModal(modal) {
             if (modal) modal.style.display = 'none';
         }
+
+        deleteWorkspaceButtons.forEach(function (button) {
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                pendingDeleteWorkspaceHref = button.getAttribute('data-delete-href') || '';
+                pendingDeleteWorkspaceName = button.getAttribute('data-delete-workspace') || 'this workspace';
+                if (deleteWorkspaceMessage) {
+                    deleteWorkspaceMessage.textContent = 'Delete workspace "' + pendingDeleteWorkspaceName + '"? This will permanently remove the workspace, its users, and tenant data.';
+                }
+                closeAllWorkspaceMenus();
+                openModal(deleteWorkspaceModal);
+            });
+        });
+
+        toggleWorkspaceButtons.forEach(function (button) {
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                pendingToggleWorkspaceHref = button.getAttribute('data-toggle-href') || button.getAttribute('href') || '';
+                pendingToggleWorkspaceAction = button.getAttribute('data-action-label') || 'Workspace Action';
+                pendingToggleWorkspaceName = button.getAttribute('data-action-workspace') || 'Workspace';
+
+                var promptText = button.getAttribute('data-toggle-prompt') || 'Are you sure you want to continue?';
+                var confirmButtonText = button.getAttribute('data-toggle-button-text') || 'Continue';
+
+                if (toggleWorkspaceTitle) {
+                    toggleWorkspaceTitle.textContent = pendingToggleWorkspaceAction;
+                }
+                if (toggleWorkspaceMessage) {
+                    toggleWorkspaceMessage.textContent = promptText;
+                }
+                if (toggleWorkspaceConfirmBtn) {
+                    toggleWorkspaceConfirmBtn.textContent = confirmButtonText;
+                }
+
+                openModal(toggleWorkspaceModal);
+            });
+        });
 
         if (logoutBtn) {
             logoutBtn.addEventListener('click', function () {
@@ -1086,6 +916,46 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         if (restrictedErrorModal) {
             restrictedErrorModal.addEventListener('click', function (e) {
                 if (e.target === restrictedErrorModal) closeModal(restrictedErrorModal);
+            });
+        }
+        if (deleteWorkspaceCancelBtn) {
+            deleteWorkspaceCancelBtn.addEventListener('click', function () {
+                closeModal(deleteWorkspaceModal);
+            });
+        }
+        if (deleteWorkspaceConfirmBtn) {
+            deleteWorkspaceConfirmBtn.addEventListener('click', function () {
+                if (!pendingDeleteWorkspaceHref) {
+                    closeModal(deleteWorkspaceModal);
+                    return;
+                }
+                addRunLog('Delete Workspace', pendingDeleteWorkspaceName || 'Unknown Workspace');
+                window.location.href = pendingDeleteWorkspaceHref;
+            });
+        }
+        if (deleteWorkspaceModal) {
+            deleteWorkspaceModal.addEventListener('click', function (e) {
+                if (e.target === deleteWorkspaceModal) closeModal(deleteWorkspaceModal);
+            });
+        }
+        if (toggleWorkspaceCancelBtn) {
+            toggleWorkspaceCancelBtn.addEventListener('click', function () {
+                closeModal(toggleWorkspaceModal);
+            });
+        }
+        if (toggleWorkspaceConfirmBtn) {
+            toggleWorkspaceConfirmBtn.addEventListener('click', function () {
+                if (!pendingToggleWorkspaceHref) {
+                    closeModal(toggleWorkspaceModal);
+                    return;
+                }
+                addRunLog(pendingToggleWorkspaceAction || 'Workspace Action', pendingToggleWorkspaceName || 'Unknown Workspace');
+                window.location.href = pendingToggleWorkspaceHref;
+            });
+        }
+        if (toggleWorkspaceModal) {
+            toggleWorkspaceModal.addEventListener('click', function (e) {
+                if (e.target === toggleWorkspaceModal) closeModal(toggleWorkspaceModal);
             });
         }
         <?php if ($showRestrictedModal) { ?>

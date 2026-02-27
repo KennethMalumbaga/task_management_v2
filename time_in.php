@@ -1,77 +1,88 @@
 <?php
 session_start();
 date_default_timezone_set('Asia/Manila');
+header('Content-Type: application/json');
 
 require 'DB_connection.php';
+require_once 'inc/tenant.php';
+require_once 'inc/csrf.php';
 
-if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'employee') {
+if (!isset($_SESSION['id'], $_SESSION['role']) || $_SESSION['role'] !== 'employee') {
     http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
 }
 
-$user_id = $_SESSION['id'];
-$today = date('Y-m-d');
-$now   = date('H:i:s');
-
-/* -------------------------
-   DETERMINE SESSION
--------------------------- */
-$hour = (int) date('H');
-
-if ($hour >= 5 && $hour < 12) {
-    $session = 'morning';
-} elseif ($hour >= 12 && $hour < 18) {
-    $session = 'afternoon';
-} else {
-    $session = 'overtime';
-}
-
-/* -------------------------
-   GET TODAY ATTENDANCE
--------------------------- */
-$sql = "SELECT * FROM attendance 
-        WHERE user_id = ? AND att_date = ?
-        ORDER BY id DESC LIMIT 1";
-$stmt = $conn->prepare($sql);
-$stmt->execute([$user_id, $today]);
-$att = $stmt->fetch(PDO::FETCH_ASSOC);
-
-/* -------------------------
-   IF SESSION ALREADY OPEN
-   → RETURN IT (NOT ERROR)
--------------------------- */
-if ($att && $att["{$session}_in"] && !$att["{$session}_out"]) {
-    echo json_encode([
-        'status' => 'success',
-        'attendance_id' => $att['id'],
-        'session' => $session,
-        'time_in' => $att["{$session}_in"],
-        'message' => 'Session already active'
-    ]);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid request method']);
     exit;
 }
 
-/* -------------------------
-   CREATE OR UPDATE
--------------------------- */
-if (!$att) {
-    $sql = "INSERT INTO attendance (user_id, att_date, {$session}_in)
-            VALUES (?, ?, ?)";
-    $stmt = $conn->prepare($sql);
-    $stmt->execute([$user_id, $today, $now]);
-    $attendance_id = $conn->lastInsertId();
-} else {
-    $sql = "UPDATE attendance SET {$session}_in = ?
-            WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->execute([$now, $att['id']]);
-    $attendance_id = $att['id'];
+if (!csrf_verify('attendance_ajax_actions', $_POST['csrf_token'] ?? null, false)) {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid or expired request']);
+    exit;
 }
 
-echo json_encode([
-    'status' => 'success',
-    'attendance_id' => $attendance_id,
-    'session' => $session,
-    'time_in' => $now
-]);
+$user_id = (int)$_SESSION['id'];
+$today = date('Y-m-d');
+$now = date('H:i:s');
+
+try {
+    $sql = "SELECT id, time_in
+            FROM attendance
+            WHERE user_id = ?
+              AND att_date = ?
+              AND time_in IS NOT NULL
+              AND (time_out IS NULL OR time_out = '00:00:00')";
+    $params = [$user_id, $today];
+    $scope = tenant_get_scope($pdo, 'attendance');
+    $sql .= $scope['sql'] . "
+            ORDER BY id DESC
+            LIMIT 1";
+    $params = array_merge($params, $scope['params']);
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $active = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($active) {
+        echo json_encode([
+            'status' => 'success',
+            'attendance_id' => (int)$active['id'],
+            'time_in' => $active['time_in'],
+            'message' => 'Session already active',
+        ]);
+        exit;
+    }
+
+    $orgId = tenant_get_current_org_id();
+    $hasOrgColumn = tenant_column_exists($pdo, 'attendance', 'organization_id');
+
+    if ($hasOrgColumn && $orgId) {
+        $insertSql = "INSERT INTO attendance (user_id, att_date, time_in, organization_id)
+                      VALUES (?, ?, ?, ?)";
+        $insertParams = [$user_id, $today, $now, $orgId];
+    } else {
+        $insertSql = "INSERT INTO attendance (user_id, att_date, time_in)
+                      VALUES (?, ?, ?)";
+        $insertParams = [$user_id, $today, $now];
+    }
+
+    $insertStmt = $pdo->prepare($insertSql);
+    $insertStmt->execute($insertParams);
+    $attendance_id = (int)$pdo->lastInsertId();
+
+    echo json_encode([
+        'status' => 'success',
+        'attendance_id' => $attendance_id,
+        'time_in' => $now,
+    ]);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Unable to clock in right now.',
+    ]);
+}
+

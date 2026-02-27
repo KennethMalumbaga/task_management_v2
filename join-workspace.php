@@ -39,7 +39,7 @@ if ($token === '') {
             $inviteError = "This invitation is no longer active.";
         } elseif ($expiresAt !== false && $expiresAt <= time()) {
             $inviteError = "This invitation has expired. Ask your admin to send a new one.";
-        } elseif (in_array($orgStatus, ['suspended', 'canceled'], true)) {
+        } elseif ($orgStatus !== 'active') {
             $inviteError = "This workspace is currently unavailable.";
         } else {
             $capacity = tenant_check_workspace_capacity($pdo, (int)$invite['organization_id']);

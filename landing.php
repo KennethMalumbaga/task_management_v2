@@ -245,7 +245,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             <div class="landing-price-card popular">
                 <div class="landing-popular-tag">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
-                   
+                    Most Popular
                 </div>
                 <div class="plan-name">Professional</div>
                 <div class="plan-desc">For growing teams that need advanced features</div>
@@ -425,50 +425,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         document.getElementById('hamburger').addEventListener('click', function() {
             document.getElementById('navLinks').classList.toggle('open');
         });
-
-        // Plan card selection
-        var priceCards = document.querySelectorAll('.landing-price-card');
-        var popularTag = document.querySelector('.landing-popular-tag');
-
-        function selectPricingCard(card) {
-            if (!card) return;
-
-            priceCards.forEach(function(el) {
-                el.classList.remove('popular');
-                el.setAttribute('aria-pressed', 'false');
-                var btn = el.querySelector('.landing-btn-plan');
-                if (btn) btn.classList.remove('primary');
-            });
-
-            card.classList.add('popular');
-            card.setAttribute('aria-pressed', 'true');
-
-            var selectedBtn = card.querySelector('.landing-btn-plan');
-            if (selectedBtn) selectedBtn.classList.add('primary');
-
-            if (popularTag && popularTag.parentElement !== card) {
-                card.insertBefore(popularTag, card.firstChild);
-            }
-        }
-
-        priceCards.forEach(function(card) {
-            card.setAttribute('tabindex', '0');
-            card.setAttribute('role', 'button');
-            card.setAttribute('aria-pressed', card.classList.contains('popular') ? 'true' : 'false');
-
-            card.addEventListener('click', function() {
-                selectPricingCard(card);
-            });
-
-            card.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    selectPricingCard(card);
-                }
-            });
-        });
-
-        selectPricingCard(document.querySelector('.landing-price-card.popular') || priceCards[0]);
 
         // FAQ accordion
         function toggleFaq(btn) {

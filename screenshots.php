@@ -138,7 +138,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     </div>
 
     <!-- Modal for Full Image -->
-    <div id="imageModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9);">
+    <div id="imageModal" style="display: none; position: fixed; z-index: 5000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9);">
         <div style="position: relative; margin: auto; padding: 20px; width: 90%; max-width: 1200px; top: 50%; transform: translateY(-50%);">
             <span onclick="closeModal()" style="position: absolute; top: 10px; right: 25px; color: #f1f1f1; font-size: 35px; font-weight: bold; cursor: pointer;">&times;</span>
             <img id="modalImage" class="modal-image" style="display: block; margin: auto; max-height: 90vh;">
@@ -161,6 +161,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             var modalInfo = document.getElementById("modalInfo");
             
             modal.style.display = "block";
+            document.body.style.overflow = "hidden";
             modalImg.src = imagePath;
             modalInfo.innerHTML = "<strong>" + employeeName + "</strong><br>Taken at: " + takenAt;
         }
@@ -168,6 +169,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         function closeModal() {
             var modal = document.getElementById("imageModal");
             modal.style.display = "none";
+            document.body.style.overflow = "";
         }
 
         // Close modal when clicking outside the image
