@@ -40,7 +40,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
         <div class="landing-navbar-actions">
             <a href="login.php" class="landing-btn-signin">Sign In</a>
-            <a href="signup.php" class="landing-btn-getstarted">Get Started</a>
+            <a href="signup.php?signup_mode=trial&plan=trial" class="landing-btn-getstarted">Get Started</a>
         </div>
 
         <button class="landing-hamburger" id="hamburger" aria-label="menu">
@@ -63,7 +63,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             </p>
 
             <div class="landing-hero-buttons">
-                <a href="signup.php" class="landing-btn-trial">
+                <a href="signup.php?signup_mode=trial&plan=trial" class="landing-btn-trial">
                     Start Free Trial
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </a>
@@ -212,6 +212,21 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         </div>
 
         <div class="landing-pricing-cards">
+            <!-- Free Trial -->
+            <div class="landing-price-card">
+                <div class="plan-name">Free Trial</div>
+                <div class="plan-desc">Try TaskFlow instantly before subscribing to a paid plan</div>
+                <div class="plan-price">
+                    <span class="amount" data-monthly="Free">Free</span>
+                    <span class="period">2 days</span>
+                </div>
+                <ul class="plan-features">
+                    <li><span class="feat-check">&#10003;</span> Up to 10 team members</li>
+                    <li><span class="feat-check">&#10003;</span> No payment before first login</li>
+                </ul>
+                <a href="signup.php?signup_mode=trial&plan=trial" class="landing-btn-plan">Start Free Trial</a>
+            </div>
+
             <!-- Starter -->
             <div class="landing-price-card">
                 <div class="plan-name">Starter</div>
@@ -223,7 +238,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <ul class="plan-features">
                     <li><span class="feat-check">&#10003;</span> Up to 10 team members</li>
                 </ul>
-                <a href="signup.php?plan=starter" class="landing-btn-plan">Get Started</a>
+                <a href="signup.php?signup_mode=paid&plan=starter" class="landing-btn-plan">Get Started</a>
             </div>
 
             <!-- Professional -->
@@ -241,7 +256,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <ul class="plan-features">
                     <li><span class="feat-check">&#10003;</span> Up to 20 team members</li>
                 </ul>
-                <a href="signup.php?plan=professional" class="landing-btn-plan primary">Get Started</a>
+                <a href="signup.php?signup_mode=paid&plan=professional" class="landing-btn-plan primary">Get Started</a>
             </div>
 
             <!-- Enterprise -->
@@ -255,7 +270,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <ul class="plan-features">
                     <li><span class="feat-check">&#10003;</span> Up to 40 team members</li>
                 </ul>
-                <a href="signup.php?plan=enterprise" class="landing-btn-plan">Contact Sales</a>
+                <a href="signup.php?signup_mode=paid&plan=enterprise" class="landing-btn-plan">Contact Sales</a>
             </div>
         </div>
     </section>
@@ -291,7 +306,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <span class="faq-arrow"><i class="fa fa-chevron-down"></i></span>
             </button>
             <div class="landing-faq-answer">
-                Yes! The Starter plan is completely free and includes up to 5 team members, basic task management, time tracking, and team chat. No credit card required.
+                Yes. TaskFlow currently offers a 2-day free trial for new workspaces, and no payment is required before first login in trial mode.
             </div>
         </div>
 
@@ -463,7 +478,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         var supportKnowledge = [
             {
                 keywords: ['start', 'get started', 'trial', 'signup', 'sign up'],
-                answer: 'Start here: click <a href="signup.php">Create Account</a>, then <a href="login.php">Log In</a>, then go to your Dashboard. You can begin from this page using Get Started or Start Free Trial.'
+                answer: 'Start here: click <a href="signup.php?signup_mode=trial&plan=trial">Create Account</a> for a 2-day free trial, then <a href="login.php">Log In</a>. Paid plans will route you through checkout before login.'
             },
             {
                 keywords: ['invite', 'employee', 'subscriber', 'join workspace', 'join'],
