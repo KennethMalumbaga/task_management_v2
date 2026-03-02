@@ -39,7 +39,40 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     } else {
         $stmt->execute();
     }
-    $screenshots = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $screenshot_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $screenshots = [];
+    $grouped_screenshots = [];
+
+    foreach ($screenshot_rows as $screenshot) {
+        $imagePath = $screenshot['image_path'];
+        $fileExists = file_exists($imagePath);
+        $imageUrl = null;
+
+        if ($fileExists) {
+            $mtime = @filemtime($imagePath);
+            $imageUrl = $imagePath . '?t=' . ($mtime ? $mtime : time());
+        }
+
+        $screenshot['file_exists'] = $fileExists;
+        $screenshot['image_url'] = $imageUrl;
+        $screenshot['taken_at_formatted'] = date('M d, Y h:i A', strtotime($screenshot['taken_at']));
+
+        $screenshots[] = $screenshot;
+
+        $group_key = (string)$screenshot['user_id'];
+        if (!isset($grouped_screenshots[$group_key])) {
+            $grouped_screenshots[$group_key] = [
+                'user_id' => (int)$screenshot['user_id'],
+                'full_name' => $screenshot['full_name'],
+                'username' => $screenshot['username'],
+                'screenshots' => []
+            ];
+        }
+
+        $grouped_screenshots[$group_key]['screenshots'][] = $screenshot;
+    }
+
+    $grouped_screenshots = array_values($grouped_screenshots);
 
     // Get all users for filter dropdown
     $users = get_all_users($pdo);
@@ -56,6 +89,234 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <!-- Icons -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <style>
+        .capture-folder-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .capture-folder-card {
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+        }
+
+        .capture-folder-card:hover,
+        .capture-folder-card.is-active {
+            border-color: #D1D5DB;
+            box-shadow: 0 8px 22px rgba(17, 24, 39, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .capture-folder-card:focus {
+            outline: 2px solid #C4B5FD;
+            outline-offset: 2px;
+        }
+
+        .capture-folder-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: #EEF2FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .capture-folder-main {
+            min-width: 0;
+        }
+
+        .capture-folder-title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-dark);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .capture-folder-meta {
+            margin: 4px 0 0;
+            font-size: 12px;
+            color: var(--text-gray);
+        }
+
+        .capture-folder-sub {
+            margin: 4px 0 0;
+            font-size: 12px;
+            color: #9CA3AF;
+        }
+
+        .capture-folder-view {
+            display: none;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .capture-folder-view-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        .capture-folder-view-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .capture-folder-view-meta {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: var(--text-gray);
+        }
+
+        .capture-folder-panel {
+            display: none;
+        }
+
+        .capture-folder-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .capture-card {
+            border: 1px solid #F1F5F9;
+            border-radius: 12px;
+            box-shadow: none;
+            padding: 14px;
+            text-align: left;
+            background: white;
+        }
+
+        .capture-thumbnail {
+            width: 100%;
+            height: 170px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            cursor: pointer;
+            display: block;
+        }
+
+        .capture-placeholder {
+            width: 100%;
+            height: 170px;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+
+        .capture-card-meta {
+            margin-top: 12px;
+        }
+
+        .capture-card-time {
+            font-size: 12px;
+            color: var(--text-gray);
+        }
+
+        .capture-modal-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 44px;
+            height: 44px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.55);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            z-index: 2;
+        }
+
+        .capture-modal-nav:hover {
+            background: rgba(15, 23, 42, 0.75);
+        }
+
+        .capture-modal-prev {
+            left: 8px;
+        }
+
+        .capture-modal-next {
+            right: 8px;
+        }
+
+        .capture-modal-counter {
+            color: #D1D5DB;
+            text-align: center;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+
+        .empty-captures {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-gray);
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #E5E7EB;
+        }
+
+        @media (max-width: 768px) {
+            .capture-folder-list {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+
+            .capture-folder-card {
+                padding: 12px;
+            }
+
+            .capture-folder-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+
+            .capture-card {
+                padding: 10px;
+            }
+
+            .capture-thumbnail,
+            .capture-placeholder {
+                height: 130px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .capture-folder-list,
+            .capture-folder-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     
@@ -96,40 +357,80 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         <div id="screenshotsContainer" 
                 data-user-id="<?=htmlspecialchars($filter_user_id ?? '')?>" 
                 data-date="<?=htmlspecialchars($filter_date ?? '')?>">
-            <?php if (!empty($screenshots)) { ?>
-                <div class="grid-container" id="screenshotsGrid">
-                    <?php foreach ($screenshots as $screenshot) { 
-                        $imagePath = $screenshot['image_path'];
-                        $fileExists = file_exists($imagePath);
-                        $imageUrl = null;
-                        if ($fileExists && file_exists($imagePath)) {
-                            $mtime = @filemtime($imagePath);
-                            $imageUrl = $imagePath . '?t=' . ($mtime ? $mtime : time());
-                        }
-                    ?>
-                        <div class="capture-card" data-screenshot-id="<?=$screenshot['id']?>">
-                            <?php if ($fileExists) { ?>
-                                <img src="<?=$imageUrl?>" alt="Screenshot" style="width: 100%; height: 180px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; cursor: pointer;"
-                                        onclick="showFullImage('<?=$imagePath?>', '<?=htmlspecialchars($screenshot['full_name'])?>', '<?=$screenshot['taken_at']?>')">
-                            <?php } else { ?>
-                                <div style="width: 100%; height: 180px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
-                                    <i class="fa fa-image" style="font-size: 32px; color: #ccc;"></i>
-                                </div>
-                            <?php } ?>
-                            
-                            <div style="text-align: left; margin-top: 15px;">
-                                <div style="font-weight: 600; font-size: 14px; margin-bottom: 5px;">
-                                    <?= htmlspecialchars($screenshot['full_name']) ?>
-                                </div>
-                                <div style="font-size: 12px; color: var(--text-gray);">
-                                    <?= date('M d, Y h:i A', strtotime($screenshot['taken_at'])) ?>
-                                </div>
+            <?php if (!empty($grouped_screenshots)) { ?>
+                <div class="capture-folder-list" id="folderList">
+                    <?php foreach ($grouped_screenshots as $group) { ?>
+                        <?php
+                            $capture_count = count($group['screenshots']);
+                            $capture_label = $capture_count === 1 ? 'capture' : 'captures';
+                            $latest_capture = $capture_count > 0 ? $group['screenshots'][0]['taken_at_formatted'] : 'No captures yet';
+                            $username_prefix = !empty($group['username']) ? '@' . htmlspecialchars($group['username']) . ' | ' : '';
+                        ?>
+                        <div class="capture-folder-card capture-folder-trigger"
+                            role="button"
+                            tabindex="0"
+                            data-user-id="<?=$group['user_id']?>"
+                            data-user-name="<?=htmlspecialchars($group['full_name'], ENT_QUOTES, 'UTF-8')?>"
+                            data-user-username="<?=htmlspecialchars($group['username'], ENT_QUOTES, 'UTF-8')?>"
+                            data-capture-count="<?=$capture_count?>">
+                            <div class="capture-folder-icon">
+                                <i class="fa fa-folder"></i>
+                            </div>
+                            <div class="capture-folder-main">
+                                <h3 class="capture-folder-title"><?=htmlspecialchars($group['full_name'])?></h3>
+                                <p class="capture-folder-meta">
+                                    <?=$username_prefix?><?=$capture_count?> <?=$capture_label?>
+                                </p>
+                                <p class="capture-folder-sub">Latest: <?=$latest_capture?></p>
+                            </div>
+                        </div>
+                    <?php } ?>
+                </div>
+
+                <div class="capture-folder-view" id="folderView">
+                    <div class="capture-folder-view-header">
+                        <button type="button" class="btn-outline" id="backToFolders" style="padding: 8px 14px;">
+                            <i class="fa fa-arrow-left"></i> Back to folders
+                        </button>
+                        <div>
+                            <h3 class="capture-folder-view-title" id="activeFolderTitle"></h3>
+                            <p class="capture-folder-view-meta" id="activeFolderMeta"></p>
+                        </div>
+                    </div>
+
+                    <?php foreach ($grouped_screenshots as $group) { ?>
+                        <div class="capture-folder-panel" data-user-id="<?=$group['user_id']?>">
+                            <div class="capture-folder-grid">
+                                <?php foreach ($group['screenshots'] as $screenshot) { ?>
+                                    <div class="capture-card"
+                                        data-screenshot-id="<?=$screenshot['id']?>"
+                                        data-image-path="<?=!empty($screenshot['file_exists']) ? htmlspecialchars($screenshot['image_path'], ENT_QUOTES, 'UTF-8') : ''?>"
+                                        data-employee-name="<?=htmlspecialchars($screenshot['full_name'], ENT_QUOTES, 'UTF-8')?>"
+                                        data-taken-at="<?=htmlspecialchars($screenshot['taken_at'], ENT_QUOTES, 'UTF-8')?>">
+                                        <?php if (!empty($screenshot['file_exists']) && !empty($screenshot['image_url'])) { ?>
+                                            <img src="<?=htmlspecialchars($screenshot['image_url'], ENT_QUOTES, 'UTF-8')?>"
+                                                alt="Screenshot"
+                                                class="capture-thumbnail"
+                                                onclick='showFullImage(<?=json_encode($screenshot['image_path'])?>, <?=json_encode($screenshot['full_name'])?>, <?=json_encode($screenshot['taken_at'])?>)'>
+                                        <?php } else { ?>
+                                            <div class="capture-placeholder">
+                                                <i class="fa fa-image" style="font-size: 32px; color: #ccc;"></i>
+                                            </div>
+                                        <?php } ?>
+                                        
+                                        <div class="capture-card-meta">
+                                            <div class="capture-card-time">
+                                                <?=htmlspecialchars($screenshot['taken_at_formatted'])?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php } ?>
                             </div>
                         </div>
                     <?php } ?>
                 </div>
             <?php } else { ?>
-                <div style="padding: 40px; text-align: center; color: var(--text-gray);">
+                <div class="empty-captures" id="emptyState">
                     <i class="fa fa-camera" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
                     <h3>No screenshots found</h3>
                 </div>
@@ -141,8 +442,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <div id="imageModal" style="display: none; position: fixed; z-index: 5000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9);">
         <div style="position: relative; margin: auto; padding: 20px; width: 90%; max-width: 1200px; top: 50%; transform: translateY(-50%);">
             <span onclick="closeModal()" style="position: absolute; top: 10px; right: 25px; color: #f1f1f1; font-size: 35px; font-weight: bold; cursor: pointer;">&times;</span>
+            <button type="button" class="capture-modal-nav capture-modal-prev" onclick="showPrevImage()" aria-label="Previous screenshot">
+                <i class="fa fa-chevron-left"></i>
+            </button>
+            <button type="button" class="capture-modal-nav capture-modal-next" onclick="showNextImage()" aria-label="Next screenshot">
+                <i class="fa fa-chevron-right"></i>
+            </button>
             <img id="modalImage" class="modal-image" style="display: block; margin: auto; max-height: 90vh;">
             <div id="modalInfo" style="color: white; text-align: center; margin-top: 15px; font-size: 16px;"></div>
+            <div id="modalCounter" class="capture-modal-counter"></div>
         </div>
     </div>
 
@@ -155,35 +463,144 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             active.classList.add("active");
         }
 
-        function showFullImage(imagePath, employeeName, takenAt) {
-            var modal = document.getElementById("imageModal");
+        var slideshowItems = [];
+        var slideshowIndex = -1;
+        var slideshowAutoTimer = null;
+        var SLIDESHOW_INTERVAL_MS = 3000;
+
+        function stopSlideshowAutoPlay() {
+            if (slideshowAutoTimer) {
+                clearInterval(slideshowAutoTimer);
+                slideshowAutoTimer = null;
+            }
+        }
+
+        function startSlideshowAutoPlay() {
+            stopSlideshowAutoPlay();
+            if (slideshowItems.length <= 1) {
+                return;
+            }
+
+            slideshowAutoTimer = setInterval(function() {
+                showNextImage(true);
+            }, SLIDESHOW_INTERVAL_MS);
+        }
+
+        function collectVisibleSlideshowItems() {
+            var items = [];
+            var activePanel = document.querySelector('#folderView .capture-folder-panel[style*="display: block"]');
+            var cards = activePanel
+                ? activePanel.querySelectorAll('.capture-card[data-image-path]')
+                : document.querySelectorAll('#screenshotsContainer .capture-card[data-image-path]');
+
+            cards.forEach(function(card) {
+                var imagePath = card.getAttribute('data-image-path') || '';
+                var employeeName = card.getAttribute('data-employee-name') || '';
+                var takenAt = card.getAttribute('data-taken-at') || '';
+                if (imagePath) {
+                    items.push({
+                        imagePath: imagePath,
+                        employeeName: employeeName,
+                        takenAt: takenAt
+                    });
+                }
+            });
+
+            return items;
+        }
+
+        function renderSlideshowImage() {
+            if (!slideshowItems.length || slideshowIndex < 0) {
+                return;
+            }
+
+            var item = slideshowItems[slideshowIndex];
             var modalImg = document.getElementById("modalImage");
             var modalInfo = document.getElementById("modalInfo");
-            
+            var modalCounter = document.getElementById("modalCounter");
+
+            modalImg.src = item.imagePath;
+            modalInfo.innerHTML = "<strong>" + item.employeeName + "</strong><br>Taken at: " + item.takenAt;
+            if (modalCounter) {
+                modalCounter.textContent = (slideshowIndex + 1) + " / " + slideshowItems.length;
+            }
+        }
+
+        function showFullImage(imagePath, employeeName, takenAt) {
+            var modal = document.getElementById("imageModal");
+            var visibleItems = collectVisibleSlideshowItems();
+
+            slideshowItems = visibleItems.length ? visibleItems : [{
+                imagePath: imagePath,
+                employeeName: employeeName,
+                takenAt: takenAt
+            }];
+
+            slideshowIndex = slideshowItems.findIndex(function(item) {
+                return item.imagePath === imagePath && item.takenAt === takenAt;
+            });
+
+            if (slideshowIndex === -1) {
+                slideshowIndex = slideshowItems.findIndex(function(item) {
+                    return item.imagePath === imagePath;
+                });
+            }
+
+            if (slideshowIndex === -1) {
+                slideshowIndex = 0;
+            }
+
             modal.style.display = "block";
             document.body.style.overflow = "hidden";
-            modalImg.src = imagePath;
-            modalInfo.innerHTML = "<strong>" + employeeName + "</strong><br>Taken at: " + takenAt;
+            renderSlideshowImage();
+            startSlideshowAutoPlay();
+        }
+
+        function showPrevImage(fromAuto) {
+            if (!slideshowItems.length) return;
+            slideshowIndex = (slideshowIndex - 1 + slideshowItems.length) % slideshowItems.length;
+            renderSlideshowImage();
+            if (!fromAuto) {
+                startSlideshowAutoPlay();
+            }
+        }
+
+        function showNextImage(fromAuto) {
+            if (!slideshowItems.length) return;
+            slideshowIndex = (slideshowIndex + 1) % slideshowItems.length;
+            renderSlideshowImage();
+            if (!fromAuto) {
+                startSlideshowAutoPlay();
+            }
         }
 
         function closeModal() {
             var modal = document.getElementById("imageModal");
             modal.style.display = "none";
             document.body.style.overflow = "";
+            stopSlideshowAutoPlay();
+            slideshowItems = [];
+            slideshowIndex = -1;
         }
 
         // Close modal when clicking outside the image
         window.onclick = function(event) {
             var modal = document.getElementById("imageModal");
             if (event.target == modal) {
-                modal.style.display = "none";
+                closeModal();
             }
         }
 
-        // Close modal with Escape key
+        // Close modal with Escape key and navigate with arrow keys
         document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
+            var modal = document.getElementById("imageModal");
+            var isModalOpen = modal && modal.style.display === "block";
+            if (event.key === 'Escape' && isModalOpen) {
                 closeModal();
+            } else if (event.key === 'ArrowLeft' && isModalOpen) {
+                showPrevImage();
+            } else if (event.key === 'ArrowRight' && isModalOpen) {
+                showNextImage();
             }
         });
 
@@ -194,6 +611,266 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
             var refreshInterval = null;
             var isRefreshing = false;
+            var activeUserId = null;
+
+            function bindFolderEvents() {
+                var backButton = document.getElementById('backToFolders');
+                if (backButton) {
+                    backButton.onclick = function() {
+                        closeFolderView();
+                    };
+                }
+
+                var folderTriggers = container.querySelectorAll('.capture-folder-trigger');
+                folderTriggers.forEach(function(trigger) {
+                    trigger.onclick = function() {
+                        openFolder(trigger.getAttribute('data-user-id'));
+                    };
+
+                    trigger.onkeydown = function(event) {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            openFolder(trigger.getAttribute('data-user-id'));
+                        }
+                    };
+                });
+            }
+
+            function openFolder(userId) {
+                var folderList = document.getElementById('folderList');
+                var folderView = document.getElementById('folderView');
+                if (!folderList || !folderView) return;
+
+                var selectedTrigger = null;
+                var folderTriggers = folderList.querySelectorAll('.capture-folder-trigger');
+                folderTriggers.forEach(function(trigger) {
+                    var isSelected = String(trigger.getAttribute('data-user-id')) === String(userId);
+                    trigger.classList.toggle('is-active', isSelected);
+                    if (isSelected) {
+                        selectedTrigger = trigger;
+                    }
+                });
+
+                var matchingPanel = null;
+                var panels = folderView.querySelectorAll('.capture-folder-panel');
+                panels.forEach(function(panel) {
+                    var isMatch = String(panel.getAttribute('data-user-id')) === String(userId);
+                    panel.style.display = isMatch ? 'block' : 'none';
+                    if (isMatch) {
+                        matchingPanel = panel;
+                    }
+                });
+
+                if (!matchingPanel) {
+                    closeFolderView();
+                    return;
+                }
+
+                if (selectedTrigger) {
+                    var titleEl = document.getElementById('activeFolderTitle');
+                    var metaEl = document.getElementById('activeFolderMeta');
+                    var captureCount = selectedTrigger.getAttribute('data-capture-count') || '0';
+                    var captureLabel = captureCount === '1' ? 'capture' : 'captures';
+                    var username = selectedTrigger.getAttribute('data-user-username') || '';
+                    var metaPrefix = username ? '@' + username + ' | ' : '';
+
+                    if (titleEl) {
+                        titleEl.textContent = selectedTrigger.getAttribute('data-user-name') || 'User Captures';
+                    }
+                    if (metaEl) {
+                        metaEl.textContent = metaPrefix + captureCount + ' ' + captureLabel;
+                    }
+                }
+
+                folderList.style.display = 'none';
+                folderView.style.display = 'block';
+                activeUserId = String(userId);
+                container.setAttribute('data-active-user-id', activeUserId);
+            }
+
+            function closeFolderView() {
+                var folderList = document.getElementById('folderList');
+                var folderView = document.getElementById('folderView');
+
+                if (folderList) {
+                    folderList.style.display = 'grid';
+                }
+
+                if (folderView) {
+                    folderView.style.display = 'none';
+                    var panels = folderView.querySelectorAll('.capture-folder-panel');
+                    panels.forEach(function(panel) {
+                        panel.style.display = 'none';
+                    });
+                }
+
+                var folderTriggers = container.querySelectorAll('.capture-folder-trigger');
+                folderTriggers.forEach(function(trigger) {
+                    trigger.classList.remove('is-active');
+                });
+
+                activeUserId = null;
+                container.removeAttribute('data-active-user-id');
+            }
+
+            function createScreenshotCard(screenshot) {
+                var card = document.createElement('div');
+                card.className = 'capture-card';
+                card.setAttribute('data-screenshot-id', screenshot.id);
+                card.setAttribute('data-employee-name', screenshot.full_name || '');
+                card.setAttribute('data-taken-at', screenshot.taken_at || '');
+                card.setAttribute('data-image-path', (screenshot.file_exists && screenshot.image_path) ? screenshot.image_path : '');
+
+                if (screenshot.file_exists && screenshot.image_url) {
+                    var image = document.createElement('img');
+                    image.src = screenshot.image_url;
+                    image.alt = 'Screenshot';
+                    image.className = 'capture-thumbnail';
+                    image.addEventListener('click', function() {
+                        showFullImage(screenshot.image_path, screenshot.full_name, screenshot.taken_at);
+                    });
+                    card.appendChild(image);
+                } else {
+                    var placeholder = document.createElement('div');
+                    placeholder.className = 'capture-placeholder';
+                    placeholder.innerHTML = '<i class="fa fa-image" style="font-size: 32px; color: #ccc;"></i>';
+                    card.appendChild(placeholder);
+                }
+
+                var meta = document.createElement('div');
+                meta.className = 'capture-card-meta';
+
+                var time = document.createElement('div');
+                time.className = 'capture-card-time';
+                time.textContent = screenshot.taken_at_formatted || screenshot.taken_at;
+
+                meta.appendChild(time);
+                card.appendChild(meta);
+
+                return card;
+            }
+
+            function createFolderTrigger(group) {
+                var captureCount = group.screenshots.length;
+                var captureLabel = captureCount === 1 ? 'capture' : 'captures';
+                var latestCapture = captureCount > 0 ? (group.screenshots[0].taken_at_formatted || group.screenshots[0].taken_at) : 'No captures yet';
+                var usernamePrefix = group.username ? '@' + group.username + ' | ' : '';
+
+                var card = document.createElement('div');
+                card.className = 'capture-folder-card capture-folder-trigger';
+                card.setAttribute('role', 'button');
+                card.setAttribute('tabindex', '0');
+                card.setAttribute('data-user-id', group.user_id);
+                card.setAttribute('data-user-name', group.full_name || 'Unknown User');
+                card.setAttribute('data-user-username', group.username || '');
+                card.setAttribute('data-capture-count', String(captureCount));
+
+                var icon = document.createElement('div');
+                icon.className = 'capture-folder-icon';
+                icon.innerHTML = '<i class="fa fa-folder"></i>';
+
+                var content = document.createElement('div');
+                content.className = 'capture-folder-main';
+
+                var title = document.createElement('h3');
+                title.className = 'capture-folder-title';
+                title.textContent = group.full_name || 'Unknown User';
+
+                var meta = document.createElement('p');
+                meta.className = 'capture-folder-meta';
+                meta.textContent = usernamePrefix + captureCount + ' ' + captureLabel;
+
+                var sub = document.createElement('p');
+                sub.className = 'capture-folder-sub';
+                sub.textContent = 'Latest: ' + latestCapture;
+
+                content.appendChild(title);
+                content.appendChild(meta);
+                content.appendChild(sub);
+                card.appendChild(icon);
+                card.appendChild(content);
+
+                return card;
+            }
+
+            function createFolderPanel(group) {
+                var panel = document.createElement('div');
+                panel.className = 'capture-folder-panel';
+                panel.setAttribute('data-user-id', group.user_id);
+
+                var grid = document.createElement('div');
+                grid.className = 'capture-folder-grid';
+
+                group.screenshots.forEach(function(screenshot) {
+                    grid.appendChild(createScreenshotCard(screenshot));
+                });
+
+                panel.appendChild(grid);
+                return panel;
+            }
+
+            function renderFolderBrowser(grouped) {
+                container.innerHTML = '';
+
+                if (!grouped || grouped.length === 0) {
+                    var emptyState = document.createElement('div');
+                    emptyState.className = 'empty-captures';
+                    emptyState.id = 'emptyState';
+                    emptyState.innerHTML = '<i class="fa fa-camera" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i><h3>No screenshots found</h3>';
+                    container.appendChild(emptyState);
+                    activeUserId = null;
+                    return;
+                }
+
+                var folderList = document.createElement('div');
+                folderList.className = 'capture-folder-list';
+                folderList.id = 'folderList';
+
+                grouped.forEach(function(group) {
+                    folderList.appendChild(createFolderTrigger(group));
+                });
+
+                var folderView = document.createElement('div');
+                folderView.className = 'capture-folder-view';
+                folderView.id = 'folderView';
+
+                var viewHeader = document.createElement('div');
+                viewHeader.className = 'capture-folder-view-header';
+
+                var backButton = document.createElement('button');
+                backButton.type = 'button';
+                backButton.className = 'btn-outline';
+                backButton.id = 'backToFolders';
+                backButton.style.padding = '8px 14px';
+                backButton.innerHTML = '<i class="fa fa-arrow-left"></i> Back to folders';
+
+                var viewTitleWrap = document.createElement('div');
+                var viewTitle = document.createElement('h3');
+                viewTitle.className = 'capture-folder-view-title';
+                viewTitle.id = 'activeFolderTitle';
+                var viewMeta = document.createElement('p');
+                viewMeta.className = 'capture-folder-view-meta';
+                viewMeta.id = 'activeFolderMeta';
+                viewTitleWrap.appendChild(viewTitle);
+                viewTitleWrap.appendChild(viewMeta);
+
+                viewHeader.appendChild(backButton);
+                viewHeader.appendChild(viewTitleWrap);
+                folderView.appendChild(viewHeader);
+
+                grouped.forEach(function(group) {
+                    folderView.appendChild(createFolderPanel(group));
+                });
+
+                container.appendChild(folderList);
+                container.appendChild(folderView);
+
+                bindFolderEvents();
+
+                if (activeUserId) {
+                    openFolder(activeUserId);
+                }
+            }
 
             function fetchScreenshots() {
                 if (isRefreshing) return;
@@ -229,182 +906,34 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             }
 
             function updateScreenshots(screenshots) {
-                var grid = document.getElementById('screenshotsGrid');
-                var emptyState = document.getElementById('emptyState');
-                
-                if (screenshots.length === 0) {
-                    // Show empty state
-                    if (grid) {
-                        grid.style.display = 'none';
-                    }
-                    if (!emptyState) {
-                        var container = document.getElementById('screenshotsContainer');
-                        container.innerHTML = '<div class="empty-state" id="emptyState">' +
-                            '<i class="fa fa-image"></i>' +
-                            '<h3>No Screenshots Found</h3>' +
-                            '<p>No screenshots match your filter criteria.</p>' +
-                            '</div>';
-                    } else {
-                        emptyState.style.display = 'block';
-                    }
-                    return;
-                }
+                var grouped = groupScreenshotsByUser(screenshots);
+                renderFolderBrowser(grouped);
+            }
 
-                // Hide empty state
-                if (emptyState) {
-                    emptyState.style.display = 'none';
-                }
+            function groupScreenshotsByUser(screenshots) {
+                var grouped = {};
+                var order = [];
 
-                // Create or get grid
-                if (!grid) {
-                    grid = document.createElement('div');
-                    grid.className = 'screenshots-container';
-                    grid.id = 'screenshotsGrid';
-                    container.innerHTML = '';
-                    container.appendChild(grid);
-                } else {
-                    grid.style.display = 'grid';
-                }
-
-                // Create maps of existing screenshots by ID and attendance_id
-                var existingCards = {};
-                var cardsByAttendanceId = {};
-                var cards = grid.querySelectorAll('.screenshot-card');
-                cards.forEach(function(card) {
-                    var id = card.getAttribute('data-screenshot-id');
-                    var attendanceId = card.getAttribute('data-attendance-id');
-                    if (id) {
-                        existingCards[id] = card;
-                    }
-                    if (attendanceId && attendanceId !== 'null' && attendanceId !== '') {
-                        cardsByAttendanceId[attendanceId] = card;
-                    }
-                });
-
-                // Update or create screenshot cards
                 screenshots.forEach(function(screenshot) {
-                    var card = existingCards[screenshot.id];
-                    
-                    // If screenshot ID not found but attendance_id exists, update that card (handles screenshot replacement)
-                    if (!card && screenshot.attendance_id) {
-                        card = cardsByAttendanceId[screenshot.attendance_id];
-                        if (card) {
-                            // Update the card's screenshot ID
-                            card.setAttribute('data-screenshot-id', screenshot.id);
-                        }
+                    var key = String(screenshot.user_id || '');
+                    if (!grouped[key]) {
+                        grouped[key] = {
+                            user_id: screenshot.user_id,
+                            full_name: screenshot.full_name || 'Unknown User',
+                            username: screenshot.username || '',
+                            screenshots: []
+                        };
+                        order.push(key);
                     }
-                    
-                    if (card) {
-                        // Update existing card
-                        var img = card.querySelector('.screenshot-thumbnail');
-                        if (img && screenshot.image_url) {
-                            // Always update image URL to ensure fresh image (handles screenshot replacement)
-                            img.src = screenshot.image_url;
-                        } else if (!screenshot.file_exists && img) {
-                            // Replace image with placeholder
-                            var placeholder = document.createElement('div');
-                            placeholder.style.cssText = 'width: 100%; height: 200px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 4px;';
-                            placeholder.innerHTML = '<i class="fa fa-image" style="font-size: 48px; color: #ccc;"></i>';
-                            img.parentNode.replaceChild(placeholder, img);
-                        } else if (screenshot.file_exists && !img) {
-                            // Restore image if it was a placeholder
-                            var placeholder = card.querySelector('div[style*="background: #f0f0f0"]');
-                            if (placeholder) {
-                                var newImg = document.createElement('img');
-                                newImg.src = screenshot.image_url;
-                                newImg.alt = 'Screenshot';
-                                newImg.className = 'screenshot-thumbnail';
-                                newImg.onclick = function() {
-                                    showFullImage(screenshot.image_path, screenshot.full_name, screenshot.taken_at);
-                                };
-                                placeholder.parentNode.replaceChild(newImg, placeholder);
-                            }
-                        }
-                        
-                        // Update info
-                        var info = card.querySelector('.screenshot-info');
-                        if (info) {
-                            var html = '<p><strong>Employee:</strong> ' + escapeHtml(screenshot.full_name) + ' (@' + escapeHtml(screenshot.username) + ')</p>' +
-                                      '<p><strong>Taken At:</strong> ' + screenshot.taken_at_formatted + '</p>';
-                            if (screenshot.time_in) {
-                                html += '<p><strong>Time In:</strong> ' + screenshot.time_in + '</p>';
-                            }
-                            if (screenshot.time_out) {
-                                html += '<p><strong>Time Out:</strong> ' + screenshot.time_out + '</p>';
-                            }
-                            info.innerHTML = html;
-                        }
-                    } else {
-                        // Create new card
-                        var newCard = createScreenshotCard(screenshot);
-                        grid.appendChild(newCard);
-                    }
+                    grouped[key].screenshots.push(screenshot);
                 });
 
-                // Remove cards that no longer exist
-                var currentIds = screenshots.map(function(s) { return s.id.toString(); });
-                cards.forEach(function(card) {
-                    var id = card.getAttribute('data-screenshot-id');
-                    if (id && currentIds.indexOf(id) === -1) {
-                        card.remove();
-                    }
-                });
-
-                // Re-sort cards by taken_at (newest first)
-                var allCards = Array.from(grid.querySelectorAll('.screenshot-card'));
-                allCards.sort(function(a, b) {
-                    var aId = parseInt(a.getAttribute('data-screenshot-id'));
-                    var bId = parseInt(b.getAttribute('data-screenshot-id'));
-                    var aScreenshot = screenshots.find(function(s) { return s.id === aId; });
-                    var bScreenshot = screenshots.find(function(s) { return s.id === bId; });
-                    if (!aScreenshot || !bScreenshot) return 0;
-                    return new Date(bScreenshot.taken_at) - new Date(aScreenshot.taken_at);
-                });
-                allCards.forEach(function(card) {
-                    grid.appendChild(card);
+                return order.map(function(key) {
+                    return grouped[key];
                 });
             }
 
-            function createScreenshotCard(screenshot) {
-                var card = document.createElement('div');
-                card.className = 'screenshot-card';
-                card.setAttribute('data-screenshot-id', screenshot.id);
-                if (screenshot.attendance_id) {
-                    card.setAttribute('data-attendance-id', screenshot.attendance_id);
-                }
-
-                var imageHtml = '';
-                if (screenshot.file_exists && screenshot.image_url) {
-                    imageHtml = '<img src="' + screenshot.image_url + '" alt="Screenshot" class="screenshot-thumbnail" ' +
-                               'onclick="showFullImage(\'' + escapeHtml(screenshot.image_path) + '\', \'' + 
-                               escapeHtml(screenshot.full_name) + '\', \'' + screenshot.taken_at + '\')">';
-                } else {
-                    imageHtml = '<div style="width: 100%; height: 200px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 4px;">' +
-                               '<i class="fa fa-image" style="font-size: 48px; color: #ccc;"></i></div>';
-                }
-
-                var infoHtml = '<div class="screenshot-info">' +
-                              '<p><strong>Employee:</strong> ' + escapeHtml(screenshot.full_name) + ' (@' + escapeHtml(screenshot.username) + ')</p>' +
-                              '<p><strong>Taken At:</strong> ' + screenshot.taken_at_formatted + '</p>';
-                if (screenshot.time_in) {
-                    infoHtml += '<p><strong>Time In:</strong> ' + screenshot.time_in + '</p>';
-                }
-                if (screenshot.time_out) {
-                    infoHtml += '<p><strong>Time Out:</strong> ' + screenshot.time_out + '</p>';
-                }
-                infoHtml += '</div>';
-
-                card.innerHTML = imageHtml + infoHtml;
-                return card;
-            }
-
-            function escapeHtml(text) {
-                var div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
-
-
+            bindFolderEvents();
         })();
     </script>
 </body>
