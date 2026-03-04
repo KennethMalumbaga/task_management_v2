@@ -12,6 +12,7 @@ require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 require_once "send_email.php";
 require_once "invite_bulk_parser.php";
+require_once __DIR__ . "/helpers/invite_validation.php";
 
 if (!csrf_verify('bulk_invite_form', $_POST['csrf_token'] ?? null, true)) {
     header("Location: ../invite-user.php?error=" . urlencode("Invalid or expired request. Please refresh and try again."));
@@ -61,6 +62,17 @@ if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
     exit();
 }
 
+if (!function_exists('invite_bulk_validate_upload_type')) {
+    header("Location: ../invite-user.php?error=Bulk invite validator is missing.");
+    exit();
+}
+
+$typeValidation = invite_bulk_validate_upload_type($originalName, $tmpPath);
+if (empty($typeValidation['ok'])) {
+    header("Location: ../invite-user.php?error=" . urlencode((string)($typeValidation['error'] ?? 'Unsupported file type.')));
+    exit();
+}
+
 if ($size <= 0 || $size > (5 * 1024 * 1024)) {
     header("Location: ../invite-user.php?error=File size must be between 1 byte and 5MB.");
     exit();
@@ -105,15 +117,12 @@ $invalidRows = 0;
 $mailFailed = 0;
 
 foreach ($rows as $row) {
-    $email = strtolower(trim((string)($row['email'] ?? '')));
-    $fullName = trim((string)($row['full_name'] ?? ''));
+    $email = invite_normalize_email((string)($row['email'] ?? ''));
+    $fullName = invite_normalize_full_name((string)($row['full_name'] ?? ''));
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    if (!invite_is_valid_email($email) || !invite_is_valid_full_name($fullName)) {
         $invalidRows++;
         continue;
-    }
-    if ($fullName === '') {
-        $fullName = invite_guess_name_from_email($email);
     }
 
     $checkUserStmt->execute([$email]);

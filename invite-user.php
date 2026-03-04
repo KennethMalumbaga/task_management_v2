@@ -690,11 +690,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
 
     var BULK_EXT_ICON_CLASSES = {
         xlsx: 'fa-file-excel-o',
-        xls: 'fa-file-excel-o',
         csv: 'fa-file-text-o',
         pdf: 'fa-file-pdf-o',
         default: 'fa-file-o'
     };
+    var BULK_ALLOWED_EXTENSIONS = ['xlsx', 'csv', 'pdf'];
 
     function bulkFormatSize(bytes) {
         if (!bytes || bytes < 1024) return (bytes || 0) + ' B';
@@ -750,10 +750,40 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         }, 80);
     }
 
+    function bulkValidateSelectedFile(file) {
+        if (!file || !file.name) {
+            return 'Please choose a file to upload.';
+        }
+
+        var parts = file.name.split('.');
+        var ext = parts.length > 1 ? parts.pop().toLowerCase() : '';
+        if (BULK_ALLOWED_EXTENSIONS.indexOf(ext) === -1) {
+            return 'Only .xlsx, .csv, and .pdf files are allowed.';
+        }
+
+        return '';
+    }
+
+    function bulkRejectSelectedFile(message) {
+        if (bulkFileInput) {
+            bulkFileInput.value = '';
+            bulkFileInput.setCustomValidity(message);
+            bulkFileInput.reportValidity();
+        }
+        bulkShowUploadIdle();
+    }
+
     if (bulkFileInput) {
         bulkFileInput.addEventListener('change', function (e) {
             if (e.target.files && e.target.files[0]) {
-                bulkSimulateUpload(e.target.files[0]);
+                var file = e.target.files[0];
+                var bulkError = bulkValidateSelectedFile(file);
+                if (bulkError) {
+                    bulkRejectSelectedFile(bulkError);
+                    return;
+                }
+                bulkFileInput.setCustomValidity('');
+                bulkSimulateUpload(file);
             } else {
                 bulkShowUploadIdle();
             }
@@ -776,11 +806,18 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             var file = (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) ? e.dataTransfer.files[0] : null;
             if (!file) return;
 
+            var bulkError = bulkValidateSelectedFile(file);
+            if (bulkError) {
+                bulkRejectSelectedFile(bulkError);
+                return;
+            }
+
             if (bulkFileInput) {
                 try {
                     var dt = new DataTransfer();
                     dt.items.add(file);
                     bulkFileInput.files = dt.files;
+                    bulkFileInput.setCustomValidity('');
                 } catch (err) {
                     // Keep visual feedback even when file assignment is blocked.
                 }

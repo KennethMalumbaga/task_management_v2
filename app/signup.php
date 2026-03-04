@@ -165,6 +165,13 @@ try {
                      WHERE organization_id = ?"
                 );
                 $subStatusStmt->execute([$newOrgId]);
+            } else {
+                $subStatusStmt = $pdo->prepare(
+                    "UPDATE subscriptions
+                     SET status = 'trialing'
+                     WHERE organization_id = ?"
+                );
+                $subStatusStmt->execute([$newOrgId]);
             }
         }
 

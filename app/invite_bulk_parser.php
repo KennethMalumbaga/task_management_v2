@@ -181,9 +181,6 @@ if (!function_exists('bulk_invite_parse_pdf')) {
                         $name = $prev;
                     }
                 }
-                if ($name === '') {
-                    $name = invite_guess_name_from_email($email);
-                }
 
                 $records[] = [
                     'full_name' => $name,
@@ -264,10 +261,6 @@ if (!function_exists('bulk_invite_extract_records')) {
 
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 continue;
-            }
-
-            if ($name === '') {
-                $name = invite_guess_name_from_email($email);
             }
 
             if (isset($seen[$email])) {
@@ -413,4 +406,3 @@ if (!function_exists('bulk_invite_unescape_pdf_text')) {
         return bulk_invite_clean_text($text);
     }
 }
-
