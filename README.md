@@ -11,6 +11,7 @@ For end-user/subscriber flow documentation, read:
 For a compiled summary of updates completed today, read:
 
 - `README-UPDATE-2026-02-20.md`
+- `README-UPDATE-2026-03-05.md`
 
 ## How to Merge Upstream Changes (Safe Method)
 

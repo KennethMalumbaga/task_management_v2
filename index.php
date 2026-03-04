@@ -868,8 +868,27 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     let isAutoClockOutInProgress = false;
     let isManualClockOutInProgress = false;
     const idleCheckThresholdMs = 100000; // 100 seconds
+    const idleCheckCountdownStartSeconds = 60;
     let idleCheckTimer = null;
+    let idleCheckCountdownTimer = null;
+    let idleCheckSecondsRemaining = idleCheckCountdownStartSeconds;
+    let lastDashboardActivityAt = Date.now();
     let isIdleCheckModalOpen = false;
+    let isIdleLogoutInProgress = false;
+    let pendingIdleCaptureResolve = null;
+    let pendingIdleCaptureTimer = null;
+    const defaultDocumentTitle = document.title;
+    let lastIdleNotificationPermissionRequestAt = 0;
+    const idleNotificationPermissionRequestCooldownMs = 30000;
+    let idleWarningNotification = null;
+    const captureHeartbeatStorageKey = 'taskflow_capture_heartbeat';
+    const captureInputStateStorageKey = 'taskflow_capture_input_state';
+    const captureHeartbeatFreshMs = 60000;
+    const captureInputStateFreshMs = 45000;
+    let lastCaptureHeartbeatAt = 0;
+    let lastCaptureInputState = 'unknown';
+    let lastCaptureInputStateAt = 0;
+    let lastCaptureInputThresholdReached = false;
     const clockInNavWarningKey = 'taskflow_nav_clockin_warned_once_user_' + String(currentUserId || 'guest');
     let hasSeenClockInNavWarning = false;
     let pendingNavTarget = null;
@@ -889,6 +908,158 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
     }
 
+    function parseServerTimeToMs(value) {
+        if (!value) return 0;
+        var raw = String(value).trim();
+        if (!raw) return 0;
+        var ms = Date.parse(raw);
+        if (!isNaN(ms)) return ms;
+        ms = Date.parse(raw.replace(' ', 'T'));
+        return isNaN(ms) ? 0 : ms;
+    }
+
+    function setLastCaptureHeartbeat(ms, updateActivityClock) {
+        var parsedMs = Number(ms);
+        if (!isFinite(parsedMs) || parsedMs <= 0) return;
+        if (parsedMs > lastCaptureHeartbeatAt) {
+            lastCaptureHeartbeatAt = parsedMs;
+        }
+        if (!updateActivityClock) return;
+        if ((Date.now() - parsedMs) > captureHeartbeatFreshMs) return;
+        if (!hasFreshCaptureInputState()) return;
+        if (lastCaptureInputThresholdReached) return;
+        if (lastCaptureInputState !== 'active') return;
+        lastDashboardActivityAt = Math.max(lastDashboardActivityAt, parsedMs);
+    }
+
+    function getCaptureHeartbeatFromStorage(rawValue) {
+        var raw = rawValue;
+        if (typeof raw !== 'string') {
+            try {
+                raw = localStorage.getItem(captureHeartbeatStorageKey);
+            } catch (e) {
+                return null;
+            }
+        }
+        if (!raw) return null;
+        try {
+            var payload = JSON.parse(raw);
+            if (!payload || !payload.ts) return null;
+            var heartbeatTs = Number(payload.ts);
+            if (!isFinite(heartbeatTs) || heartbeatTs <= 0) return null;
+            var heartbeatAttendanceId = payload.attendance_id != null ? Number(payload.attendance_id) : null;
+            if (attendanceId && heartbeatAttendanceId && Number(attendanceId) !== heartbeatAttendanceId) {
+                return null;
+            }
+            return {
+                ts: heartbeatTs,
+                attendance_id: heartbeatAttendanceId
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function refreshCaptureHeartbeatFromStorage(updateActivityClock) {
+        var heartbeat = getCaptureHeartbeatFromStorage();
+        if (!heartbeat) return;
+        setLastCaptureHeartbeat(heartbeat.ts, !!updateActivityClock);
+    }
+
+    function syncHeartbeatFromAttendancePayload(payload) {
+        if (!payload) return;
+        if (payload.last_heartbeat_at) {
+            setLastCaptureHeartbeat(parseServerTimeToMs(payload.last_heartbeat_at), true);
+        }
+        if (payload.heartbeat_age_seconds !== null && payload.heartbeat_age_seconds !== undefined) {
+            var ageSeconds = Number(payload.heartbeat_age_seconds);
+            if (isFinite(ageSeconds) && ageSeconds >= 0) {
+                setLastCaptureHeartbeat(Date.now() - (ageSeconds * 1000), true);
+            }
+        }
+    }
+
+    function hasFreshCaptureHeartbeat() {
+        if (!hasActiveAttendance) return false;
+        refreshCaptureHeartbeatFromStorage(true);
+        if (!lastCaptureHeartbeatAt) return false;
+        return (Date.now() - lastCaptureHeartbeatAt) <= captureHeartbeatFreshMs;
+    }
+
+    function setLastCaptureInputState(state, ts, thresholdReached, updateActivityClock) {
+        var parsedTs = Number(ts);
+        if (!isFinite(parsedTs) || parsedTs <= 0) return;
+        if (parsedTs < lastCaptureInputStateAt) return;
+
+        lastCaptureInputStateAt = parsedTs;
+        lastCaptureInputState = (state ? String(state) : 'unknown').toLowerCase();
+        lastCaptureInputThresholdReached = !!thresholdReached;
+
+        if (updateActivityClock && !lastCaptureInputThresholdReached && lastCaptureInputState === 'active') {
+            if ((Date.now() - parsedTs) <= captureInputStateFreshMs) {
+                lastDashboardActivityAt = Math.max(lastDashboardActivityAt, parsedTs);
+            }
+        }
+    }
+
+    function getCaptureInputStateFromStorage(rawValue) {
+        var raw = rawValue;
+        if (typeof raw !== 'string') {
+            try {
+                raw = localStorage.getItem(captureInputStateStorageKey);
+            } catch (e) {
+                return null;
+            }
+        }
+        if (!raw) return null;
+        try {
+            var payload = JSON.parse(raw);
+            if (!payload || !payload.ts) return null;
+            var inputTs = Number(payload.ts);
+            if (!isFinite(inputTs) || inputTs <= 0) return null;
+            var inputAttendanceId = payload.attendance_id != null ? Number(payload.attendance_id) : null;
+            if (attendanceId && inputAttendanceId && Number(attendanceId) !== inputAttendanceId) {
+                return null;
+            }
+            var state = payload.state ? String(payload.state).toLowerCase() : 'unknown';
+            var thresholdReachedRaw = payload.threshold_reached;
+            var thresholdReached = thresholdReachedRaw === true || thresholdReachedRaw === 1 || thresholdReachedRaw === '1';
+            return {
+                ts: inputTs,
+                attendance_id: inputAttendanceId,
+                state: state,
+                threshold_reached: thresholdReached
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function refreshCaptureInputStateFromStorage(updateActivityClock) {
+        var inputState = getCaptureInputStateFromStorage();
+        if (!inputState) return;
+        setLastCaptureInputState(inputState.state, inputState.ts, inputState.threshold_reached, !!updateActivityClock);
+    }
+
+    function hasFreshCaptureInputState() {
+        refreshCaptureInputStateFromStorage(true);
+        if (!lastCaptureInputStateAt) return false;
+        return (Date.now() - lastCaptureInputStateAt) <= captureInputStateFreshMs;
+    }
+
+    function isCaptureInputIdle() {
+        if (!hasFreshCaptureInputState()) return false;
+        if (lastCaptureInputThresholdReached) return true;
+        return lastCaptureInputState === 'locked';
+    }
+
+    function canTreatCaptureAsActive() {
+        if (!hasFreshCaptureHeartbeat()) return false;
+        if (!hasFreshCaptureInputState()) return false;
+        if (lastCaptureInputThresholdReached) return false;
+        return lastCaptureInputState === 'active';
+    }
+
     // Toggle button visibility based on state
     function updateButtonState(isTimedIn) {
         hasActiveAttendance = !!isTimedIn;
@@ -900,6 +1071,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             btnOut.innerHTML = '<i class="fa fa-pause"></i> Clock Out/Pause';
             btnOut.disabled = false;
         } else {
+            lastCaptureHeartbeatAt = 0;
+            lastCaptureInputState = 'unknown';
+            lastCaptureInputStateAt = 0;
+            lastCaptureInputThresholdReached = false;
             console.log("Resetting to Clock In state");
             btnIn.style.display = 'flex';
             btnIn.innerHTML = '<i class="fa fa-play"></i> Clock In';
@@ -938,6 +1113,18 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     window.addEventListener('message', function(event) {
         // Only accept from same origin
         if (event.origin !== window.location.origin) return;
+        if (event.data && event.data.type === 'CAPTURE_BEFORE_LOGOUT_DONE') {
+            if (pendingIdleCaptureResolve) {
+                var resolveFn = pendingIdleCaptureResolve;
+                pendingIdleCaptureResolve = null;
+                if (pendingIdleCaptureTimer) {
+                    clearTimeout(pendingIdleCaptureTimer);
+                    pendingIdleCaptureTimer = null;
+                }
+                resolveFn(!!event.data.success);
+            }
+            return;
+        }
         if (!statusSpan) return;
         
         if (event.data.type === 'CAPTURE_STARTED') {
@@ -951,6 +1138,35 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
         } else if (event.data.type === 'CAPTURE_ERROR') {
              autoClockOutDueToCaptureIssue('Screen share denied/canceled. You have been clocked out.');
+        }
+    });
+
+    window.addEventListener('storage', function (event) {
+        if (event.key === captureHeartbeatStorageKey && event.newValue) {
+            var heartbeat = getCaptureHeartbeatFromStorage(event.newValue);
+            if (!heartbeat) return;
+            setLastCaptureHeartbeat(heartbeat.ts, true);
+            if (isIdleCheckModalOpen && canTreatCaptureAsActive()) {
+                closeIdleCheckModal();
+                return;
+            }
+            if (hasActiveAttendance && !isIdleCheckModalOpen && !isIdleLogoutInProgress) {
+                startIdleCheckTimer();
+            }
+            return;
+        }
+
+        if (event.key === captureInputStateStorageKey && event.newValue) {
+            var inputState = getCaptureInputStateFromStorage(event.newValue);
+            if (!inputState) return;
+            setLastCaptureInputState(inputState.state, inputState.ts, inputState.threshold_reached, true);
+            if (isIdleCheckModalOpen && canTreatCaptureAsActive()) {
+                closeIdleCheckModal();
+                return;
+            }
+            if (hasActiveAttendance && !isIdleCheckModalOpen && !isIdleLogoutInProgress) {
+                startIdleCheckTimer();
+            }
         }
     });
 
@@ -982,6 +1198,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     // Clock In Handler
     if (btnIn) {
         btnIn.addEventListener('click', async function () {
+            requestIdleNotificationPermission();
             btnIn.disabled = true;
             statusSpan.textContent = 'Clocking in...';
             statusSpan.style.color = ''; // Reset color
@@ -990,6 +1207,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 if (res.status === 'success') {
                     attendanceId = res.attendance_id || null;
                     hasActiveAttendance = true;
+                    setLastCaptureHeartbeat(Date.now(), true);
+                    setLastCaptureInputState('active', Date.now(), false, true);
                     
                     // Instant UI Update
                     var now = new Date();
@@ -1077,6 +1296,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     function setClockedOutUI(message, isError) {
         attendanceId = null;
         hasActiveAttendance = false;
+        lastCaptureHeartbeatAt = 0;
+        lastCaptureInputState = 'unknown';
+        lastCaptureInputStateAt = 0;
+        lastCaptureInputThresholdReached = false;
         updateButtonState(false);
         if (statusSpan) {
             statusSpan.textContent = message || 'Timed out. Session ended.';
@@ -1100,49 +1323,237 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     }
 
     function startIdleCheckTimer() {
+        if (window.__taskflowSharedIdleEnabled) return;
         if (idleCheckTimer) {
             clearTimeout(idleCheckTimer);
         }
+        if (isIdleCheckModalOpen || isIdleLogoutInProgress) return;
+        if (hasFreshCaptureHeartbeat() && isCaptureInputIdle()) {
+            openIdleCheckModal();
+            return;
+        }
+        if (canTreatCaptureAsActive()) {
+            var heartbeatAgeMs = Math.max(0, Date.now() - lastCaptureHeartbeatAt);
+            var untilHeartbeatStaleMs = Math.max(1000, captureHeartbeatFreshMs - heartbeatAgeMs + 500);
+            var inputAgeMs = lastCaptureInputStateAt ? Math.max(0, Date.now() - lastCaptureInputStateAt) : captureInputStateFreshMs;
+            var untilInputRefreshMs = Math.max(1000, captureInputStateFreshMs - inputAgeMs + 500);
+            var untilStaleMs = Math.min(untilHeartbeatStaleMs, untilInputRefreshMs);
+            idleCheckTimer = setTimeout(function () {
+                startIdleCheckTimer();
+            }, untilStaleMs);
+            return;
+        }
+        var elapsedMs = Date.now() - lastDashboardActivityAt;
+        var remainingMs = idleCheckThresholdMs - elapsedMs;
+        if (remainingMs <= 0) {
+            openIdleCheckModal();
+            return;
+        }
         idleCheckTimer = setTimeout(function () {
             openIdleCheckModal();
-        }, idleCheckThresholdMs);
+        }, remainingMs);
+    }
+
+    function updateIdleCheckCountdownLabel() {
+        var countdownLabel = document.getElementById('idleCheckCountdown');
+        if (countdownLabel) {
+            countdownLabel.textContent = String(Math.max(0, idleCheckSecondsRemaining));
+        }
+        updateIdleAlertIndicators();
+    }
+
+    function closeIdleWarningNotification() {
+        if (!idleWarningNotification) return;
+        try {
+            idleWarningNotification.close();
+        } catch (e) {
+            // no-op
+        }
+        idleWarningNotification = null;
+    }
+
+    function updateIdleAlertIndicators() {
+        if (isIdleCheckModalOpen && document.hidden) {
+            document.title = 'TaskFlow: Confirm (' + String(Math.max(0, idleCheckSecondsRemaining)) + 's)';
+            return;
+        }
+        document.title = defaultDocumentTitle;
+    }
+
+    function requestIdleNotificationPermission() {
+        if (!isEmployeeUser) return;
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'default') return;
+        var now = Date.now();
+        if ((now - lastIdleNotificationPermissionRequestAt) < idleNotificationPermissionRequestCooldownMs) return;
+        lastIdleNotificationPermissionRequestAt = now;
+        try {
+            var permissionPromise = Notification.requestPermission();
+            if (permissionPromise && typeof permissionPromise.catch === 'function') {
+                permissionPromise.catch(function () {
+                    // no-op
+                });
+            }
+        } catch (e) {
+            // no-op
+        }
+    }
+
+    function notifyIdleWhileHidden() {
+        updateIdleAlertIndicators();
+        if (!document.hidden) return;
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+        closeIdleWarningNotification();
+        try {
+            idleWarningNotification = new Notification('TaskFlow idle warning', {
+                body: 'Confirm within ' + String(idleCheckCountdownStartSeconds) + ' seconds or you will be logged out.',
+                tag: 'taskflow-idle-warning',
+                requireInteraction: true
+            });
+            idleWarningNotification.onclick = function () {
+                window.focus();
+                closeIdleWarningNotification();
+            };
+        } catch (e) {
+            // no-op
+        }
+    }
+
+    function stopIdleCheckCountdown() {
+        if (idleCheckCountdownTimer) {
+            clearInterval(idleCheckCountdownTimer);
+            idleCheckCountdownTimer = null;
+        }
+    }
+
+    function requestCaptureBeforeIdleLogout() {
+        return new Promise(function (resolve) {
+            if (!captureWindow || captureWindow.closed) {
+                resolve(false);
+                return;
+            }
+            if (pendingIdleCaptureResolve) {
+                var previousResolve = pendingIdleCaptureResolve;
+                pendingIdleCaptureResolve = null;
+                if (pendingIdleCaptureTimer) {
+                    clearTimeout(pendingIdleCaptureTimer);
+                    pendingIdleCaptureTimer = null;
+                }
+                previousResolve(false);
+            }
+            pendingIdleCaptureResolve = resolve;
+            pendingIdleCaptureTimer = setTimeout(function () {
+                if (!pendingIdleCaptureResolve) return;
+                var timeoutResolve = pendingIdleCaptureResolve;
+                pendingIdleCaptureResolve = null;
+                pendingIdleCaptureTimer = null;
+                timeoutResolve(false);
+            }, 10000);
+            try {
+                captureWindow.postMessage({ type: 'CAPTURE_NOW_BEFORE_LOGOUT' }, window.location.origin);
+            } catch (e) {
+                if (pendingIdleCaptureTimer) {
+                    clearTimeout(pendingIdleCaptureTimer);
+                    pendingIdleCaptureTimer = null;
+                }
+                pendingIdleCaptureResolve = null;
+                resolve(false);
+            }
+        });
+    }
+
+    async function logoutFromIdleTimeout() {
+        if (isIdleLogoutInProgress) return;
+        isIdleLogoutInProgress = true;
+        stopIdleCheckCountdown();
+        isIdleCheckModalOpen = false;
+        closeIdleWarningNotification();
+        updateIdleAlertIndicators();
+        if (idleCheckTimer) {
+            clearTimeout(idleCheckTimer);
+            idleCheckTimer = null;
+        }
+        await requestCaptureBeforeIdleLogout();
+        signalCaptureStop('idle_logout');
+        setTimeout(function () {
+            window.location.href = 'logout.php';
+        }, 700);
+    }
+
+    function startIdleCheckCountdown() {
+        stopIdleCheckCountdown();
+        idleCheckSecondsRemaining = idleCheckCountdownStartSeconds;
+        updateIdleCheckCountdownLabel();
+        idleCheckCountdownTimer = setInterval(function () {
+            if (canTreatCaptureAsActive()) {
+                closeIdleCheckModal();
+                return;
+            }
+            idleCheckSecondsRemaining -= 1;
+            updateIdleCheckCountdownLabel();
+            if (idleCheckSecondsRemaining <= 0) {
+                logoutFromIdleTimeout();
+            }
+        }, 1000);
     }
 
     function openIdleCheckModal() {
+        if (window.__taskflowSharedIdleEnabled) return;
         const modal = document.getElementById('idleCheckModal');
         if (!modal || isIdleCheckModalOpen) return;
+        if (idleCheckTimer) {
+            clearTimeout(idleCheckTimer);
+            idleCheckTimer = null;
+        }
         isIdleCheckModalOpen = true;
         modal.style.display = 'flex';
+        startIdleCheckCountdown();
+        notifyIdleWhileHidden();
     }
 
     function closeIdleCheckModal() {
         const modal = document.getElementById('idleCheckModal');
         if (modal) modal.style.display = 'none';
+        stopIdleCheckCountdown();
+        closeIdleWarningNotification();
         isIdleCheckModalOpen = false;
+        idleCheckSecondsRemaining = idleCheckCountdownStartSeconds;
+        updateIdleCheckCountdownLabel();
+        lastDashboardActivityAt = Date.now();
         startIdleCheckTimer();
     }
 
     function onDashboardUserActivity() {
+        requestIdleNotificationPermission();
         if (isIdleCheckModalOpen) return;
+        lastDashboardActivityAt = Date.now();
         startIdleCheckTimer();
     }
 
     function setupIdleCheckPrompt() {
+        if (!isEmployeeUser) return;
         const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
         activityEvents.forEach(function (eventName) {
             document.addEventListener(eventName, onDashboardUserActivity, true);
         });
 
         document.addEventListener('visibilitychange', function () {
-            if (document.hidden) {
-                if (idleCheckTimer) clearTimeout(idleCheckTimer);
-                return;
+            updateIdleAlertIndicators();
+            if (document.hidden && isIdleCheckModalOpen) {
+                notifyIdleWhileHidden();
             }
-            if (!isIdleCheckModalOpen) {
+            if (!document.hidden && !isIdleCheckModalOpen) {
                 startIdleCheckTimer();
+            }
+            if (!document.hidden) {
+                closeIdleWarningNotification();
             }
         });
 
+        refreshCaptureHeartbeatFromStorage(true);
+        refreshCaptureInputStateFromStorage(true);
+        lastDashboardActivityAt = Date.now();
         startIdleCheckTimer();
     }
 
@@ -1151,6 +1562,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         ajax('check_attendance.php', '', function (res) {
             if (res.status === 'success' && res.has_active_attendance) {
                 attendanceId = res.attendance_id || null;
+                syncHeartbeatFromAttendancePayload(res);
+                refreshCaptureHeartbeatFromStorage(true);
+                refreshCaptureInputStateFromStorage(true);
                 
                 // Always show Timed In state (Clock Out button) if DB says we are active.
                 // This persists across page refreshes/navigation.
@@ -1168,6 +1582,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             if (!payload) return;
             if (payload.has_active_attendance) {
                 attendanceId = payload.attendance_id || attendanceId;
+                syncHeartbeatFromAttendancePayload(payload);
+                refreshCaptureHeartbeatFromStorage(true);
+                refreshCaptureInputStateFromStorage(true);
                 hasActiveAttendance = true;
                 updateButtonState(true);
                 if (statusSpan) {
@@ -1641,7 +2058,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     switchAdminLeaderboardTab('employees');
     switchEmployeeLeaderboardTab('employees');
     renderBulletins();
-    setupIdleCheckPrompt();
+    if (isEmployeeUser && !window.__taskflowSharedIdleEnabled) {
+        setupIdleCheckPrompt();
+    }
 </script>
 <!-- Bulletin Post Modal -->
 <div id="bulletinPostModal" class="bulletin-modal-overlay">
@@ -1736,6 +2155,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         <h3 style="margin:0 0 10px; color:#111827;">Are you still there?</h3>
         <p style="color:#6B7280; font-size:14px; margin-bottom:25px; line-height:1.5;">
             You have been idle for 100 seconds on the dashboard.
+            Confirm within <span id="idleCheckCountdown">60</span> seconds or you will be logged out.
         </p>
         <div style="display:flex; justify-content:center;">
             <button onclick="closeIdleCheckModal()" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>

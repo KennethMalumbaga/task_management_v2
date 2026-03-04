@@ -1,6 +1,24 @@
 <?php
 if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
+    $sessionStarted = false;
+    $maxAttempts = 5;
+    $attempt = 0;
+
+    while (!$sessionStarted && $attempt < $maxAttempts) {
+        $attempt++;
+        $sessionStarted = @session_start();
+        if ($sessionStarted) {
+            break;
+        }
+        // Handle transient Windows session-file lock contention after auto-logout.
+        usleep(150000); // 150ms
+    }
+
+    if (!$sessionStarted) {
+        http_response_code(503);
+        echo 'Session is busy. Please refresh and try again.';
+        exit;
+    }
 }
 require_once "inc/csrf.php";
 

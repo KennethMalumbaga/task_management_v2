@@ -24,21 +24,21 @@ if (!csrf_verify('attendance_ajax_actions', $_POST['csrf_token'] ?? null, false)
     exit;
 }
 
-$user_id = $_SESSION['id'];
-$organization_id = tenant_get_current_org_id();
+$user_id = isset($_SESSION['id']) ? (int)$_SESSION['id'] : 0;
+$organization_id = isset($_SESSION['organization_id']) ? (int)$_SESSION['organization_id'] : null;
+$organization_id = $organization_id > 0 ? $organization_id : null;
 $attendance_id = isset($_POST['attendance_id']) ? (int) $_POST['attendance_id'] : null;
+session_write_close();
 
-// DEBUG LOGGING
-$logFile = __DIR__ . '/screenshot_debug.log';
-$logEntry = date('Y-m-d H:i:s') . " - Request from User: " . ($user_id ?? 'Unknown') . " - Attendance: " . ($attendance_id ?? 'None') . "\n";
-
-if (!isset($_SESSION['id'])) {
-    $logEntry .= "Error: Unauthorized (No Session)\n";
-    file_put_contents($logFile, $logEntry, FILE_APPEND);
+if ($user_id <= 0) {
     http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
 }
+
+// DEBUG LOGGING
+$logFile = __DIR__ . '/screenshot_debug.log';
+$logEntry = date('Y-m-d H:i:s') . " - Request from User: " . ($user_id ?? 'Unknown') . " - Attendance: " . ($attendance_id ?? 'None') . "\n";
 
 $imageData = $_POST['image'] ?? '';
 if (empty($imageData)) {
@@ -106,7 +106,7 @@ $seven_days_ago = date('Y-m-d H:i:s', strtotime('-7 days'));
 // 1. Get files to delete
 $sql_cleanup = "SELECT id, image_path FROM screenshots WHERE taken_at < ?";
 $cleanupParams = [$seven_days_ago];
-$scope = tenant_get_scope($pdo, 'screenshots');
+$scope = tenant_get_scope($pdo, 'screenshots', '', 'AND', 'organization_id', $organization_id);
 $sql_cleanup .= $scope['sql'];
 $cleanupParams = array_merge($cleanupParams, $scope['params']);
 $stmt_cleanup = $pdo->prepare($sql_cleanup);
@@ -126,7 +126,7 @@ if (!empty($old_records)) {
     
     // 3. Delete DB records
     $sql_del_cleanup = "DELETE FROM screenshots WHERE taken_at < ?";
-    $scope = tenant_get_scope($pdo, 'screenshots');
+    $scope = tenant_get_scope($pdo, 'screenshots', '', 'AND', 'organization_id', $organization_id);
     $sql_del_cleanup .= $scope['sql'];
     $stmt_del_cleanup = $pdo->prepare($sql_del_cleanup);
     $stmt_del_cleanup->execute(array_merge([$seven_days_ago], $scope['params']));

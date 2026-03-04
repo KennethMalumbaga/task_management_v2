@@ -37,7 +37,8 @@ CREATE TABLE public.attendance (
     total_hours numeric(5,2) DEFAULT 0,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     time_in time without time zone,
-    time_out time without time zone
+    time_out time without time zone,
+    last_heartbeat_at timestamp without time zone
 );
 
 

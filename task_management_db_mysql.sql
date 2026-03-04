@@ -11,6 +11,7 @@ CREATE TABLE attendance (
     created_at timestamp DEFAULT CURRENT_TIMESTAMP,
     time_in time,
     time_out time,
+    last_heartbeat_at datetime DEFAULT NULL,
     CONSTRAINT attendance_pkey PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

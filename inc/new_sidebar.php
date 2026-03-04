@@ -582,4 +582,285 @@
     })();
 </script>
 
+<?php
+    $sharedIdleRole = (string)($_SESSION['role'] ?? '');
+?>
+<div id="sharedIdleCheckModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2200; align-items:center; justify-content:center;">
+    <div style="background:white; padding:30px; border-radius:12px; width:370px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+        <div style="width:50px; height:50px; background:#DBEAFE; color:#1D4ED8; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; margin:0 auto 15px;">
+            <i class="fa fa-user-o"></i>
+        </div>
+        <h3 style="margin:0 0 10px; color:#111827;">Are you still there?</h3>
+        <p style="color:#6B7280; font-size:14px; margin-bottom:25px; line-height:1.5;">
+            We detected no input activity.
+            Confirm within <span id="sharedIdleCountdown">60</span> seconds or you will be logged out.
+        </p>
+        <div style="display:flex; justify-content:center;">
+            <button type="button" id="sharedIdleStayBtn" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>
+        </div>
+    </div>
+</div>
+<script>
+    (function () {
+        if (window.__taskflowSharedIdleInitialized) return;
+        window.__taskflowSharedIdleInitialized = true;
+
+        var role = <?= json_encode($sharedIdleRole, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        var isEmployeeUser = role === 'employee';
+        if (!isEmployeeUser) return;
+
+        window.__taskflowSharedIdleEnabled = true;
+
+        var COUNTDOWN_START_SECONDS = 60;
+        var INPUT_STATE_FRESH_MS = 45000;
+        var NO_ATTENDANCE_IDLE_THRESHOLD_MS = 60000;
+        var DISMISS_SNOOZE_MS = 15000;
+        var ATTENDANCE_POLL_MS = 3000;
+        var EVALUATE_INTERVAL_MS = 1000;
+        var INPUT_STATE_KEY = 'taskflow_capture_input_state';
+        var FORCE_STOP_KEY = 'taskflow_force_stop_capture';
+        var CAPTURE_BEFORE_IDLE_REQUEST_KEY = 'taskflow_capture_before_idle_logout_req';
+        var CAPTURE_BEFORE_IDLE_ACK_KEY = 'taskflow_capture_before_idle_logout_ack';
+
+        var modal = document.getElementById('sharedIdleCheckModal');
+        var countdownEl = document.getElementById('sharedIdleCountdown');
+        var stayBtn = document.getElementById('sharedIdleStayBtn');
+
+        var hasActiveAttendance = false;
+        var activeAttendanceId = null;
+        var isModalOpen = false;
+        var isLogoutInProgress = false;
+        var secondsRemaining = COUNTDOWN_START_SECONDS;
+        var countdownTimer = null;
+        var attendanceTimer = null;
+        var evalTimer = null;
+        var lastLocalActivityAt = Date.now();
+        var dismissedUntilTs = 0;
+
+        function updateCountdownLabel() {
+            if (!countdownEl) return;
+            countdownEl.textContent = String(Math.max(0, secondsRemaining));
+        }
+
+        function stopCountdown() {
+            if (!countdownTimer) return;
+            clearInterval(countdownTimer);
+            countdownTimer = null;
+        }
+
+        function closeIdleModal() {
+            if (!isModalOpen) return;
+            isModalOpen = false;
+            stopCountdown();
+            secondsRemaining = COUNTDOWN_START_SECONDS;
+            updateCountdownLabel();
+            if (modal) modal.style.display = 'none';
+        }
+
+        function markLocalActivity() {
+            lastLocalActivityAt = Date.now();
+        }
+
+        function parseInputStateFromStorage(rawValue) {
+            var raw = rawValue;
+            if (typeof raw !== 'string') {
+                try {
+                    raw = localStorage.getItem(INPUT_STATE_KEY);
+                } catch (e) {
+                    return null;
+                }
+            }
+            if (!raw) return null;
+            try {
+                var payload = JSON.parse(raw);
+                if (!payload || !payload.ts) return null;
+                var ts = Number(payload.ts);
+                if (!isFinite(ts) || ts <= 0) return null;
+                var attendanceId = payload.attendance_id != null ? Number(payload.attendance_id) : null;
+                if (activeAttendanceId && attendanceId && Number(activeAttendanceId) !== attendanceId) {
+                    return null;
+                }
+                var thresholdReachedRaw = payload.threshold_reached;
+                var thresholdReached = thresholdReachedRaw === true || thresholdReachedRaw === 1 || thresholdReachedRaw === '1';
+                return {
+                    ts: ts,
+                    state: payload.state ? String(payload.state).toLowerCase() : 'unknown',
+                    threshold_reached: thresholdReached
+                };
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function isInputIdleNow() {
+            if (!hasActiveAttendance) return false;
+            var inputState = parseInputStateFromStorage();
+            if (!inputState) return false;
+            if ((Date.now() - inputState.ts) > INPUT_STATE_FRESH_MS) return false;
+            if (inputState.threshold_reached) return true;
+            return inputState.state === 'idle' || inputState.state === 'locked';
+        }
+
+        function isNoAttendanceIdleNow() {
+            if (hasActiveAttendance) return false;
+            return (Date.now() - lastLocalActivityAt) >= NO_ATTENDANCE_IDLE_THRESHOLD_MS;
+        }
+
+        function shouldShowIdleModalNow() {
+            if (Date.now() < dismissedUntilTs) return false;
+            if (hasActiveAttendance) {
+                return isInputIdleNow();
+            }
+            return isNoAttendanceIdleNow();
+        }
+
+        function requestCaptureBeforeSharedIdleLogout() {
+            return new Promise(function (resolve) {
+                var requestId = 'shared_idle_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+                var settled = false;
+
+                function cleanup() {
+                    window.removeEventListener('storage', onStorageAck);
+                }
+
+                function finish(result) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    resolve(!!result);
+                }
+
+                function onStorageAck(event) {
+                    if (!event || event.key !== CAPTURE_BEFORE_IDLE_ACK_KEY || !event.newValue) return;
+                    try {
+                        var payload = JSON.parse(event.newValue);
+                        if (!payload || payload.request_id !== requestId) return;
+                        finish(!!payload.success);
+                    } catch (e) {
+                        // ignore malformed payload
+                    }
+                }
+
+                window.addEventListener('storage', onStorageAck);
+
+                try {
+                    localStorage.setItem(CAPTURE_BEFORE_IDLE_REQUEST_KEY, JSON.stringify({
+                        ts: Date.now(),
+                        request_id: requestId
+                    }));
+                    setTimeout(function () {
+                        try { localStorage.removeItem(CAPTURE_BEFORE_IDLE_REQUEST_KEY); } catch (e) {}
+                    }, 1000);
+                } catch (e) {
+                    finish(false);
+                    return;
+                }
+
+                setTimeout(function () {
+                    finish(false);
+                }, 10000);
+            });
+        }
+
+        async function logoutFromSharedIdle() {
+            if (isLogoutInProgress) return;
+            isLogoutInProgress = true;
+            closeIdleModal();
+            if (hasActiveAttendance) {
+                await requestCaptureBeforeSharedIdleLogout();
+            }
+            try {
+                localStorage.setItem(FORCE_STOP_KEY, JSON.stringify({
+                    ts: Date.now(),
+                    reason: 'input_idle_timeout'
+                }));
+                setTimeout(function () {
+                    localStorage.removeItem(FORCE_STOP_KEY);
+                }, 1000);
+            } catch (e) {
+                // no-op
+            }
+            setTimeout(function () {
+                window.location.href = 'logout.php';
+            }, 700);
+        }
+
+        function openIdleModal() {
+            if (isModalOpen || isLogoutInProgress) return;
+            isModalOpen = true;
+            secondsRemaining = COUNTDOWN_START_SECONDS;
+            updateCountdownLabel();
+            if (modal) modal.style.display = 'flex';
+            stopCountdown();
+            countdownTimer = setInterval(function () {
+                if (!shouldShowIdleModalNow()) {
+                    closeIdleModal();
+                    return;
+                }
+                secondsRemaining -= 1;
+                updateCountdownLabel();
+                if (secondsRemaining <= 0) {
+                    logoutFromSharedIdle();
+                }
+            }, 1000);
+        }
+
+        function evaluateIdleState() {
+            if (isLogoutInProgress) return;
+            if (shouldShowIdleModalNow()) {
+                openIdleModal();
+            } else {
+                closeIdleModal();
+            }
+        }
+
+        function pollAttendanceState() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'check_attendance.php', true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4) return;
+                if (xhr.status < 200 || xhr.status >= 300) return;
+                try {
+                    var res = JSON.parse(xhr.responseText);
+                    if (res && res.status === 'success' && res.has_active_attendance) {
+                        hasActiveAttendance = true;
+                        activeAttendanceId = Number(res.attendance_id || 0) || null;
+                    } else {
+                        hasActiveAttendance = false;
+                        activeAttendanceId = null;
+                    }
+                    evaluateIdleState();
+                } catch (e) {
+                    // no-op
+                }
+            };
+            xhr.send();
+        }
+
+        if (stayBtn) {
+            stayBtn.addEventListener('click', function () {
+                markLocalActivity();
+                dismissedUntilTs = Date.now() + DISMISS_SNOOZE_MS;
+                closeIdleModal();
+            });
+        }
+
+        ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'].forEach(function (eventName) {
+            document.addEventListener(eventName, function () {
+                markLocalActivity();
+            }, true);
+        });
+
+        window.addEventListener('storage', function (event) {
+            if (event.key === INPUT_STATE_KEY) {
+                evaluateIdleState();
+            }
+        });
+
+        pollAttendanceState();
+        attendanceTimer = setInterval(pollAttendanceState, ATTENDANCE_POLL_MS);
+        evalTimer = setInterval(evaluateIdleState, EVALUATE_INTERVAL_MS);
+    })();
+</script>
+
 <?php include_once __DIR__ . "/toast.php"; ?>

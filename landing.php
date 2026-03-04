@@ -270,7 +270,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <ul class="plan-features">
                     <li><span class="feat-check">&#10003;</span> Up to 40 team members</li>
                 </ul>
-                <a href="signup.php?signup_mode=paid&plan=enterprise" class="landing-btn-plan">Contact Sales</a>
+                <a href="signup.php?signup_mode=paid&plan=enterprise" class="landing-btn-plan">Get Started</a>
             </div>
         </div>
     </section>

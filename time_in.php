@@ -26,6 +26,9 @@ if (!csrf_verify('attendance_ajax_actions', $_POST['csrf_token'] ?? null, false)
 }
 
 $user_id = (int)$_SESSION['id'];
+$organization_id = isset($_SESSION['organization_id']) ? (int)$_SESSION['organization_id'] : null;
+$organization_id = $organization_id > 0 ? $organization_id : null;
+session_write_close();
 $today = date('Y-m-d');
 $now = date('H:i:s');
 
@@ -37,7 +40,7 @@ try {
               AND time_in IS NOT NULL
               AND (time_out IS NULL OR time_out = '00:00:00')";
     $params = [$user_id, $today];
-    $scope = tenant_get_scope($pdo, 'attendance');
+    $scope = tenant_get_scope($pdo, 'attendance', '', 'AND', 'organization_id', $organization_id);
     $sql .= $scope['sql'] . "
             ORDER BY id DESC
             LIMIT 1";
@@ -56,17 +59,30 @@ try {
         exit;
     }
 
-    $orgId = tenant_get_current_org_id();
+    $orgId = $organization_id;
     $hasOrgColumn = tenant_column_exists($pdo, 'attendance', 'organization_id');
+    $hasHeartbeatColumn = tenant_column_exists($pdo, 'attendance', 'last_heartbeat_at');
 
     if ($hasOrgColumn && $orgId) {
-        $insertSql = "INSERT INTO attendance (user_id, att_date, time_in, organization_id)
-                      VALUES (?, ?, ?, ?)";
-        $insertParams = [$user_id, $today, $now, $orgId];
+        if ($hasHeartbeatColumn) {
+            $insertSql = "INSERT INTO attendance (user_id, att_date, time_in, organization_id, last_heartbeat_at)
+                          VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)";
+            $insertParams = [$user_id, $today, $now, $orgId];
+        } else {
+            $insertSql = "INSERT INTO attendance (user_id, att_date, time_in, organization_id)
+                          VALUES (?, ?, ?, ?)";
+            $insertParams = [$user_id, $today, $now, $orgId];
+        }
     } else {
-        $insertSql = "INSERT INTO attendance (user_id, att_date, time_in)
-                      VALUES (?, ?, ?)";
-        $insertParams = [$user_id, $today, $now];
+        if ($hasHeartbeatColumn) {
+            $insertSql = "INSERT INTO attendance (user_id, att_date, time_in, last_heartbeat_at)
+                          VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
+            $insertParams = [$user_id, $today, $now];
+        } else {
+            $insertSql = "INSERT INTO attendance (user_id, att_date, time_in)
+                          VALUES (?, ?, ?)";
+            $insertParams = [$user_id, $today, $now];
+        }
     }
 
     $insertStmt = $pdo->prepare($insertSql);
@@ -85,4 +101,3 @@ try {
         'message' => 'Unable to clock in right now.',
     ]);
 }
-

@@ -16,6 +16,42 @@
             font-weight: bold;
         }
 
+        .heartbeat-status {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #334155;
+        }
+
+        .heartbeat-status.ok {
+            color: #15803d;
+        }
+
+        .heartbeat-status.warn {
+            color: #b45309;
+        }
+
+        .heartbeat-status.err {
+            color: #b91c1c;
+        }
+
+        .input-status {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #334155;
+        }
+
+        .input-status.ok {
+            color: #15803d;
+        }
+
+        .input-status.warn {
+            color: #b45309;
+        }
+
+        .input-status.err {
+            color: #b91c1c;
+        }
+
         .error {
             color: red;
         }
@@ -26,13 +62,32 @@
     <h3>TaskFlow Monitor Active</h3>
     <p>Do not close this window while working.</p>
     <div id="status" class="status">Initializing...</div>
+    <div id="heartbeatStatus" class="heartbeat-status">Heartbeat: initializing...</div>
+    <div id="inputStatus" class="input-status">Input activity: checking...</div>
     <div id="preview"></div>
 
     <script>
         // Interval: 20 to 30 MINUTES
         const MIN_INTERVAL = 20 * 60 * 1000;
         const MAX_INTERVAL = 30 * 60 * 1000;
+        const CAPTURE_HEARTBEAT_STORAGE_KEY = 'taskflow_capture_heartbeat';
+        const CAPTURE_INPUT_STATE_STORAGE_KEY = 'taskflow_capture_input_state';
+        const CAPTURE_HEARTBEAT_INTERVAL_MS = 2000;
+        const CAPTURE_BEFORE_IDLE_REQUEST_KEY = 'taskflow_capture_before_idle_logout_req';
+        const CAPTURE_BEFORE_IDLE_ACK_KEY = 'taskflow_capture_before_idle_logout_ack';
+        const REQUESTED_INPUT_IDLE_THRESHOLD_SECONDS = 60;
+        const MIN_CHROME_IDLE_THRESHOLD_SECONDS = 15;
+        const EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS = Math.max(
+            MIN_CHROME_IDLE_THRESHOLD_SECONDS,
+            REQUESTED_INPUT_IDLE_THRESHOLD_SECONDS
+        );
+        function formatInputIdleLabel(thresholdSeconds) {
+            return thresholdSeconds >= 60
+                ? (Math.round(thresholdSeconds / 60) + '+ min no input')
+                : (thresholdSeconds + '+ sec no input');
+        }
         let keepAliveInterval = null;
+        let attendanceHeartbeatInterval = null;
         let captureInterval = null;
         let attendanceId = null;
         let sessionId = null;
@@ -41,6 +96,11 @@
         let currentStream = null;
         let attendanceCheckInterval = null;
         let isStopping = false;
+        let isCaptureInProgress = false;
+        let isHeartbeatRequestInFlight = false;
+        let openerMonitorInterval = null;
+        let lastHandledIdleCaptureRequestId = null;
+        const hadOpenerAtLaunch = !!window.opener;
         // Robust relative URL
         let apiUrl = new URL('save_screenshot.php', window.location.href).href;
 
@@ -52,6 +112,20 @@
         csrfToken = params.get('csrf_token');
 
         const statusDiv = document.getElementById('status');
+        const heartbeatStatusDiv = document.getElementById('heartbeatStatus');
+        const inputStatusDiv = document.getElementById('inputStatus');
+
+        function setHeartbeatStatus(message, level) {
+            if (!heartbeatStatusDiv) return;
+            heartbeatStatusDiv.className = 'heartbeat-status' + (level ? (' ' + level) : '');
+            heartbeatStatusDiv.innerText = message;
+        }
+
+        function setInputStatus(message, level) {
+            if (!inputStatusDiv) return;
+            inputStatusDiv.className = 'input-status' + (level ? (' ' + level) : '');
+            inputStatusDiv.innerText = message;
+        }
 
         async function startCapture() {
             try {
@@ -81,6 +155,7 @@
                 // Start loop
                 startHeartbeat(); // Start heartbeat
                 startAttendanceCheck(); // Auto-close when session is ended
+                startOpenerMonitor(); // Auto-stop when parent tab is closed
                 takeScreenshot(stream); // First one immediately
                 scheduleNext(stream);
 
@@ -98,13 +173,167 @@
 
         let heartbeatInterval = null;
 
+        function publishCaptureHeartbeat() {
+            if (!attendanceId) return;
+            try {
+                localStorage.setItem(CAPTURE_HEARTBEAT_STORAGE_KEY, JSON.stringify({
+                    ts: Date.now(),
+                    attendance_id: Number(attendanceId)
+                }));
+            } catch (e) {
+                // no-op
+            }
+        }
+
+        function publishInputState(state, thresholdReached, thresholdSeconds) {
+            if (!attendanceId) return;
+            try {
+                localStorage.setItem(CAPTURE_INPUT_STATE_STORAGE_KEY, JSON.stringify({
+                    ts: Date.now(),
+                    attendance_id: Number(attendanceId),
+                    state: state || 'unknown',
+                    threshold_seconds: Number(thresholdSeconds || EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS),
+                    threshold_reached: thresholdReached ? 1 : 0
+                }));
+            } catch (e) {
+                // no-op
+            }
+        }
+
+        function requestSystemIdleState() {
+            return new Promise((resolve) => {
+                const requestId = 'idle_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+                let settled = false;
+
+                function cleanup() {
+                    window.removeEventListener('message', onMessage);
+                }
+
+                function finish(payload) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    const state = payload && payload.state ? String(payload.state) : 'unknown';
+                    const parsedThreshold = payload && payload.thresholdSeconds != null
+                        ? Number(payload.thresholdSeconds)
+                        : NaN;
+                    const thresholdSeconds = isFinite(parsedThreshold) && parsedThreshold > 0
+                        ? parsedThreshold
+                        : EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS;
+                    resolve({
+                        state: state,
+                        thresholdSeconds: thresholdSeconds,
+                        error: payload && payload.error ? String(payload.error) : null
+                    });
+                }
+
+                function onMessage(event) {
+                    if (event.origin !== window.location.origin) return;
+                    if (!event.data || event.data.type !== 'SYSTEM_IDLE_STATE') return;
+                    if (event.data.requestId !== requestId) return;
+                    finish({
+                        state: event.data.state,
+                        thresholdSeconds: event.data.thresholdSeconds,
+                        error: event.data.error
+                    });
+                }
+
+                window.addEventListener('message', onMessage);
+                setTimeout(() => finish({ state: 'unknown', thresholdSeconds: EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS, error: 'timeout' }), 3500);
+
+                try {
+                    window.postMessage({
+                        type: 'CHECK_SYSTEM_IDLE_STATE',
+                        requestId: requestId,
+                        thresholdSeconds: EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS
+                    }, window.location.origin);
+                } catch (e) {
+                    finish({ state: 'unknown', thresholdSeconds: EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS, error: 'post_message_failed' });
+                }
+            });
+        }
+
+        async function sendAttendanceHeartbeat() {
+            if (isHeartbeatRequestInFlight) {
+                return false;
+            }
+            if (!attendanceId) {
+                setHeartbeatStatus('Heartbeat: unavailable (missing attendance).', 'err');
+                setInputStatus('Input activity: unavailable (missing attendance).', 'err');
+                return false;
+            }
+
+            isHeartbeatRequestInFlight = true;
+            try {
+                const idleResult = await requestSystemIdleState();
+                const idleState = idleResult.state || 'unknown';
+                const idleThresholdSeconds = Number(idleResult.thresholdSeconds || EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS);
+                const idleLabel = formatInputIdleLabel(idleThresholdSeconds);
+                const isInputIdle = idleState === 'idle' || idleState === 'locked';
+                publishInputState(idleState, isInputIdle, idleThresholdSeconds);
+
+                if (idleState === 'active') {
+                    setInputStatus('Input activity: active.', 'ok');
+                } else if (idleState === 'idle') {
+                    setInputStatus('Input activity: idle (' + idleLabel + ').', 'warn');
+                } else if (idleState === 'locked') {
+                    setInputStatus('Input activity: locked.', 'warn');
+                } else if (idleState === 'unsupported') {
+                    setInputStatus('Input activity: extension idle permission missing.', 'err');
+                } else {
+                    const reason = idleResult.error ? String(idleResult.error) : 'no extension response';
+                    setInputStatus('Input activity: unavailable (' + reason + ').', 'err');
+                }
+
+                const body = new URLSearchParams();
+                body.set('attendance_id', String(attendanceId));
+                body.set('csrf_token', csrfToken || '');
+                body.set('input_idle_state', idleState);
+                body.set('input_idle_threshold_seconds', String(idleThresholdSeconds));
+                body.set('input_idle_threshold_reached', isInputIdle ? '1' : '0');
+                const response = await fetch('attendance_heartbeat.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: body.toString(),
+                    keepalive: true
+                });
+                if (!response.ok) {
+                    setHeartbeatStatus('Heartbeat: retrying connection...', 'warn');
+                    return false;
+                }
+                const data = await response.json();
+                if (data && data.status === 'success') {
+                    setHeartbeatStatus('Heartbeat: connected (' + new Date().toLocaleTimeString() + ')', 'ok');
+                    return true;
+                }
+                setHeartbeatStatus('Heartbeat: retrying connection...', 'warn');
+                return false;
+            } catch (e) {
+                setHeartbeatStatus('Heartbeat: retrying connection...', 'warn');
+                return false;
+            } finally {
+                isHeartbeatRequestInFlight = false;
+            }
+        }
+
         function startHeartbeat() {
             // Update initial immediately
             localStorage.setItem('taskflow_heartbeat', Date.now());
+            publishCaptureHeartbeat();
+            publishInputState('unknown', false, EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS);
+            sendAttendanceHeartbeat();
 
             heartbeatInterval = setInterval(() => {
                 localStorage.setItem('taskflow_heartbeat', Date.now());
             }, 2000);
+
+            attendanceHeartbeatInterval = setInterval(() => {
+                publishCaptureHeartbeat();
+                sendAttendanceHeartbeat();
+            }, CAPTURE_HEARTBEAT_INTERVAL_MS);
 
             // Server Session Keep-Alive (every 5 mins) to prevent timeout
             // since screenshot interval is now 20-30 mins.
@@ -116,7 +345,31 @@
         function stopHeartbeat() {
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             if (keepAliveInterval) clearInterval(keepAliveInterval);
+            if (attendanceHeartbeatInterval) clearInterval(attendanceHeartbeatInterval);
             localStorage.removeItem('taskflow_heartbeat');
+            localStorage.removeItem(CAPTURE_HEARTBEAT_STORAGE_KEY);
+            localStorage.removeItem(CAPTURE_INPUT_STATE_STORAGE_KEY);
+            setHeartbeatStatus('Heartbeat: stopped.', 'err');
+            setInputStatus('Input activity: stopped.', 'err');
+        }
+
+        function startOpenerMonitor() {
+            if (!hadOpenerAtLaunch || openerMonitorInterval) return;
+            openerMonitorInterval = setInterval(function () {
+                if (isStopping) return;
+                if (window.opener && !window.opener.closed) return;
+                stopCaptureAndClose('Main session closed. Logging out...', {
+                    reason: 'parent_tab_closed',
+                    clockOut: true,
+                    logout: true
+                });
+            }, 2000);
+        }
+
+        function stopOpenerMonitor() {
+            if (!openerMonitorInterval) return;
+            clearInterval(openerMonitorInterval);
+            openerMonitorInterval = null;
         }
 
         function startAttendanceCheck() {
@@ -140,8 +393,26 @@
 
         async function requestClockOutFromCapture() {
             try {
+                const body = new URLSearchParams();
+                body.set('csrf_token', csrfToken || '');
                 await fetch('time_out.php', {
                     method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: body.toString(),
+                    keepalive: true
+                });
+            } catch (e) {
+                // best effort only
+            }
+        }
+
+        async function requestLogoutFromCapture() {
+            try {
+                await fetch('logout.php', {
+                    method: 'GET',
                     credentials: 'same-origin',
                     keepalive: true
                 });
@@ -156,8 +427,10 @@
 
             const reason = options.reason || 'attendance_ended';
             const shouldClockOut = !!options.clockOut;
+            const shouldLogout = !!options.logout;
 
             stopHeartbeat();
+            stopOpenerMonitor();
             if (attendanceCheckInterval) clearInterval(attendanceCheckInterval);
             if (captureInterval) clearTimeout(captureInterval);
             if (currentStream) {
@@ -171,6 +444,9 @@
             }
             if (shouldClockOut) {
                 await requestClockOutFromCapture();
+            }
+            if (shouldLogout) {
+                await requestLogoutFromCapture();
             }
             setTimeout(() => {
                 window.close();
@@ -188,6 +464,10 @@
         }
 
         async function takeScreenshot(stream) {
+            if (isCaptureInProgress) {
+                return false;
+            }
+            isCaptureInProgress = true;
             try {
                 const track = stream.getVideoTracks()[0];
                 const imageCapture = new ImageCapture(track);
@@ -223,6 +503,7 @@
                             console.log("Screenshot uploaded");
                             statusDiv.innerText = "Last capture: " + new Date().toLocaleTimeString();
                             statusDiv.className = "status";
+                            return true;
                         } else {
                             throw new Error(json.message || "Unknown server error");
                         }
@@ -236,17 +517,63 @@
                     statusDiv.innerText = "Upload failed: " + netErr.message;
                     statusDiv.className = "error";
                     console.error("Upload error:", netErr);
+                    return false;
                 }
 
             } catch (err) {
                 console.error("Capture failed:", err);
                 statusDiv.innerText = "Capture failed: " + err.message;
                 statusDiv.className = "error";
+                return false;
+            } finally {
+                isCaptureInProgress = false;
             }
         }
 
+        async function processIdleCaptureRequest(rawValue) {
+            if (!rawValue) return;
+            let payload = null;
+            try {
+                payload = JSON.parse(rawValue);
+            } catch (e) {
+                return;
+            }
+            if (!payload || !payload.request_id) return;
+            const requestId = String(payload.request_id);
+            if (!requestId) return;
+            if (lastHandledIdleCaptureRequestId === requestId) return;
+            lastHandledIdleCaptureRequestId = requestId;
+
+            const success = await takeScreenshot(currentStream);
+            try {
+                localStorage.setItem(CAPTURE_BEFORE_IDLE_ACK_KEY, JSON.stringify({
+                    ts: Date.now(),
+                    request_id: requestId,
+                    success: !!success
+                }));
+                setTimeout(() => {
+                    try { localStorage.removeItem(CAPTURE_BEFORE_IDLE_ACK_KEY); } catch (e) { }
+                }, 1000);
+            } catch (e) {
+                // no-op
+            }
+        }
+
+        window.addEventListener('message', async function (event) {
+            if (event.origin !== window.location.origin) return;
+            if (!event.data || event.data.type !== 'CAPTURE_NOW_BEFORE_LOGOUT') return;
+            const success = await takeScreenshot(currentStream);
+            if (window.opener) {
+                window.opener.postMessage({ type: 'CAPTURE_BEFORE_LOGOUT_DONE', success: !!success }, '*');
+            }
+        });
+
         // Auto-start
         window.addEventListener('storage', function (event) {
+            if (event.key === CAPTURE_BEFORE_IDLE_REQUEST_KEY && event.newValue) {
+                processIdleCaptureRequest(event.newValue);
+                return;
+            }
             if (event.key === 'taskflow_force_stop_capture' && event.newValue) {
                 stopCaptureAndClose('Logged out. Screen sharing stopped.', { reason: 'clocked_out_elsewhere' });
             }
@@ -261,6 +588,11 @@
 
         if (attendanceId) {
             startCapture();
+            try {
+                processIdleCaptureRequest(localStorage.getItem(CAPTURE_BEFORE_IDLE_REQUEST_KEY));
+            } catch (e) {
+                // no-op
+            }
         } else {
             statusDiv.innerText = "Missing parameters";
             statusDiv.className = "error";

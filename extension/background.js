@@ -4,6 +4,7 @@
 let currentAttendanceId = null;
 let currentUserId = null;
 let apiUrl = null;
+const MIN_IDLE_THRESHOLD_SECONDS = 15;
 
 const OFFSCREEN_DOCUMENT_PATH = 'offscreen.html';
 
@@ -68,6 +69,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         checkCaptureStatus()
             .then(status => sendResponse(status))
             .catch(err => sendResponse({ isCapturing: false }));
+        return true;
+    } else if (request.type === 'GET_SYSTEM_IDLE_STATE') {
+        const rawThreshold = Number(request.thresholdSeconds);
+        const thresholdSeconds = Math.min(
+            3600,
+            Math.max(
+                MIN_IDLE_THRESHOLD_SECONDS,
+                isFinite(rawThreshold) ? Math.floor(rawThreshold) : MIN_IDLE_THRESHOLD_SECONDS
+            )
+        );
+
+        if (!chrome.idle || typeof chrome.idle.queryState !== 'function') {
+            sendResponse({ state: 'unsupported', thresholdSeconds: thresholdSeconds, error: 'idle_api_unavailable' });
+            return false;
+        }
+
+        chrome.idle.queryState(thresholdSeconds, (state) => {
+            if (chrome.runtime.lastError) {
+                sendResponse({
+                    state: 'unknown',
+                    thresholdSeconds: thresholdSeconds,
+                    error: chrome.runtime.lastError.message || 'idle_query_failed'
+                });
+                return;
+            }
+            sendResponse({
+                state: state || 'unknown',
+                thresholdSeconds: thresholdSeconds,
+                error: null
+            });
+        });
         return true;
     } else if (request.type === 'MINIMIZE_WINDOW') {
         if (sender.tab && sender.tab.windowId) {

@@ -2,6 +2,17 @@
 (function () {
     'use strict';
 
+    function safeSendMessage(payload, cb) {
+        try {
+            chrome.runtime.sendMessage(payload, (response) => {
+                const runtimeError = chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
+                cb(response, runtimeError);
+            });
+        } catch (err) {
+            cb(null, (err && err.message) ? err.message : 'extension_context_invalidated');
+        }
+    }
+
     // Listen for messages from the webpage
     window.addEventListener('message', function (event) {
         // Only accept messages from same origin
@@ -9,7 +20,7 @@
 
         if (event.data.type === 'REQUEST_SCREENSHOT') {
             // Forward to background script
-            chrome.runtime.sendMessage({
+            safeSendMessage({
                 type: 'CAPTURE_SCREENSHOT',
                 attendanceId: event.data.attendanceId,
                 userId: event.data.userId,
@@ -22,7 +33,7 @@
                 }, window.location.origin);
             });
         } else if (event.data.type === 'STOP_SCREENSHOT') {
-            chrome.runtime.sendMessage({
+            safeSendMessage({
                 type: 'STOP_SCREENSHOT'
             }, (response) => {
                 window.postMessage({
@@ -31,7 +42,7 @@
                 }, window.location.origin);
             });
         } else if (event.data.type === 'CHECK_CAPTURE_STATUS') {
-            chrome.runtime.sendMessage({
+            safeSendMessage({
                 type: 'CHECK_CAPTURE_STATUS'
             }, (response) => {
                 window.postMessage({
@@ -40,10 +51,23 @@
                     attendanceId: response ? response.attendanceId : null
                 }, window.location.origin);
             });
-        } else if (event.data.type === 'MINIMIZE_WINDOW') {
-            chrome.runtime.sendMessage({
-                type: 'MINIMIZE_WINDOW'
+        } else if (event.data.type === 'CHECK_SYSTEM_IDLE_STATE') {
+            safeSendMessage({
+                type: 'GET_SYSTEM_IDLE_STATE',
+                thresholdSeconds: event.data.thresholdSeconds
+            }, (response, runtimeError) => {
+                window.postMessage({
+                    type: 'SYSTEM_IDLE_STATE',
+                    requestId: event.data.requestId || null,
+                    state: response ? response.state : 'unknown',
+                    thresholdSeconds: response ? response.thresholdSeconds : (event.data.thresholdSeconds || null),
+                    error: runtimeError || (response ? response.error : 'no_extension_response')
+                }, window.location.origin);
             });
+        } else if (event.data.type === 'MINIMIZE_WINDOW') {
+            safeSendMessage({
+                type: 'MINIMIZE_WINDOW'
+            }, function () { });
         }
     });
 
