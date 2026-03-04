@@ -334,7 +334,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         <!-- Filter Section -->
         <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #E5E7EB; margin-bottom: 24px;">
             <form method="GET" action="screenshots.php" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 0; align-items: center;">
-                <select name="user_id" class="form-input" style="flex: 1; min-width: 180px; margin: 0; padding: 10px; border-radius: 8px; border: 1px solid #E5E7EB;">
+                <select id="employeeFilterSelect" name="user_id" class="form-input" style="flex: 1; min-width: 180px; margin: 0; padding: 10px; border-radius: 8px; border: 1px solid #E5E7EB;">
                     <option value="">All Employees</option>
                     <?php foreach ($users as $user) { 
                         if ($user['role'] == 'employee') { ?>
@@ -636,6 +636,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 });
             }
 
+            function setEmployeeFilterVisibility(isVisible) {
+                var employeeFilter = document.getElementById('employeeFilterSelect');
+                if (!employeeFilter) return;
+                employeeFilter.style.display = isVisible ? '' : 'none';
+            }
+
             function openFolder(userId) {
                 var folderList = document.getElementById('folderList');
                 var folderView = document.getElementById('folderView');
@@ -686,6 +692,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 folderView.style.display = 'block';
                 activeUserId = String(userId);
                 container.setAttribute('data-active-user-id', activeUserId);
+                setEmployeeFilterVisibility(false);
             }
 
             function closeFolderView() {
@@ -711,6 +718,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
                 activeUserId = null;
                 container.removeAttribute('data-active-user-id');
+                setEmployeeFilterVisibility(true);
             }
 
             function createScreenshotCard(screenshot) {

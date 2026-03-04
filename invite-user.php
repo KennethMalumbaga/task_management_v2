@@ -244,6 +244,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                                 Upload <strong>.xlsx</strong>, <strong>.csv</strong>, or text-based <strong>.pdf</strong>.
                                 Include name and email columns, for example <code>Full Name</code> and <code>Email</code>.
                             </p>
+                            <div class="workspace-action-row" style="margin-top:10px;">
+                                <a
+                                    class="workspace-btn ghost mini"
+                                    href="app/templates/bulk_invite_template.xlsx"
+                                    download="bulk-invite-template.xlsx"
+                                >
+                                    <i class="fa fa-download"></i> Download Excel Template
+                                </a>
+                            </div>
                         </div>
                     </div>
                     <form action="app/invite-users-bulk.php" method="POST" enctype="multipart/form-data" class="workspace-form-grid">

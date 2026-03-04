@@ -1,802 +1,914 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TaskFlow – Create Task</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@600;700&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --purple: #6c3de8;
-    --purple-light: #8b5cf6;
-    --purple-dark: #4c1d95;
-    --sidebar: #1a0a3c;
-    --sidebar-hover: rgba(255,255,255,0.08);
-    --bg: #f4f2f9;
-    --card: #ffffff;
-    --text: #0f0a1e;
-    --muted: #7c7293;
-    --border: #e4dff4;
-    --input-bg: #faf9fd;
-    --accent: #ff6b6b;
-  }
-
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    display: flex;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* ── Sidebar ── */
-  .sidebar {
-    width: 240px;
-    min-height: 100vh;
-    background: var(--sidebar);
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    left: 0; top: 0;
-    z-index: 100;
-    padding: 0 0 24px;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 28px 24px 32px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-
-  .logo-icon {
-    width: 36px; height: 36px;
-    background: linear-gradient(135deg, #a78bfa, var(--purple));
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    color: white;
-    font-size: 16px;
-    box-shadow: 0 4px 12px rgba(108,61,232,0.4);
-  }
-
-  .logo-text { color: white; }
-  .logo-text h1 { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; line-height: 1.1; }
-  .logo-text span { font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 0.05em; }
-
-  nav { padding: 20px 12px; flex: 1; }
-
-  .nav-label {
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.25);
-    padding: 0 12px;
-    margin-bottom: 8px;
-    margin-top: 20px;
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    color: rgba(255,255,255,0.55);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.18s ease;
-    margin-bottom: 2px;
-  }
-
-  .nav-item:hover { background: var(--sidebar-hover); color: rgba(255,255,255,0.9); }
-  .nav-item.active { background: rgba(139,92,246,0.2); color: white; }
-  .nav-item .icon { width: 18px; text-align: center; font-size: 16px; }
-
-  /* ── Main ── */
-  .main {
-    margin-left: 240px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-  }
-
-  header {
-    background: white;
-    border-bottom: 1px solid var(--border);
-    padding: 0 40px;
-    height: 64px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 50;
-  }
-
-  .header-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; color: var(--text); }
-
-  .header-right { display: flex; align-items: center; gap: 16px; }
-
-  .icon-btn {
-    width: 38px; height: 38px;
-    border-radius: 10px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    color: var(--muted);
-    font-size: 16px;
-    transition: all 0.15s;
-  }
-  .icon-btn:hover { background: var(--border); color: var(--text); }
-
-  .avatar {
-    width: 38px; height: 38px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #a78bfa, #6c3de8);
-    display: flex; align-items: center; justify-content: center;
-    color: white; font-weight: 600; font-size: 14px;
-    cursor: pointer;
-  }
-
-  /* ── Page Content ── */
-  .page {
-    flex: 1;
-    padding: 40px;
-    display: flex;
-    justify-content: center;
-  }
-
-  .form-wrapper {
-    width: 100%;
-    max-width: 620px;
-  }
-
-  .page-heading {
-    margin-bottom: 32px;
-  }
-
-  .page-heading h2 {
-    font-family: 'Syne', sans-serif;
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--text);
-    line-height: 1.2;
-  }
-
-  .page-heading p {
-    font-size: 14px;
-    color: var(--muted);
-    margin-top: 6px;
-  }
-
-  /* ── Card ── */
-  .card {
-    background: var(--card);
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    padding: 36px;
-    box-shadow: 0 2px 24px rgba(108,61,232,0.06);
-  }
-
-  /* ── Form Fields ── */
-  .field { margin-bottom: 24px; }
-  .field:last-child { margin-bottom: 0; }
-
-  .field-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 8px;
-    letter-spacing: -0.01em;
-  }
-
-  .required-dot {
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--accent);
-    display: inline-block;
-  }
-
-  .optional-tag {
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--muted);
-    background: var(--bg);
-    padding: 2px 7px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-  }
-
-  input[type="text"],
-  input[type="date"],
-  textarea {
-    width: 100%;
-    background: var(--input-bg);
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 16px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    color: var(--text);
-    outline: none;
-    transition: all 0.2s ease;
-    -webkit-appearance: none;
-  }
-
-  input[type="text"]::placeholder,
-  textarea::placeholder { color: #bdb6d4; }
-
-  input[type="text"]:focus,
-  input[type="date"]:focus,
-  textarea:focus {
-    border-color: var(--purple-light);
-    box-shadow: 0 0 0 3px rgba(139,92,246,0.12);
-    background: white;
-  }
-
-  textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
-
-  /* Search input with icon */
-  .search-input-wrap { position: relative; }
-  .search-input-wrap input { padding-left: 42px; }
-  .search-input-wrap .search-icon {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #bdb6d4;
-    font-size: 15px;
-    pointer-events: none;
-  }
-
-  /* ── Assignment Toggle ── */
-  .toggle-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .toggle-option {
-    position: relative;
-    cursor: pointer;
-  }
-
-  .toggle-option input { display: none; }
-
-  .toggle-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 13px 16px;
-    border-radius: 12px;
-    border: 1.5px solid var(--border);
-    background: var(--input-bg);
-    font-size: 13.5px;
-    font-weight: 500;
-    color: var(--muted);
-    transition: all 0.2s ease;
-    cursor: pointer;
-  }
-
-  .toggle-label .radio-circle {
-    width: 18px; height: 18px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.2s;
-  }
-
-  .toggle-label .radio-circle::after {
-    content: '';
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: white;
-    opacity: 0;
-    transform: scale(0);
-    transition: all 0.2s;
-  }
-
-  .toggle-option input:checked + .toggle-label {
-    border-color: var(--purple-light);
-    background: rgba(139,92,246,0.06);
-    color: var(--purple);
-    box-shadow: 0 0 0 3px rgba(139,92,246,0.1);
-  }
-
-  .toggle-option input:checked + .toggle-label .radio-circle {
-    border-color: var(--purple);
-    background: var(--purple);
-  }
-
-  .toggle-option input:checked + .toggle-label .radio-circle::after {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  /* ── Date field ── */
-  .date-wrap { position: relative; }
-  .date-wrap input[type="date"] { padding-right: 44px; cursor: pointer; }
-  .date-wrap .cal-icon {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--muted);
-    font-size: 16px;
-    pointer-events: none;
-  }
-
-  /* ── File Upload ── */
-  .file-upload {
-    border: 1.5px dashed var(--border);
-    border-radius: 12px;
-    background: var(--input-bg);
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .file-upload:hover {
-    border-color: var(--purple-light);
-    background: rgba(139,92,246,0.03);
-  }
-
-  .file-upload input[type="file"] { display: none; }
-
-  .file-upload .upload-icon {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-  }
-
-  .file-upload .upload-text {
-    font-size: 13px;
-    color: var(--muted);
-    text-align: center;
-  }
-
-  .file-upload .upload-text strong { color: var(--purple); }
-
-  /* ── Divider ── */
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 28px 0;
-  }
-
-  /* ── Actions ── */
-  .actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 32px;
-  }
-
-  .btn {
-    flex: 1;
-    padding: 14px 24px;
-    border-radius: 12px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s ease;
-    letter-spacing: -0.01em;
-  }
-
-  .btn-cancel {
-    background: var(--bg);
-    color: var(--muted);
-    border: 1.5px solid var(--border);
-    flex: 0.6;
-  }
-  .btn-cancel:hover { background: var(--border); color: var(--text); }
-
-  .btn-create {
-    background: linear-gradient(135deg, var(--purple-light), var(--purple));
-    color: white;
-    box-shadow: 0 4px 16px rgba(108,61,232,0.35);
-    flex: 1;
-  }
-  .btn-create:hover {
-    box-shadow: 0 6px 24px rgba(108,61,232,0.5);
-    transform: translateY(-1px);
-  }
-  .btn-create:active { transform: translateY(0); }
-
-  /* Progress bar at top of card */
-  .progress-bar {
-    height: 3px;
-    background: var(--border);
-    border-radius: 999px;
-    margin-bottom: 32px;
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%;
-    width: 30%;
-    background: linear-gradient(90deg, var(--purple-light), var(--accent));
-    border-radius: 999px;
-  }
-
-  /* ── File Upload States ── */
-  .file-upload.drag-over {
-    border-color: var(--purple);
-    background: rgba(139,92,246,0.07);
-    box-shadow: 0 0 0 4px rgba(139,92,246,0.12);
-  }
-
-  .file-upload.has-file {
-    border-style: solid;
-    border-color: #22c55e;
-    background: #f0fdf4;
-    cursor: default;
-    pointer-events: none;
-  }
-
-  .file-preview {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    width: 100%;
-    text-align: left;
-  }
-
-  .file-icon-wrap {
-    width: 48px; height: 48px;
-    border-radius: 12px;
-    background: white;
-    border: 1px solid #d1fae5;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(34,197,94,0.1);
-  }
-
-  .file-info { flex: 1; min-width: 0; }
-
-  .file-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .file-meta {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 2px;
-    margin-bottom: 8px;
-  }
-
-  .file-progress {
-    height: 4px;
-    background: #d1fae5;
-    border-radius: 999px;
-    overflow: hidden;
-  }
-
-  .file-progress-bar {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #4ade80, #22c55e);
-    border-radius: 999px;
-    transition: width 0.05s linear;
-  }
-
-  .file-status {
-    font-size: 11px;
-    color: #16a34a;
-    margin-top: 5px;
-    font-weight: 500;
-  }
-
-  .file-remove {
-    width: 30px; height: 30px;
-    border-radius: 8px;
-    border: 1px solid #d1fae5;
-    background: white;
-    color: #6b7280;
-    font-size: 12px;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    pointer-events: all;
-    transition: all 0.15s;
-  }
-  .file-remove:hover { background: #fee2e2; border-color: #fca5a5; color: #ef4444; }
-
-  /* Animate in */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .card { animation: fadeUp 0.4s ease; }
-  .page-heading { animation: fadeUp 0.3s ease; }
-</style>
-</head>
-<body>
-
-<!-- Sidebar -->
-<aside class="sidebar">
-  <div class="logo">
-    <div class="logo-icon">TF</div>
-    <div class="logo-text">
-      <h1>TaskFlow</h1>
-      <span>Management System</span>
-    </div>
-  </div>
-  <nav>
-    <div class="nav-label">Menu</div>
-    <div class="nav-item">
-      <span class="icon">⊞</span> Dashboard
-    </div>
-    <div class="nav-item active">
-      <span class="icon">✓</span> Tasks
-    </div>
-    <div class="nav-item">
-      <span class="icon">◻</span> Calendar
-    </div>
-    <div class="nav-item">
-      <span class="icon">✉</span> Messages
-    </div>
-    <div class="nav-label">Management</div>
-    <div class="nav-item">
-      <span class="icon">👤</span> Users
-    </div>
-    <div class="nav-item">
-      <span class="icon">✉</span> Invites
-    </div>
-    <div class="nav-item">
-      <span class="icon">💳</span> Billing
-    </div>
-    <div class="nav-item">
-      <span class="icon">⊞</span> Groups
-    </div>
-    <div class="nav-item">
-      <span class="icon">📷</span> Captures
-    </div>
-  </nav>
-</aside>
-
-<!-- Main Content -->
-<div class="main">
-  <header>
-    <div class="header-title">Create Task</div>
-    <div class="header-right">
-      <div class="icon-btn">🔔</div>
-      <div class="avatar">A</div>
-    </div>
-  </header>
-
-  <div class="page">
-    <div class="form-wrapper">
-      <div class="page-heading">
-        <h2>New Task</h2>
-        <p>Fill in the details below to create and assign a new task.</p>
-      </div>
-
-      <div class="card">
-        <div class="progress-bar"><div class="progress-fill"></div></div>
-
-        <!-- Task Title -->
-        <div class="field">
-          <div class="field-label">
-            Task Title <span class="required-dot"></span>
-          </div>
-          <input type="text" placeholder="e.g. Design onboarding screens">
-        </div>
-
-        <!-- Description -->
-        <div class="field">
-          <div class="field-label">
-            Description <span class="required-dot"></span>
-          </div>
-          <textarea placeholder="Describe the task scope, goals, and any relevant context…"></textarea>
-        </div>
-
-        <div class="divider"></div>
-
-        <!-- Assignment Mode -->
-        <div class="field">
-          <div class="field-label">Assignment Mode</div>
-          <div class="toggle-group">
-            <label class="toggle-option">
-              <input type="radio" name="assignment" value="manual" checked>
-              <div class="toggle-label">
-                <div class="radio-circle"></div>
-                Manual (Leader + Members)
-              </div>
-            </label>
-            <label class="toggle-option">
-              <input type="radio" name="assignment" value="group">
-              <div class="toggle-label">
-                <div class="radio-circle"></div>
-                Select Group / Team
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- Project Leader -->
-        <div class="field">
-          <div class="field-label">
-            Project Leader
-          </div>
-          <div class="search-input-wrap">
-            <span class="search-icon">🔍</span>
-            <input type="text" placeholder="Search and select leader…">
-          </div>
-        </div>
-
-        <!-- Team Members -->
-        <div class="field">
-          <div class="field-label">
-            Team Members
-          </div>
-          <div class="search-input-wrap">
-            <span class="search-icon">🔍</span>
-            <input type="text" placeholder="Search and add members…">
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <!-- Due Date -->
-        <div class="field">
-          <div class="field-label">
-            Due Date
-          </div>
-          <div class="date-wrap">
-            <input type="date">
-            <span class="cal-icon">📅</span>
-          </div>
-        </div>
-
-        <!-- Attachment -->
-        <div class="field">
-          <div class="field-label">
-            Attachment <span class="optional-tag">Optional · up to 50MB</span>
-          </div>
-          <label class="file-upload" id="dropZone">
-            <input type="file" id="fileInput">
-            <div class="upload-idle" id="uploadIdle">
-              <div class="upload-icon">📎</div>
-              <div class="upload-text">
-                <strong>Click to upload</strong> or drag and drop<br>
-                PDF, PNG, DOCX, XLSX, ZIP
-              </div>
-            </div>
-            <div class="upload-success" id="uploadSuccess" style="display:none;">
-              <div class="file-preview">
-                <div class="file-icon-wrap" id="fileIconWrap">📄</div>
-                <div class="file-info">
-                  <div class="file-name" id="fileName">document.pdf</div>
-                  <div class="file-meta" id="fileMeta">2.4 MB · PDF</div>
-                  <div class="file-progress">
-                    <div class="file-progress-bar" id="progressBar"></div>
-                  </div>
-                  <div class="file-status" id="fileStatus">Uploading…</div>
-                </div>
-                <button class="file-remove" id="fileRemove" type="button">✕</button>
-              </div>
-            </div>
-          </label>
-        </div>
-
-        <!-- Actions -->
-        <div class="actions">
-          <button class="btn btn-cancel">Cancel</button>
-          <button class="btn btn-create">Create Task →</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-</body>
-
-<script>
-  const dropZone = document.getElementById('dropZone');
-  const fileInput = document.getElementById('fileInput');
-  const uploadIdle = document.getElementById('uploadIdle');
-  const uploadSuccess = document.getElementById('uploadSuccess');
-  const fileNameEl = document.getElementById('fileName');
-  const fileMetaEl = document.getElementById('fileMeta');
-  const progressBar = document.getElementById('progressBar');
-  const fileStatus = document.getElementById('fileStatus');
-  const fileIconWrap = document.getElementById('fileIconWrap');
-  const fileRemove = document.getElementById('fileRemove');
-
-  const EXT_ICONS = {
-    pdf: '📄', png: '🖼️', jpg: '🖼️', jpeg: '🖼️',
-    docx: '📝', doc: '📝', xlsx: '📊', xls: '📊',
-    zip: '🗜️', default: '📁'
-  };
-
-  function formatSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  }
-
-  function simulateUpload(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    fileNameEl.textContent = file.name;
-    fileMetaEl.textContent = `${formatSize(file.size)} · ${ext.toUpperCase()}`;
-    fileIconWrap.textContent = EXT_ICONS[ext] || EXT_ICONS.default;
-    progressBar.style.width = '0%';
-    fileStatus.textContent = 'Uploading…';
-    fileStatus.style.color = '#16a34a';
-
-    uploadIdle.style.display = 'none';
-    uploadSuccess.style.display = 'block';
-    dropZone.classList.add('has-file');
-
-    // Animate progress bar
-    let pct = 0;
-    const interval = setInterval(() => {
-      pct += Math.random() * 12 + 4;
-      if (pct >= 100) {
-        pct = 100;
-        clearInterval(interval);
-        fileStatus.textContent = '✓ Upload complete';
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TaskFlow – Create Task</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
-      progressBar.style.width = pct + '%';
-    }, 80);
-  }
 
-  fileInput.addEventListener('change', (e) => {
-    if (e.target.files[0]) simulateUpload(e.target.files[0]);
-  });
+      :root {
+        --purple: #6c3de8;
+        --purple-light: #8b5cf6;
+        --purple-dark: #4c1d95;
+        --sidebar: #1a0a3c;
+        --sidebar-hover: rgba(255, 255, 255, 0.08);
+        --bg: #f4f2f9;
+        --card: #ffffff;
+        --text: #0f0a1e;
+        --muted: #7c7293;
+        --border: #e4dff4;
+        --input-bg: #faf9fd;
+        --accent: #ff6b6b;
+      }
 
-  dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('drag-over');
-  });
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
 
-  dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('drag-over');
-  });
+      /* ── Sidebar ── */
+      .sidebar {
+        width: 240px;
+        min-height: 100vh;
+        background: var(--sidebar);
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 100;
+        padding: 0 0 24px;
+      }
 
-  dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) simulateUpload(file);
-  });
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 28px 24px 32px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
 
-  fileRemove.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    progressBar.style.width = '0%';
-    fileInput.value = '';
-    uploadIdle.style.display = 'flex';
-    uploadSuccess.style.display = 'none';
-    dropZone.classList.remove('has-file');
-  });
-</script>
+      .logo-icon {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, #a78bfa, var(--purple));
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        color: white;
+        font-size: 16px;
+        box-shadow: 0 4px 12px rgba(108, 61, 232, 0.4);
+      }
 
+      .logo-text {
+        color: white;
+      }
+      .logo-text h1 {
+        font-family: "Syne", sans-serif;
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+      .logo-text span {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.4);
+        letter-spacing: 0.05em;
+      }
+
+      nav {
+        padding: 20px 12px;
+        flex: 1;
+      }
+
+      .nav-label {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.25);
+        padding: 0 12px;
+        margin-bottom: 8px;
+        margin-top: 20px;
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        margin-bottom: 2px;
+      }
+
+      .nav-item:hover {
+        background: var(--sidebar-hover);
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .nav-item.active {
+        background: rgba(139, 92, 246, 0.2);
+        color: white;
+      }
+      .nav-item .icon {
+        width: 18px;
+        text-align: center;
+        font-size: 16px;
+      }
+
+      /* ── Main ── */
+      .main {
+        margin-left: 240px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      header {
+        background: white;
+        border-bottom: 1px solid var(--border);
+        padding: 0 40px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+      }
+
+      .header-title {
+        font-family: "Syne", sans-serif;
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .icon-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 16px;
+        transition: all 0.15s;
+      }
+      .icon-btn:hover {
+        background: var(--border);
+        color: var(--text);
+      }
+
+      .avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #a78bfa, #6c3de8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      /* ── Page Content ── */
+      .page {
+        flex: 1;
+        padding: 40px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .form-wrapper {
+        width: 100%;
+        max-width: 620px;
+      }
+
+      .page-heading {
+        margin-bottom: 32px;
+      }
+
+      .page-heading h2 {
+        font-family: "Syne", sans-serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1.2;
+      }
+
+      .page-heading p {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+
+      /* ── Card ── */
+      .card {
+        background: var(--card);
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        padding: 36px;
+        box-shadow: 0 2px 24px rgba(108, 61, 232, 0.06);
+      }
+
+      /* ── Form Fields ── */
+      .field {
+        margin-bottom: 24px;
+      }
+      .field:last-child {
+        margin-bottom: 0;
+      }
+
+      .field-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+        letter-spacing: -0.01em;
+      }
+
+      .required-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--accent);
+        display: inline-block;
+      }
+
+      .optional-tag {
+        font-size: 11px;
+        font-weight: 400;
+        color: var(--muted);
+        background: var(--bg);
+        padding: 2px 7px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+      }
+
+      input[type="text"],
+      input[type="date"],
+      textarea {
+        width: 100%;
+        background: var(--input-bg);
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 14px;
+        color: var(--text);
+        outline: none;
+        transition: all 0.2s ease;
+        -webkit-appearance: none;
+      }
+
+      input[type="text"]::placeholder,
+      textarea::placeholder {
+        color: #bdb6d4;
+      }
+
+      input[type="text"]:focus,
+      input[type="date"]:focus,
+      textarea:focus {
+        border-color: var(--purple-light);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+        background: white;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 110px;
+        line-height: 1.6;
+      }
+
+      /* Search input with icon */
+      .search-input-wrap {
+        position: relative;
+      }
+      .search-input-wrap input {
+        padding-left: 42px;
+      }
+      .search-input-wrap .search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #bdb6d4;
+        font-size: 15px;
+        pointer-events: none;
+      }
+
+      /* ── Assignment Toggle ── */
+      .toggle-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .toggle-option {
+        position: relative;
+        cursor: pointer;
+      }
+
+      .toggle-option input {
+        display: none;
+      }
+
+      .toggle-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 16px;
+        border-radius: 12px;
+        border: 1.5px solid var(--border);
+        background: var(--input-bg);
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--muted);
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+
+      .toggle-label .radio-circle {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.2s;
+      }
+
+      .toggle-label .radio-circle::after {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: white;
+        opacity: 0;
+        transform: scale(0);
+        transition: all 0.2s;
+      }
+
+      .toggle-option input:checked + .toggle-label {
+        border-color: var(--purple-light);
+        background: rgba(139, 92, 246, 0.06);
+        color: var(--purple);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+      }
+
+      .toggle-option input:checked + .toggle-label .radio-circle {
+        border-color: var(--purple);
+        background: var(--purple);
+      }
+
+      .toggle-option input:checked + .toggle-label .radio-circle::after {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      /* ── Date field ── */
+      .date-wrap {
+        position: relative;
+      }
+      .date-wrap input[type="date"] {
+        padding-right: 44px;
+        cursor: pointer;
+      }
+      .date-wrap .cal-icon {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        font-size: 16px;
+        pointer-events: none;
+      }
+
+      /* ── File Upload ── */
+      .file-upload {
+        border: 1.5px dashed var(--border);
+        border-radius: 12px;
+        background: var(--input-bg);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .file-upload:hover {
+        border-color: var(--purple-light);
+        background: rgba(139, 92, 246, 0.03);
+      }
+
+      .file-upload input[type="file"] {
+        display: none;
+      }
+
+      .file-upload .upload-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      }
+
+      .file-upload .upload-text {
+        font-size: 13px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .file-upload .upload-text strong {
+        color: var(--purple);
+      }
+
+      /* ── Divider ── */
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 28px 0;
+      }
+
+      /* ── Actions ── */
+      .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 32px;
+      }
+
+      .btn {
+        flex: 1;
+        padding: 14px 24px;
+        border-radius: 12px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+        letter-spacing: -0.01em;
+      }
+
+      .btn-cancel {
+        background: var(--bg);
+        color: var(--muted);
+        border: 1.5px solid var(--border);
+        flex: 0.6;
+      }
+      .btn-cancel:hover {
+        background: var(--border);
+        color: var(--text);
+      }
+
+      .btn-create {
+        background: linear-gradient(135deg, var(--purple-light), var(--purple));
+        color: white;
+        box-shadow: 0 4px 16px rgba(108, 61, 232, 0.35);
+        flex: 1;
+      }
+      .btn-create:hover {
+        box-shadow: 0 6px 24px rgba(108, 61, 232, 0.5);
+        transform: translateY(-1px);
+      }
+      .btn-create:active {
+        transform: translateY(0);
+      }
+
+      /* Progress bar at top of card */
+      .progress-bar {
+        height: 3px;
+        background: var(--border);
+        border-radius: 999px;
+        margin-bottom: 32px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 30%;
+        background: linear-gradient(90deg, var(--purple-light), var(--accent));
+        border-radius: 999px;
+      }
+
+      /* ── File Upload States ── */
+      .file-upload.drag-over {
+        border-color: var(--purple);
+        background: rgba(139, 92, 246, 0.07);
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.12);
+      }
+
+      .file-upload.has-file {
+        border-style: solid;
+        border-color: #22c55e;
+        background: #f0fdf4;
+        cursor: default;
+        pointer-events: none;
+      }
+
+      .file-preview {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        width: 100%;
+        text-align: left;
+      }
+
+      .file-icon-wrap {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: white;
+        border: 1px solid #d1fae5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(34, 197, 94, 0.1);
+      }
+
+      .file-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .file-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .file-meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+        margin-bottom: 8px;
+      }
+
+      .file-progress {
+        height: 4px;
+        background: #d1fae5;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .file-progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #4ade80, #22c55e);
+        border-radius: 999px;
+        transition: width 0.05s linear;
+      }
+
+      .file-status {
+        font-size: 11px;
+        color: #16a34a;
+        margin-top: 5px;
+        font-weight: 500;
+      }
+
+      .file-remove {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: 1px solid #d1fae5;
+        background: white;
+        color: #6b7280;
+        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        pointer-events: all;
+        transition: all 0.15s;
+      }
+      .file-remove:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #ef4444;
+      }
+
+      /* Animate in */
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .card {
+        animation: fadeUp 0.4s ease;
+      }
+      .page-heading {
+        animation: fadeUp 0.3s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">TF</div>
+        <div class="logo-text">
+          <h1>TaskFlow</h1>
+          <span>Management System</span>
+        </div>
+      </div>
+      <nav>
+        <div class="nav-label">Menu</div>
+        <div class="nav-item"><span class="icon">⊞</span> Dashboard</div>
+        <div class="nav-item active"><span class="icon">✓</span> Tasks</div>
+        <div class="nav-item"><span class="icon">◻</span> Calendar</div>
+        <div class="nav-item"><span class="icon">✉</span> Messages</div>
+        <div class="nav-label">Management</div>
+        <div class="nav-item"><span class="icon">👤</span> Users</div>
+        <div class="nav-item"><span class="icon">✉</span> Invites</div>
+        <div class="nav-item"><span class="icon">💳</span> Billing</div>
+        <div class="nav-item"><span class="icon">⊞</span> Groups</div>
+        <div class="nav-item"><span class="icon">📷</span> Captures</div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main">
+      <header>
+        <div class="header-title">Create Task</div>
+        <div class="header-right">
+          <div class="icon-btn">🔔</div>
+          <div class="avatar">A</div>
+        </div>
+      </header>
+
+      <div class="page">
+        <div class="form-wrapper">
+          <div class="page-heading">
+            <h2>New Task</h2>
+            <p>Fill in the details below to create and assign a new task.</p>
+          </div>
+
+          <div class="card">
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+
+            <!-- Task Title -->
+            <div class="field">
+              <div class="field-label">
+                Task Title <span class="required-dot"></span>
+              </div>
+              <input type="text" placeholder="e.g. Design onboarding screens" />
+            </div>
+
+            <!-- Description -->
+            <div class="field">
+              <div class="field-label">
+                Description <span class="required-dot"></span>
+              </div>
+              <textarea
+                placeholder="Describe the task scope, goals, and any relevant context…"
+              ></textarea>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Assignment Mode -->
+            <div class="field">
+              <div class="field-label">Assignment Mode</div>
+              <div class="toggle-group">
+                <label class="toggle-option">
+                  <input
+                    type="radio"
+                    name="assignment"
+                    value="manual"
+                    checked
+                  />
+                  <div class="toggle-label">
+                    <div class="radio-circle"></div>
+                    Manual (Leader + Members)
+                  </div>
+                </label>
+                <label class="toggle-option">
+                  <input type="radio" name="assignment" value="group" />
+                  <div class="toggle-label">
+                    <div class="radio-circle"></div>
+                    Select Group / Team
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Project Leader -->
+            <div class="field">
+              <div class="field-label">Project Leader</div>
+              <div class="search-input-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Search and select leader…" />
+              </div>
+            </div>
+
+            <!-- Team Members -->
+            <div class="field">
+              <div class="field-label">Team Members</div>
+              <div class="search-input-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Search and add members…" />
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Due Date -->
+            <div class="field">
+              <div class="field-label">Due Date</div>
+              <div class="date-wrap">
+                <input type="date" />
+                <span class="cal-icon">📅</span>
+              </div>
+            </div>
+
+            <!-- Attachment -->
+            <div class="field">
+              <div class="field-label">
+                Attachment
+                <span class="optional-tag">Optional · up to 50MB</span>
+              </div>
+              <label class="file-upload" id="dropZone">
+                <input type="file" id="fileInput" />
+                <div class="upload-idle" id="uploadIdle">
+                  <div class="upload-icon">📎</div>
+                  <div class="upload-text">
+                    <strong>Click to upload</strong> or drag and drop<br />
+                    PDF, PNG, DOCX, XLSX, ZIP
+                  </div>
+                </div>
+                <div
+                  class="upload-success"
+                  id="uploadSuccess"
+                  style="display: none"
+                >
+                  <div class="file-preview">
+                    <div class="file-icon-wrap" id="fileIconWrap">📄</div>
+                    <div class="file-info">
+                      <div class="file-name" id="fileName">document.pdf</div>
+                      <div class="file-meta" id="fileMeta">2.4 MB · PDF</div>
+                      <div class="file-progress">
+                        <div class="file-progress-bar" id="progressBar"></div>
+                      </div>
+                      <div class="file-status" id="fileStatus">Uploading…</div>
+                    </div>
+                    <button class="file-remove" id="fileRemove" type="button">
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions">
+              <button class="btn btn-cancel">Cancel</button>
+              <button class="btn btn-create">Create Task →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("fileInput");
+    const uploadIdle = document.getElementById("uploadIdle");
+    const uploadSuccess = document.getElementById("uploadSuccess");
+    const fileNameEl = document.getElementById("fileName");
+    const fileMetaEl = document.getElementById("fileMeta");
+    const progressBar = document.getElementById("progressBar");
+    const fileStatus = document.getElementById("fileStatus");
+    const fileIconWrap = document.getElementById("fileIconWrap");
+    const fileRemove = document.getElementById("fileRemove");
+
+    const EXT_ICONS = {
+      pdf: "📄",
+      png: "🖼️",
+      jpg: "🖼️",
+      jpeg: "🖼️",
+      docx: "📝",
+      doc: "📝",
+      xlsx: "📊",
+      xls: "📊",
+      zip: "🗜️",
+      default: "📁",
+    };
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    function simulateUpload(file) {
+      const ext = file.name.split(".").pop().toLowerCase();
+      fileNameEl.textContent = file.name;
+      fileMetaEl.textContent = `${formatSize(file.size)} · ${ext.toUpperCase()}`;
+      fileIconWrap.textContent = EXT_ICONS[ext] || EXT_ICONS.default;
+      progressBar.style.width = "0%";
+      fileStatus.textContent = "Uploading…";
+      fileStatus.style.color = "#16a34a";
+
+      uploadIdle.style.display = "none";
+      uploadSuccess.style.display = "block";
+      dropZone.classList.add("has-file");
+
+      // Animate progress bar
+      let pct = 0;
+      const interval = setInterval(() => {
+        pct += Math.random() * 12 + 4;
+        if (pct >= 100) {
+          pct = 100;
+          clearInterval(interval);
+          fileStatus.textContent = "✓ Upload complete";
+        }
+        progressBar.style.width = pct + "%";
+      }, 80);
+    }
+
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files[0]) simulateUpload(e.target.files[0]);
+    });
+
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("drag-over");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("drag-over");
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("drag-over");
+      const file = e.dataTransfer.files[0];
+      if (file) simulateUpload(file);
+    });
+
+    fileRemove.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      progressBar.style.width = "0%";
+      fileInput.value = "";
+      uploadIdle.style.display = "flex";
+      uploadSuccess.style.display = "none";
+      dropZone.classList.remove("has-file");
+    });
+  </script>
 </html>
