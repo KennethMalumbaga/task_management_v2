@@ -260,16 +260,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                         </div>
                         <div class="upload-success" id="uploadSuccess" style="display:none;">
                             <div class="file-preview">
-                                <div class="file-icon-wrap" id="fileIconWrap">📄</div>
+                                <div class="file-icon-wrap" id="fileIconWrap"><i class="fa fa-file-o"></i></div>
                                 <div class="file-info">
                                     <div class="file-name" id="fileName">document.pdf</div>
-                                    <div class="file-meta" id="fileMeta">2.4 MB · PDF</div>
+                                    <div class="file-meta" id="fileMeta">2.4 MB - PDF</div>
                                     <div class="file-progress">
                                         <div class="file-progress-bar" id="progressBar"></div>
                                     </div>
-                                    <div class="file-status" id="fileStatus">Uploading…</div>
+                                    <div class="file-status" id="fileStatus">Uploading...</div>
                                 </div>
-                                <button class="file-remove" id="fileRemove" type="button">✕</button>
+                                <button class="file-remove" id="fileRemove" type="button"><i class="fa fa-times"></i></button>
                             </div>
                         </div>
                     </label>
@@ -621,10 +621,18 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         var fileRemove = document.getElementById('fileRemove');
         var uploadTimer = null;
 
-        var EXT_ICONS = {
-            pdf: '📄', png: '🖼️', jpg: '🖼️', jpeg: '🖼️',
-            docx: '📝', doc: '📝', xlsx: '📊', xls: '📊',
-            zip: '🗜️', default: '📁'
+        var EXT_ICON_CLASSES = {
+            pdf: 'fa-file-pdf-o',
+            png: 'fa-file-image-o',
+            jpg: 'fa-file-image-o',
+            jpeg: 'fa-file-image-o',
+            docx: 'fa-file-word-o',
+            doc: 'fa-file-word-o',
+            xlsx: 'fa-file-excel-o',
+            xls: 'fa-file-excel-o',
+            csv: 'fa-file-excel-o',
+            zip: 'fa-file-archive-o',
+            default: 'fa-file-o'
         };
 
         function formatSize(bytes) {
@@ -648,12 +656,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             if (!file) return;
             var parts = file.name.split('.');
             var ext = parts.length > 1 ? parts.pop().toLowerCase() : '';
+            var extLabel = ext ? ext.toUpperCase() : 'FILE';
+            var iconClass = EXT_ICON_CLASSES[ext] || EXT_ICON_CLASSES.default;
 
             if (fileNameEl) fileNameEl.textContent = file.name;
-            if (fileMetaEl) fileMetaEl.textContent = formatSize(file.size) + ' · ' + ext.toUpperCase();
-            if (fileIconWrap) fileIconWrap.textContent = EXT_ICONS[ext] || EXT_ICONS.default;
+            if (fileMetaEl) fileMetaEl.textContent = formatSize(file.size) + ' - ' + extLabel;
+            if (fileIconWrap) fileIconWrap.innerHTML = '<i class="fa ' + iconClass + '"></i>';
             if (progressBar) progressBar.style.width = '0%';
-            if (fileStatus) fileStatus.textContent = 'Uploading…';
+            if (fileStatus) fileStatus.textContent = 'Uploading...';
 
             if (uploadIdle) uploadIdle.style.display = 'none';
             if (uploadSuccess) uploadSuccess.style.display = 'block';
@@ -667,7 +677,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                     pct = 100;
                     clearInterval(uploadTimer);
                     uploadTimer = null;
-                    if (fileStatus) fileStatus.textContent = '✓ Upload complete';
+                    if (fileStatus) fileStatus.textContent = 'Upload complete';
                 }
                 if (progressBar) progressBar.style.width = pct + '%';
             }, 80);

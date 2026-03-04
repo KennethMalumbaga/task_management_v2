@@ -11,7 +11,29 @@ include "model/user.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
 include "send_email.php";
-require_once __DIR__ . "/helpers/input.php";
+
+if (!function_exists('invite_normalize_full_name')) {
+    function invite_normalize_full_name(string $value): string
+    {
+        $collapsed = preg_replace('/\s+/', ' ', trim($value));
+        return is_string($collapsed) ? $collapsed : trim($value);
+    }
+}
+
+if (!function_exists('invite_is_valid_full_name')) {
+    function invite_is_valid_full_name(string $value): bool
+    {
+        // Require at least first + last name; allow letters with common punctuation.
+        $nameLength = function_exists('mb_strlen') ? mb_strlen($value) : strlen($value);
+        if ($nameLength < 3 || $nameLength > 80) {
+            return false;
+        }
+        if (preg_match('/\s+/', $value) !== 1) {
+            return false;
+        }
+        return preg_match("/^(?=.{3,80}$)[\\p{L}](?:[\\p{L}\\p{M}'.\\-]*[\\p{L}\\p{M}])?(?:\\s+[\\p{L}](?:[\\p{L}\\p{M}'.\\-]*[\\p{L}\\p{M}])?)+$/u", $value) === 1;
+    }
+}
 
 if (!isset($_POST['email']) || !isset($_POST['full_name'])) {
     header("Location: ../invite-user.php?error=Missing invite data.");
@@ -46,16 +68,16 @@ if (!tenant_table_exists($pdo, 'workspace_invites')) {
     exit();
 }
 
-$email = strtolower(validate_input($_POST['email']));
-$full_name = validate_input($_POST['full_name']);
+$email = strtolower(trim((string)$_POST['email']));
+$full_name = invite_normalize_full_name((string)$_POST['full_name']);
 
-if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+if ($email === '' || strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     header("Location: ../invite-user.php?error=Valid employee email is required.");
     exit();
 }
 
-if (empty($full_name)) {
-    header("Location: ../invite-user.php?error=Employee full name is required.");
+if (!invite_is_valid_full_name($full_name)) {
+    header("Location: ../invite-user.php?error=" . urlencode("Enter a valid full name (first and last name, letters only)."));
     exit();
 }
 
