@@ -333,6 +333,38 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             font-size: 13px;
         }
 
+        .capture-modal-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .capture-modal-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.55);
+            color: #fff;
+            padding: 7px 14px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .capture-modal-toggle:hover {
+            background: rgba(15, 23, 42, 0.75);
+        }
+
+        .capture-modal-toggle:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
         .empty-captures {
             padding: 40px;
             text-align: center;
@@ -587,7 +619,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <img id="modalImage" class="modal-image" alt="Screenshot preview">
                 <div id="modalInfo"></div>
             </div>
-            <div id="modalCounter" class="capture-modal-counter"></div>
+            <div class="capture-modal-controls">
+                <div id="modalCounter" class="capture-modal-counter"></div>
+                <button type="button" id="slideshowToggleBtn" class="capture-modal-toggle" onclick="toggleSlideshowPlay()" aria-label="Pause slideshow">
+                    <i class="fa fa-pause"></i> Pause
+                </button>
+            </div>
         </div>
     </div>
 
@@ -604,6 +641,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     var slideshowIndex = -1;
     var slideshowAutoTimer = null;
     var SLIDESHOW_INTERVAL_MS = 1000;
+    var slideshowPaused = false;
     var folderLayoutMode = "grid";
     var shotLayoutMode = "grid";
 
@@ -723,14 +761,45 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
     }
 
+    function updateSlideshowToggleButton() {
+        var toggleBtn = document.getElementById("slideshowToggleBtn");
+        if (!toggleBtn) return;
+
+        var canToggle = slideshowItems.length > 1;
+        var isPlaying = canToggle && !slideshowPaused;
+
+        toggleBtn.disabled = !canToggle;
+        toggleBtn.setAttribute("aria-label", isPlaying ? "Pause slideshow" : "Play slideshow");
+        toggleBtn.innerHTML = isPlaying
+            ? '<i class="fa fa-pause"></i> Pause'
+            : '<i class="fa fa-play"></i> Play';
+    }
+
     function startSlideshowAutoPlay() {
         stopSlideshowAutoPlay();
-        if (slideshowItems.length <= 1) {
+        if (slideshowItems.length <= 1 || slideshowPaused) {
+            updateSlideshowToggleButton();
             return;
         }
         slideshowAutoTimer = setInterval(function() {
             showNextImage(true);
         }, SLIDESHOW_INTERVAL_MS);
+        updateSlideshowToggleButton();
+    }
+
+    function setSlideshowPaused(paused) {
+        slideshowPaused = !!paused;
+        if (slideshowPaused) {
+            stopSlideshowAutoPlay();
+            updateSlideshowToggleButton();
+            return;
+        }
+        startSlideshowAutoPlay();
+    }
+
+    function toggleSlideshowPlay() {
+        if (slideshowItems.length <= 1) return;
+        setSlideshowPaused(!slideshowPaused);
     }
 
     function collectVisibleSlideshowItems() {
@@ -754,6 +823,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
     function renderSlideshowImage() {
         if (!slideshowItems.length || slideshowIndex < 0) {
+            updateSlideshowToggleButton();
             return;
         }
         var item = slideshowItems[slideshowIndex];
@@ -767,6 +837,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         if (modalCounter) {
             modalCounter.textContent = (slideshowIndex + 1) + " / " + slideshowItems.length;
         }
+        updateSlideshowToggleButton();
     }
     function showFullImage(imagePath, employeeName, takenAt) {
         var modal = document.getElementById("imageModal");
@@ -790,6 +861,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             slideshowIndex = 0;
         }
 
+        slideshowPaused = false;
         modal.style.display = "block";
         document.body.style.overflow = "hidden";
         renderSlideshowImage();
@@ -821,6 +893,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         stopSlideshowAutoPlay();
         slideshowItems = [];
         slideshowIndex = -1;
+        slideshowPaused = false;
+        updateSlideshowToggleButton();
     }
 
     function downloadCapture(imagePath) {

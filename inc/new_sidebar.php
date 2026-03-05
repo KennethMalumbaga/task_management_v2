@@ -259,6 +259,7 @@
 
         <?php if($_SESSION['role'] == "employee"){ ?>
             <!-- Employee Nav -->
+            <div class="dash-nav-section-label">MAIN</div>
             <a href="index.php" class="dash-nav-item <?= isActive('index.php') ?>">
                 <i class="fa fa-th-large"></i> Dashboard
             </a>
@@ -277,6 +278,7 @@
             </a>
         <?php } else { ?>
             <!-- Admin Nav -->
+            <div class="dash-nav-section-label">MAIN</div>
             <a href="index.php" class="dash-nav-item <?= isActive('index.php') ?>">
                 <i class="fa fa-th-large"></i> Dashboard
             </a>
@@ -293,6 +295,7 @@
                     <span class="dash-nav-badge"><?=$totalUnread?></span>
                 <?php } ?>
             </a>
+            <div class="dash-nav-section-label">MANAGE</div>
             <a href="user.php" class="dash-nav-item <?= isActive('user.php') ?>">
                 <i class="fa fa-users"></i> Users
             </a>
@@ -305,6 +308,7 @@
             <a href="groups.php" class="dash-nav-item <?= isActive('groups.php') ?>">
                 <i class="fa fa-object-group"></i> Groups
             </a>
+            <div class="dash-nav-section-label">MONITOR</div>
             <a href="screenshots.php" class="dash-nav-item <?= isActive('screenshots.php') ?>">
                 <i class="fa fa-camera"></i> Captures
             </a>
