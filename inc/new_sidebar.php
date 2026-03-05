@@ -105,6 +105,7 @@
         'my_task.php' => 'Tasks',
         'calendar.php' => 'Calendar',
         'messages.php' => 'Messages',
+        'timeline.php' => 'Timeline',
         'user.php' => 'Users',
         'invite-user.php' => 'Invites',
         'workspace-billing.php' => 'Billing',
@@ -270,6 +271,9 @@
             <a href="calendar.php" class="dash-nav-item <?= isActive('calendar.php') ?>">
                 <i class="fa fa-calendar"></i> Calendar
             </a>
+            <a href="timeline.php" class="dash-nav-item <?= isActive('timeline.php') ?>">
+                <i class="fa fa-line-chart"></i> Timeline
+            </a>
             <a href="messages.php" class="dash-nav-item <?= isActive('messages.php') ?>">
                 <i class="fa fa-comment-o"></i> Messages
                 <?php if($totalUnread > 0){ ?>
@@ -288,6 +292,9 @@
             <!-- Keep Create Task? Maybe in Tasks page as action -->
             <a href="calendar.php" class="dash-nav-item <?= isActive('calendar.php') ?>">
                 <i class="fa fa-calendar"></i> Calendar
+            </a>
+            <a href="timeline.php" class="dash-nav-item <?= isActive('timeline.php') ?>">
+                <i class="fa fa-line-chart"></i> Timeline
             </a>
             <a href="messages.php" class="dash-nav-item <?= isActive('messages.php') ?>">
                 <i class="fa fa-comment-o"></i> Messages
