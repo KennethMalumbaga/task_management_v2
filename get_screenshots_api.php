@@ -11,12 +11,32 @@ include "DB_connection.php";
 require_once "inc/tenant.php";
 include "app/model/user.php";
 
+function capture_profile_image_url($profileImage) {
+    $profileImage = trim((string)$profileImage);
+    if ($profileImage === '' || strtolower($profileImage) === 'default.png') {
+        return '';
+    }
+
+    $safeName = basename($profileImage);
+    if ($safeName === '') {
+        return '';
+    }
+
+    $absolutePath = __DIR__ . '/uploads/' . $safeName;
+    if (!is_file($absolutePath)) {
+        return '';
+    }
+
+    $mtime = @filemtime($absolutePath);
+    return 'uploads/' . rawurlencode($safeName) . '?t=' . ($mtime ? $mtime : time());
+}
+
 // Get filter parameters
 $filter_user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : null;
 $filter_date = isset($_GET['date']) ? $_GET['date'] : null;
 
 // Build query
-$sql = "SELECT s.*, u.full_name, u.username, a.time_in, a.time_out 
+$sql = "SELECT s.*, u.full_name, u.username, u.profile_image, a.time_in, a.time_out 
         FROM screenshots s 
         INNER JOIN users u ON s.user_id = u.id 
         LEFT JOIN attendance a ON s.attendance_id = a.id 
@@ -69,6 +89,7 @@ foreach ($screenshots as $screenshot) {
         'file_exists' => $fileExists,
         'full_name' => $screenshot['full_name'],
         'username' => $screenshot['username'],
+        'profile_image_url' => capture_profile_image_url($screenshot['profile_image'] ?? ''),
         'taken_at' => $screenshot['taken_at'],
         'taken_at_formatted' => date('Y-m-d H:i:s', strtotime($screenshot['taken_at'])),
         'time_in' => $screenshot['time_in'] ? date('Y-m-d H:i:s', strtotime($screenshot['time_in'])) : null,

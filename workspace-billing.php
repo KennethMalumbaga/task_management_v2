@@ -154,11 +154,7 @@ if (!$tenantEnabled) {
 }
 
 $workspaceDisplayName = (string)($org['name'] ?? ($_SESSION['organization_name'] ?? 'Workspace'));
-$workspaceSlug = (string)($org['slug'] ?? 'N/A');
-$workspaceId = isset($org['id']) ? (int)$org['id'] : 0;
-$workspaceStatus = (string)($org['status'] ?? 'N/A');
 $workspacePlanCode = (string)($org['plan_code'] ?? 'N/A');
-$workspaceBillingEmail = (string)(!empty($org['billing_email']) ? $org['billing_email'] : 'N/A');
 $subscriptionStatusRaw = strtolower(trim((string)($subscription['status'] ?? '')));
 $trialEndsAtRaw = (string)($subscription['trial_ends_at'] ?? '');
 $trialEndsTs = $trialEndsAtRaw !== '' ? strtotime($trialEndsAtRaw) : false;
@@ -199,13 +195,6 @@ $subscriptionStateLabel = $isSubscriptionBlocked
 $heroSubscriptionValueClass = $isFreeTrialStatus
     ? ($isFreeTrialExpired ? 'billing-v2-value-warn' : 'billing-v2-value-trial')
     : ($isSubscriptionBlocked ? 'billing-v2-value-warn' : 'billing-v2-value-ok');
-$snapshotBadgeClass = $isFreeTrialStatus
-    ? ($isFreeTrialExpired ? 'is-expired' : 'is-trial')
-    : ($isSubscriptionBlocked ? 'is-expired' : 'is-active');
-$snapshotBadgeLabel = $isFreeTrialStatus
-    ? ($isFreeTrialExpired ? 'Trial Expired' : 'Free Trial')
-    : ($isSubscriptionBlocked ? 'Expired' : 'Active');
-$displayPlanCode = $isFreeTrialStatus ? 'free_trial' : $currentWorkspacePlanCode;
 $showTrialStatusCard = $isFreeTrialStatus || $isSubscriptionBlocked;
 $trialCardIsAlert = $isSubscriptionBlocked || $isFreeTrialExpired;
 $expiredReferenceDate = $trialEndsShort !== 'N/A' ? $trialEndsShort : $periodEndsShort;
@@ -345,45 +334,6 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                 </div>
             </section>
         <?php } else { ?>
-            <section class="workspace-panel billing-v2-card billing-v2-snapshot">
-                <div class="billing-v2-snapshot-head">
-                    <div class="billing-v2-card-title-wrap">
-                        <h3 class="workspace-panel-title"><?= htmlspecialchars($workspaceDisplayName) ?></h3>
-                        <p class="workspace-panel-sub">Workspace status, plan metadata, and billing contact snapshot.</p>
-                    </div>
-                    <span class="billing-v2-status-badge <?= $snapshotBadgeClass ?>">
-                        <span class="billing-v2-status-dot"></span>
-                        <?= htmlspecialchars($snapshotBadgeLabel) ?>
-                    </span>
-                </div>
-                <div class="billing-v2-meta-tags">
-                    <span class="billing-v2-meta-chip">
-                        <span class="billing-v2-meta-icon">#</span>
-                        <span class="billing-v2-meta-label">Org ID</span>
-                        <strong><?= $workspaceId ?></strong>
-                    </span>
-                    <span class="billing-v2-meta-chip">
-                        <span class="billing-v2-meta-icon"><i class="fa fa-diamond"></i></span>
-                        <span class="billing-v2-meta-label">Slug</span>
-                        <strong><?= htmlspecialchars($workspaceSlug) ?></strong>
-                    </span>
-                    <span class="billing-v2-meta-chip <?= $isSubscriptionBlocked ? 'is-warn' : '' ?>">
-                        <span class="billing-v2-meta-icon"><i class="fa fa-shield"></i></span>
-                        <span class="billing-v2-meta-label">Status</span>
-                        <strong><?= htmlspecialchars($workspaceStatus) ?></strong>
-                    </span>
-                    <span class="billing-v2-meta-chip">
-                        <span class="billing-v2-meta-icon"><i class="fa fa-square-o"></i></span>
-                        <span class="billing-v2-meta-label">Plan</span>
-                        <strong><?= htmlspecialchars($displayPlanCode) ?></strong>
-                    </span>
-                    <span class="billing-v2-meta-chip">
-                        <span class="billing-v2-meta-icon"><i class="fa fa-envelope-o"></i></span>
-                        <span class="billing-v2-meta-label">Billing</span>
-                        <strong><?= htmlspecialchars($workspaceBillingEmail) ?></strong>
-                    </span>
-                </div>
-            </section>
 
             <?php if ($capacity && !$capacity['ok']) { ?>
                 <div class="workspace-alert warn billing-v2-capacity-alert">

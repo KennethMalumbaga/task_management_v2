@@ -3383,3 +3383,183 @@ body.billing-page {
         border-radius: 5px;
     }
 }
+
+/* Billing page desktop typography parity with other workspace pages */
+@media (min-width: 901px) {
+    .billing-page .billing-v2-hero {
+        padding: 26px;
+    }
+
+    .billing-page .billing-v2-eyebrow {
+        gap: 8px;
+        margin-bottom: 2px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        padding: 7px 12px;
+    }
+
+    .billing-page .billing-v2-hero-left h2 {
+        margin: 14px 0 8px;
+        font-size: 30px;
+        line-height: 1.16;
+        letter-spacing: -0.02em;
+    }
+
+    .billing-page .billing-v2-hero-left p {
+        font-size: 15px;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.88);
+    }
+
+    .billing-page .billing-v2-hero-stat {
+        border-radius: 14px;
+        padding: 12px 14px;
+    }
+
+    .billing-page .billing-v2-hero-stat span {
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        margin-bottom: 3px;
+    }
+
+    .billing-page .billing-v2-hero-stat strong {
+        font-size: 17px;
+        line-height: 1.3;
+        letter-spacing: normal;
+    }
+
+    .billing-page .billing-v2-hero-stat small {
+        margin-top: 3px;
+        font-size: 12px;
+    }
+
+    .billing-page .billing-v2-card {
+        padding: 22px;
+    }
+
+    .billing-page .billing-v2-card .workspace-panel-title {
+        font-size: 20px;
+        letter-spacing: -0.01em;
+    }
+
+    .billing-page .billing-v2-card .workspace-panel-sub {
+        margin-top: 0;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .billing-page .billing-v2-meta-chip {
+        font-size: 12px;
+        padding: 5px 10px;
+    }
+
+    .billing-page .billing-v2-stat-card {
+        padding: 16px 18px;
+    }
+
+    .billing-page .billing-v2-stat-label {
+        font-size: 11px;
+        letter-spacing: 0.05em;
+    }
+
+    .billing-page .billing-v2-stat-value {
+        font-size: 27px;
+    }
+
+    .billing-page .billing-v2-stat-value span {
+        font-size: 18px;
+    }
+
+    .billing-page .billing-v2-stat-value.compact {
+        font-size: 18px;
+        line-height: 1.25;
+    }
+
+    .billing-page .billing-v2-stat-value.is-alert-date {
+        font-size: 18px;
+    }
+
+    .billing-page .billing-v2-stat-sub {
+        margin-top: 6px;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .billing-page .billing-v2-stat-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .billing-page .billing-v2-progress-track {
+        height: 6px;
+    }
+
+    .billing-page .billing-v2-blocked-note {
+        font-size: 13px;
+    }
+
+    .billing-page .billing-v2-plan-head strong {
+        font-size: 14px;
+    }
+
+    .billing-page .billing-v2-plan-desc {
+        font-size: 12px;
+    }
+
+    .billing-page .billing-v2-plan-price {
+        font-size: 14px;
+    }
+
+    .billing-page .billing-v2-plan-price span {
+        font-size: 12px;
+    }
+
+    .billing-page .billing-v2-plan-btn {
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    .billing-page .billing-v2-checkout-title {
+        font-size: 14px;
+    }
+
+    .billing-page .billing-v2-checkout-sub {
+        font-size: 12px;
+    }
+
+    .billing-page .billing-v2-checkout-summary strong {
+        font-size: 14px;
+    }
+
+    .billing-page .billing-v2-checkout-summary small {
+        font-size: 12px;
+    }
+
+    .billing-page .billing-v2-checkout-form .workspace-field label {
+        font-size: 11px;
+    }
+
+    .billing-page .billing-v2-checkout-form .workspace-input {
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+
+    .billing-page .billing-v2-sim-btn {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    .billing-page .billing-v2-how-list li {
+        font-size: 13px;
+    }
+
+    .billing-page .billing-v2-how-step {
+        width: 21px;
+        height: 21px;
+        font-size: 11px;
+    }
+
+    .billing-page .billing-v2-how-note {
+        font-size: 12px;
+    }
+}
