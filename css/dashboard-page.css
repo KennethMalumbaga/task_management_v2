@@ -34,6 +34,37 @@ body.dashboard-page .dash-main {
     }
 }
 
+@keyframes clockTrackerShimmer {
+    from {
+        background-position: 0 0;
+    }
+    to {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes clockTrackerPing {
+    0% {
+        transform: scale(0.85);
+        opacity: 0.55;
+    }
+    75%,
+    100% {
+        transform: scale(1.35);
+        opacity: 0;
+    }
+}
+
+@keyframes clockTrackerBlink {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+
 body.dashboard-page .dash-top-grid {
     gap: 14px;
     margin-bottom: 0;
@@ -121,15 +152,38 @@ body.dashboard-page .employee-left-stack {
 }
 
 body.dashboard-page .employee-time-tracker-card {
-    padding: 10px;
+    padding: 0;
+    overflow: visible;
+    z-index: 6;
+    border-color: rgba(124, 58, 237, 0.08);
+    background: #fff;
+    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+body.dashboard-page .employee-time-tracker-card::before {
+    background: linear-gradient(90deg, #7c3aed, #8b5cf6);
+}
+
+body.dashboard-page .employee-time-tracker-card.is-running::before {
+    background: linear-gradient(90deg, #7c3aed, #22c55e, #7c3aed);
+    background-size: 200% 100%;
+    animation: clockTrackerShimmer 2s linear infinite;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-paused::before {
+    background: linear-gradient(90deg, #d97706, #f59e0b, #d97706);
+}
+
+body.dashboard-page .employee-time-tracker-card .ctt-shell {
+    padding: 13px 14px 14px;
 }
 
 body.dashboard-page .employee-time-tracker-card .btn-clock-in,
 body.dashboard-page .employee-time-tracker-card .btn-clock-out {
-    min-width: 110px;
-    border-radius: 10px;
-    padding: 8px 14px !important;
-    font-size: 13px !important;
+    min-width: 0;
+    border-radius: 9px;
+    padding: 9px 12px !important;
+    font-size: 12px !important;
     line-height: 1.2;
 }
 
@@ -137,6 +191,7 @@ body.dashboard-page .ctt-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     margin-bottom: 10px;
 }
 
@@ -146,69 +201,191 @@ body.dashboard-page .ctt-title {
     gap: 6px;
     font-size: 13px;
     font-weight: 700;
-    color: #111827;
+    color: #1e1b4b;
+    letter-spacing: -0.01em;
+}
+
+body.dashboard-page .ctt-title-text {
+    display: block;
+}
+
+body.dashboard-page .ctt-status-indicator {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+}
+
+body.dashboard-page .ctt-status-indicator::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+}
+
+body.dashboard-page .ctt-status-dot {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #cbd5e1;
+    transition: background 0.35s ease;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-running .ctt-status-dot {
+    background: #22c55e;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-paused .ctt-status-dot {
+    background: #f59e0b;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-running .ctt-status-indicator::after {
+    border-color: #22c55e;
+    opacity: 0.5;
+    animation: clockTrackerPing 1.5s ease-in-out infinite;
 }
 
 body.dashboard-page .ctt-camera {
-    color: #9ca3af;
-    font-size: 10px;
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 600;
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    padding: 2px 6px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+body.dashboard-page .ctt-camera-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    flex: 0 0 4px;
+    background: #94a3b8;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-running .ctt-camera {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #15803d;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-paused .ctt-camera {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-running .ctt-camera-dot {
+    background: #22c55e;
+    animation: clockTrackerBlink 1.2s ease-in-out infinite;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-paused .ctt-camera-dot {
+    background: #f59e0b;
 }
 
 body.dashboard-page .ctt-row {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 6px;
 }
 
 body.dashboard-page .ctt-stats {
     display: flex;
     align-items: stretch;
-    gap: 8px;
-    flex: 1;
-    border: 1px solid #e3defa;
-    border-radius: 10px;
-    background: #f5f3ff;
-    padding: 7px 10px;
+    gap: 4px;
+    width: 100%;
+    border: 0;
+    background: none;
+    padding: 0;
 }
 
 body.dashboard-page .ctt-stat {
     min-width: 0;
     flex: 1;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    transition: all 0.35s ease;
 }
 
 body.dashboard-page .ctt-stat-right {
-    text-align: right;
+    text-align: left;
+}
+
+body.dashboard-page .ctt-stat-today {
+    background: #f8fafc;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-running .ctt-stat-today {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border-color: #bbf7d0;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-paused .ctt-stat-today {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border-color: #fde68a;
+}
+
+body.dashboard-page .ctt-stat-alltime {
+    background: linear-gradient(135deg, #faf5ff, #ede9fe);
+    border-color: #ddd6fe;
 }
 
 body.dashboard-page .ctt-label {
-    color: #9ca3af;
-    font-size: 9px;
+    margin-bottom: 2px;
+    color: #94a3b8;
+    font-size: 8px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
 }
 
 body.dashboard-page .ctt-value {
-    color: #6c3ce1;
-    font-size: 16px;
+    color: #1e1b4b;
+    font-size: 17px;
     font-weight: 800;
-    line-height: 1.1;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+body.dashboard-page .ctt-stat-alltime .ctt-label {
+    color: #7c3aed;
+}
+
+body.dashboard-page .ctt-stat-alltime .ctt-value {
+    color: #6d28d9;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-running .ctt-stat-today .ctt-label,
+body.dashboard-page .employee-time-tracker-card.is-running .ctt-stat-today .ctt-value {
+    color: #15803d;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-paused .ctt-stat-today .ctt-label,
+body.dashboard-page .employee-time-tracker-card.is-paused .ctt-stat-today .ctt-value {
+    color: #92400e;
 }
 
 body.dashboard-page .ctt-divider {
-    width: 1px;
-    align-self: stretch;
-    background: #e5e7eb;
+    display: none;
 }
 
 body.dashboard-page .ctt-box {
-    margin-top: 8px;
-    border: 1px solid #ddd6fe;
+    margin-top: 6px;
+    border: 1.5px solid #e2e8f0;
     border-radius: 10px;
-    background: #f3efff;
+    background: #f8fafc;
     padding: 8px 10px;
 }
 
@@ -216,26 +393,1119 @@ body.dashboard-page .ctt-box-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
 }
 
 body.dashboard-page .ctt-time-label {
-    color: #6c3ce1;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
+    padding: 3px 7px;
+    border: 1px solid #ddd6fe;
+    border-radius: 20px;
+    background: #ede9fe;
+    color: #7c3aed;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
 }
 
 body.dashboard-page .ctt-time-out {
-    margin-top: 4px;
-    color: #6b7280;
-    font-size: 12px;
+    margin-top: 0;
+    color: #94a3b8;
+    font-size: 9px;
 }
 
 body.dashboard-page .employee-time-tracker-card .employee-time-title {
-    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 12px;
     font-weight: 700;
-    color: #111827;
+    color: #374151;
     line-height: 1.1;
+}
+
+body.dashboard-page .ctt-session-icon {
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1;
+    flex: 0 0 auto;
+}
+
+body.dashboard-page .ctt-session-times {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+body.dashboard-page .ctt-time-in-value {
+    color: #374151;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+body.dashboard-page .ctt-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+body.dashboard-page.is-clockin-setup-modal-open {
+    overflow: hidden;
+}
+
+body.dashboard-page .clockin-action-stack {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    width: 100%;
+    flex-shrink: 0;
+    order: 2;
+}
+
+body.dashboard-page .clockin-action-stack .btn-clock-in,
+body.dashboard-page .clockin-action-stack .btn-clock-out {
+    width: 100% !important;
+}
+
+body.dashboard-page .clock-session-actions {
+    display: flex;
+    gap: 4px;
+    width: 100%;
+}
+
+body.dashboard-page .clock-session-actions[hidden],
+body.dashboard-page .clock-session-btn[hidden],
+body.dashboard-page .pause-session-modal[hidden] {
+    display: none !important;
+}
+
+body.dashboard-page .clock-session-btn {
+    flex: 1;
+    border: 0;
+    border-radius: 9px;
+    padding: 9px 8px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+body.dashboard-page .clock-session-actions #btnTimeOut,
+body.dashboard-page .clock-session-actions #btnPauseSession,
+body.dashboard-page .clock-session-actions #btnResumeSession {
+    width: auto !important;
+    min-width: 0;
+    margin-right: 0;
+    padding: 9px 8px !important;
+}
+
+body.dashboard-page .clock-session-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+body.dashboard-page .clock-session-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+body.dashboard-page .clock-session-actions .btn-clock-pause {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    box-shadow: 0 6px 16px rgba(217, 119, 6, 0.35);
+}
+
+body.dashboard-page .clock-session-actions .btn-clock-resume {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    box-shadow: 0 6px 16px rgba(109, 40, 217, 0.4);
+}
+
+body.dashboard-page .clock-session-actions .btn-clock-out {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.35);
+}
+
+body.dashboard-page .clockin-setup-anchor {
+    position: relative;
+}
+
+body.dashboard-page .clockin-button-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+body.dashboard-page .clockin-button-lock-note {
+    display: none;
+    margin-left: auto;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(17, 24, 39, 0.08);
+    color: #6b7280;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+body.dashboard-page .employee-time-tracker-card .btn-clock-in {
+    border: 0;
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(109, 40, 217, 0.4);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 0.01em;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+body.dashboard-page .employee-time-tracker-card .btn-clock-in:hover:not(.is-locked):not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(109, 40, 217, 0.46);
+}
+
+body.dashboard-page .employee-time-tracker-card .btn-clock-in.is-locked {
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+    border: 0;
+    color: #94a3b8;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+body.dashboard-page .employee-time-tracker-card .btn-clock-in.is-locked:hover {
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+    box-shadow: none;
+    transform: none;
+}
+
+body.dashboard-page .clockin-setup-banner {
+    order: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1.5px solid #fcd34d;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+}
+
+body.dashboard-page .clockin-setup-banner[hidden] {
+    display: none !important;
+}
+
+body.dashboard-page .clockin-setup-banner-copy {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+body.dashboard-page .clockin-setup-banner-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 1.5px solid #fcd34d;
+    background: #fef3c7;
+    color: #b45309;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+body.dashboard-page .clockin-setup-banner-title,
+body.dashboard-page .clockin-setup-banner-text,
+body.dashboard-page .clockin-setup-hover-kicker,
+body.dashboard-page .clockin-setup-hover-title,
+body.dashboard-page .clockin-guide-video-caption,
+body.dashboard-page .clockin-setup-download-title,
+body.dashboard-page .clockin-setup-download-text,
+body.dashboard-page .clockin-setup-status-title,
+body.dashboard-page .clockin-setup-status-text,
+body.dashboard-page .clockin-setup-modal-kicker,
+body.dashboard-page .clockin-setup-modal-title,
+body.dashboard-page .clockin-setup-modal-copy {
+    margin: 0;
+}
+
+body.dashboard-page .clockin-setup-banner-title {
+    color: #92400e;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+body.dashboard-page .clockin-setup-banner-text {
+    margin-top: 1px;
+    color: #b45309;
+    font-size: 9px;
+    line-height: 1.4;
+}
+
+body.dashboard-page .clockin-setup-banner-btn,
+body.dashboard-page .clockin-setup-primary-btn,
+body.dashboard-page .clockin-setup-download-btn,
+body.dashboard-page .clockin-setup-modal-primary {
+    border: 0;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+body.dashboard-page .clockin-setup-banner-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    color: #fff;
+    font-size: 9px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+}
+
+body.dashboard-page .clockin-setup-hover {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    width: min(320px, 86vw);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(124, 58, 237, 0.1);
+    z-index: 14;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.22s ease, visibility 0s linear 0.22s;
+    overflow: hidden;
+}
+
+body.dashboard-page .clockin-setup-anchor.is-hover-guide-visible .clockin-setup-hover {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+    transition-delay: 0s;
+}
+
+body.dashboard-page .clockin-setup-hover-arrow {
+    position: absolute;
+    top: -7px;
+    left: 26px;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    transform: rotate(45deg);
+    border-top: 1px solid rgba(124, 58, 237, 0.12);
+    border-left: 1px solid rgba(124, 58, 237, 0.12);
+}
+
+body.dashboard-page .clockin-setup-hover-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #4c1d95, #7c3aed);
+}
+
+body.dashboard-page .clockin-setup-hover-top-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+body.dashboard-page .clockin-setup-hover-kicker {
+    color: #c4b5fd;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+body.dashboard-page .clockin-setup-hover-title {
+    margin-top: 1px;
+    color: #fff;
+    font-size: 15px;
+    line-height: 1.2;
+    font-weight: 700;
+}
+
+body.dashboard-page .clockin-setup-hover-body {
+    padding: 14px 16px 16px;
+}
+
+body.dashboard-page .clockin-setup-tab-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+body.dashboard-page .clockin-setup-tab-row.is-compact {
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+body.dashboard-page .clockin-setup-tab-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 11px;
+    border-radius: 10px;
+    border: 2px solid #e5e7eb;
+    background: #fff;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+body.dashboard-page .clockin-setup-tab-row.is-compact .clockin-setup-tab-btn {
+    padding: 6px 8px;
+    border-width: 0;
+    border-radius: 8px;
+    background: #f3f4f6;
+    font-size: 11px;
+}
+
+body.dashboard-page .clockin-setup-tab-btn.is-active {
+    border-color: #7c3aed;
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+body.dashboard-page .clockin-setup-tab-row.is-compact .clockin-setup-tab-btn.is-active {
+    background: #7c3aed;
+    color: #fff;
+}
+
+body.dashboard-page .clockin-setup-tab-panel {
+    display: none;
+}
+
+body.dashboard-page .clockin-setup-tab-panel.is-active {
+    display: block;
+}
+
+body.dashboard-page .clockin-guide-video-shell {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid rgba(124, 58, 237, 0.25);
+}
+
+body.dashboard-page .clockin-guide-video-shell.is-compact {
+    border-radius: 10px;
+}
+
+body.dashboard-page .clockin-guide-video {
+    width: 100%;
+    height: 210px;
+    display: block;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+body.dashboard-page .clockin-guide-video-shell.is-compact .clockin-guide-video {
+    height: 132px;
+}
+
+body.dashboard-page .clockin-guide-video-toggle {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.18s ease;
+}
+
+body.dashboard-page .clockin-guide-video-toggle-disc {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(124, 58, 237, 0.92);
+    color: #fff;
+    font-size: 18px;
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.6);
+}
+
+body.dashboard-page .clockin-guide-video-shell.is-compact .clockin-guide-video-toggle-disc {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+}
+
+body.dashboard-page .clockin-guide-video-shell.is-playing .clockin-guide-video-toggle {
+    opacity: 0;
+    pointer-events: none;
+}
+
+body.dashboard-page .clockin-guide-video-pause {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 0;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+body.dashboard-page .clockin-guide-video-shell.is-playing .clockin-guide-video-pause {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+body.dashboard-page .clockin-guide-video-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 5px;
+    background: rgba(124, 58, 237, 0.88);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+body.dashboard-page .clockin-guide-video-caption {
+    margin-top: 8px;
+    color: #9ca3af;
+    font-size: 11px;
+    text-align: center;
+}
+
+body.dashboard-page .clockin-guide-slideshow {
+    position: relative;
+    border-radius: 12px;
+    min-height: 188px;
+    padding: 22px 46px 18px;
+    background: linear-gradient(135deg, #1e1b4b, #3b1f6e);
+    border: 1px solid rgba(167, 139, 250, 0.25);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+}
+
+body.dashboard-page .clockin-guide-slideshow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 60% 40%, rgba(124, 58, 237, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+body.dashboard-page .clockin-guide-slideshow.is-compact {
+    min-height: 138px;
+    padding: 18px 42px 14px;
+    border-radius: 10px;
+}
+
+body.dashboard-page .clockin-guide-slide-icon,
+body.dashboard-page .clockin-guide-slide-label,
+body.dashboard-page .clockin-guide-slide-desc,
+body.dashboard-page .clockin-guide-slide-counter {
+    position: relative;
+    z-index: 1;
+}
+
+body.dashboard-page .clockin-guide-slide-icon {
+    color: #f5f3ff;
+    font-size: 34px;
+}
+
+body.dashboard-page .clockin-guide-slideshow.is-compact .clockin-guide-slide-icon {
+    font-size: 26px;
+}
+
+body.dashboard-page .clockin-guide-slide-label {
+    color: #e9d5ff;
+    font-size: 14px;
+    line-height: 1.4;
+    font-weight: 700;
+}
+
+body.dashboard-page .clockin-guide-slideshow.is-compact .clockin-guide-slide-label {
+    font-size: 11px;
+}
+
+body.dashboard-page .clockin-guide-slide-desc {
+    color: #a78bfa;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+body.dashboard-page .clockin-guide-slideshow.is-compact .clockin-guide-slide-desc {
+    display: none;
+}
+
+body.dashboard-page .clockin-guide-slide-counter {
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+body.dashboard-page .clockin-guide-slide-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 0;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+body.dashboard-page .clockin-guide-slide-nav.is-prev {
+    left: 10px;
+}
+
+body.dashboard-page .clockin-guide-slide-nav.is-next {
+    right: 10px;
+}
+
+body.dashboard-page .clockin-guide-slide-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+body.dashboard-page .clockin-guide-slide-dot {
+    width: 6px;
+    height: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: #d1d5db;
+    cursor: pointer;
+    transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+body.dashboard-page .clockin-guide-slide-dot.is-active {
+    width: 18px;
+    background: #7c3aed;
+}
+
+body.dashboard-page .clockin-setup-primary-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+    color: #fff;
+    font-size: 13px;
+}
+
+body.dashboard-page .clockin-setup-link-btn,
+body.dashboard-page .clockin-setup-modal-link {
+    width: 100%;
+    margin-top: 6px;
+    padding: 6px 0;
+    border: 0;
+    background: transparent;
+    color: #9ca3af;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+body.dashboard-page .clockin-setup-modal[hidden] {
+    display: none !important;
+}
+
+body.dashboard-page.is-pause-session-modal-open {
+    overflow: hidden;
+}
+
+body.dashboard-page .pause-session-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1006;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(17, 7, 40, 0.62);
+    backdrop-filter: blur(6px);
+}
+
+body.dashboard-page .pause-session-dialog {
+    width: min(420px, 100%);
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+}
+
+body.dashboard-page .pause-session-head {
+    position: relative;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #92400e, #d97706);
+}
+
+body.dashboard-page .pause-session-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 0;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.dashboard-page .pause-session-kicker,
+body.dashboard-page .pause-session-title,
+body.dashboard-page .pause-session-copy,
+body.dashboard-page .pause-session-section-label {
+    margin: 0;
+}
+
+body.dashboard-page .pause-session-kicker {
+    color: #fde68a;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+body.dashboard-page .pause-session-title {
+    margin-top: 4px;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+body.dashboard-page .pause-session-copy {
+    margin-top: 4px;
+    color: #fde68a;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+body.dashboard-page .pause-session-body {
+    padding: 20px 24px 24px;
+}
+
+body.dashboard-page .pause-session-section-label {
+    margin-bottom: 8px;
+    color: #9ca3af;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+body.dashboard-page .pause-session-quick-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 2px solid #e5e7eb;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+body.dashboard-page .pause-session-quick-btn.is-active {
+    border-color: #d97706;
+    background: #fffbeb;
+    box-shadow: 0 8px 18px rgba(217, 119, 6, 0.12);
+}
+
+body.dashboard-page .pause-session-quick-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(217, 119, 6, 0.12);
+    color: #b45309;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+body.dashboard-page .pause-session-quick-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+body.dashboard-page .pause-session-quick-copy strong {
+    color: #374151;
+    font-size: 13px;
+}
+
+body.dashboard-page .pause-session-quick-copy small {
+    color: #9ca3af;
+    font-size: 11px;
+}
+
+body.dashboard-page .pause-session-quick-check {
+    margin-left: auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #d1d5db;
+    background: #fff;
+    color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+body.dashboard-page .pause-session-quick-btn.is-active .pause-session-quick-check {
+    border-color: #d97706;
+    background: #d97706;
+    color: #fff;
+}
+
+body.dashboard-page .pause-session-divider {
+    margin: 16px 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body.dashboard-page .pause-session-divider span {
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+}
+
+body.dashboard-page .pause-session-divider strong {
+    color: #9ca3af;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+body.dashboard-page .pause-session-textarea {
+    width: 100%;
+    min-height: 90px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 2px solid #e5e7eb;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #374151;
+    resize: vertical;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+body.dashboard-page .pause-session-textarea:focus {
+    outline: none;
+    border-color: #d97706;
+}
+
+body.dashboard-page .pause-session-textarea:disabled {
+    background: #f9fafb;
+    color: #9ca3af;
+}
+
+body.dashboard-page .pause-session-textarea.has-value {
+    border-color: #d97706;
+}
+
+body.dashboard-page .pause-session-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+body.dashboard-page .pause-session-cancel,
+body.dashboard-page .pause-session-confirm {
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+body.dashboard-page .pause-session-cancel {
+    flex: 1;
+    border: 1.5px solid #e5e7eb;
+    background: #fff;
+    color: #374151;
+    padding: 11px 14px;
+}
+
+body.dashboard-page .pause-session-confirm {
+    flex: 2;
+    border: 0;
+    padding: 11px 14px;
+    background: #e5e7eb;
+    color: #9ca3af;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: none;
+}
+
+body.dashboard-page .pause-session-confirm.is-enabled {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(217, 119, 6, 0.22);
+}
+
+body.dashboard-page .clockin-setup-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1005;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(17, 7, 40, 0.65);
+    backdrop-filter: blur(6px);
+}
+
+body.dashboard-page .clockin-setup-modal-dialog {
+    width: min(540px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.3);
+}
+
+body.dashboard-page .clockin-setup-modal-head {
+    position: relative;
+    padding: 24px 24px 20px;
+    background: linear-gradient(135deg, #4c1d95, #7c3aed);
+}
+
+body.dashboard-page .clockin-setup-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 0;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+body.dashboard-page .clockin-setup-modal-kicker {
+    color: #c4b5fd;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+body.dashboard-page .clockin-setup-modal-title {
+    margin-top: 6px;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+body.dashboard-page .clockin-setup-modal-copy {
+    margin-top: 6px;
+    color: #ddd6fe;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+body.dashboard-page .clockin-setup-modal-body {
+    padding: 20px;
+}
+
+body.dashboard-page .clockin-setup-download-card,
+body.dashboard-page .clockin-setup-status-card {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+}
+
+body.dashboard-page .clockin-setup-download-card {
+    border: 1.5px solid #ddd6fe;
+    background: #faf5ff;
+}
+
+body.dashboard-page .clockin-setup-download-card.is-downloaded {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+
+body.dashboard-page .clockin-setup-download-icon,
+body.dashboard-page .clockin-setup-status-check {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+body.dashboard-page .clockin-setup-download-icon {
+    background: #7c3aed;
+    color: #fff;
+    font-size: 18px;
+}
+
+body.dashboard-page .clockin-setup-download-card.is-downloaded .clockin-setup-download-icon {
+    background: #22c55e;
+}
+
+body.dashboard-page .clockin-setup-download-copy,
+body.dashboard-page .clockin-setup-status-copy {
+    flex: 1;
+    min-width: 0;
+}
+
+body.dashboard-page .clockin-setup-download-title,
+body.dashboard-page .clockin-setup-status-title {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+body.dashboard-page .clockin-setup-download-text,
+body.dashboard-page .clockin-setup-status-text {
+    margin-top: 2px;
+    color: #6b7280;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+body.dashboard-page .clockin-setup-download-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+    color: #fff;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+body.dashboard-page .clockin-setup-download-card.is-downloaded .clockin-setup-download-btn {
+    background: #22c55e;
+}
+
+body.dashboard-page .clockin-setup-status-card {
+    border: 1.5px solid #e5e7eb;
+    background: #fafafa;
+}
+
+body.dashboard-page .clockin-setup-status-card.is-ready {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+
+body.dashboard-page .clockin-setup-status-check {
+    border: 2px solid #d1d5db;
+    background: #fff;
+    color: #9ca3af;
+    font-size: 16px;
+}
+
+body.dashboard-page .clockin-setup-status-card.is-ready .clockin-setup-status-check {
+    border-color: #22c55e;
+    background: #22c55e;
+    color: #fff;
+}
+
+body.dashboard-page .clockin-setup-status-card.is-ready .clockin-setup-status-title {
+    color: #15803d;
+}
+
+body.dashboard-page .clockin-setup-modal-primary {
+    width: 100%;
+    margin-top: 14px;
+    padding: 13px 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #6c3ce1, #8b5cf6);
+    color: #fff;
+    font-size: 14px;
+}
+
+body.dashboard-page .clockin-setup-status-card.is-ready + .clockin-setup-modal-primary {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+@media (hover: none) {
+    body.dashboard-page .clockin-setup-hover {
+        display: none !important;
+    }
 }
 
 body.dashboard-page .employee-tabbed-leaderboard {
@@ -798,11 +2068,77 @@ body.dashboard-page .employee-overview-card h3 {
 }
 
 body.dashboard-page .employee-attendance-note {
-    border: 1px solid #dae2ff;
+    order: 3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    border: 1.5px solid #e2e8f0;
     border-radius: 10px;
-    background: #edf2ff;
-    padding: 8px 10px;
-    color: #52617f;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+body.dashboard-page .employee-attendance-note-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 11px;
+}
+
+body.dashboard-page .employee-time-tracker-card.is-running .employee-attendance-note,
+body.dashboard-page .employee-time-tracker-card.is-paused .employee-attendance-note {
+    order: 1;
+}
+
+body.dashboard-page .employee-attendance-note.is-active {
+    border-color: #86efac;
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    color: #15803d;
+}
+
+body.dashboard-page .employee-attendance-note.is-active .employee-attendance-note-icon {
+    border-color: #86efac;
+    background: #fff;
+    color: #15803d;
+}
+
+body.dashboard-page .employee-attendance-note.is-paused {
+    border-color: #fcd34d;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    color: #b45309;
+}
+
+body.dashboard-page .employee-attendance-note.is-paused .employee-attendance-note-icon {
+    border-color: #fcd34d;
+    background: #fff;
+    color: #b45309;
+}
+
+body.dashboard-page #attendanceStatus {
+    display: block;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+}
+
+body.dashboard-page #attendanceStatus.status-error {
+    color: #dc2626;
 }
 
 body.dashboard-page .employee-attendance-box {
@@ -1155,24 +2491,62 @@ body.dashboard-page .dashboard-view-all-link:hover {
         gap: 12px;
     }
 
-    body.dashboard-page .employee-time-tracker-card {
-        padding: 12px !important;
-    }
-
     body.dashboard-page .employee-time-tracker-card .ctt-row {
         flex-direction: column;
         align-items: stretch;
-        gap: 8px;
+        gap: 6px;
+    }
+
+    body.dashboard-page .employee-time-tracker-card .ctt-shell {
+        padding: 13px;
     }
 
     body.dashboard-page .employee-time-tracker-card .ctt-stats {
         width: 100%;
+        gap: 4px;
     }
 
     body.dashboard-page .employee-time-tracker-card .btn-clock-in,
     body.dashboard-page .employee-time-tracker-card .btn-clock-out {
         width: 100% !important;
         min-width: 0;
+    }
+
+    body.dashboard-page .employee-time-tracker-card .ctt-box-row {
+        flex-wrap: wrap;
+    }
+
+    body.dashboard-page .clockin-action-stack {
+        min-width: 0;
+        width: 100%;
+    }
+
+    body.dashboard-page .clock-session-actions,
+    body.dashboard-page .pause-session-actions {
+        flex-direction: column;
+    }
+
+    body.dashboard-page .clockin-setup-banner {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    body.dashboard-page .clockin-setup-banner-btn {
+        justify-content: center;
+    }
+
+    body.dashboard-page .clockin-setup-hover {
+        display: none;
+    }
+
+    body.dashboard-page .clockin-setup-download-card,
+    body.dashboard-page .clockin-setup-status-card {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    body.dashboard-page .clockin-setup-download-btn {
+        width: 100%;
     }
 
     body.dashboard-page .employee-tabbed-leaderboard {

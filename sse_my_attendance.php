@@ -41,9 +41,12 @@ while (true) {
     $payload = [
         'status' => 'success',
         'has_active_attendance' => (bool)$clocked_in,
-        'attendance_id' => null,
+        'attendance_id' => $clocked_in ? ($attendance['attendance_id'] ?? null) : null,
         'time_in' => $attendance['time_in'] ?? '--:--',
-        'time_out' => $attendance['time_out'] ?? '--:--'
+        'time_out' => $attendance['time_out'] ?? '--:--',
+        'is_paused' => !empty($attendance['is_paused']),
+        'pause_reason' => $attendance['pause_reason'] ?? null,
+        'pause_started_at' => $attendance['pause_started_at'] ?? null,
     ];
 
     $json = json_encode($payload);

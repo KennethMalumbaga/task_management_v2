@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../inc/tenant.php';
+require_once __DIR__ . '/../../inc/attendance_pause.php';
 
 function user_model_append_scope($pdo, $sql, $params, $table, $alias = '', $joinWord = 'AND')
 {
@@ -165,33 +166,68 @@ function get_todays_attendance_stats($pdo, $user_id)
     $stmt->execute($params);
     $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $attendanceIds = [];
+    foreach ($records as $record) {
+        $recordId = isset($record['id']) ? (int)$record['id'] : 0;
+        if ($recordId > 0) {
+            $attendanceIds[] = $recordId;
+        }
+    }
+    $pauseSummaries = attendance_pause_get_summary_map($pdo, $attendanceIds, null, date('Y-m-d H:i:s'));
+
     $total_seconds_all = 0;
     $total_seconds_today = 0;
     $latest_in = null;
     $latest_out = null;
+    $latest_attendance_id = null;
+    $latest_is_paused = false;
+    $latest_pause_reason = null;
+    $latest_pause_started_at = null;
     $today_date = date('Y-m-d');
 
     foreach ($records as $row) {
-        $in = strtotime($row['time_in']);
+        $attendanceId = isset($row['id']) ? (int)$row['id'] : 0;
+        $attDate = trim((string)($row['att_date'] ?? ''));
+        $inRaw = trim((string)($row['time_in'] ?? ''));
+        if ($inRaw === '') {
+            continue;
+        }
+
+        $inValue = attendance_pause_build_datetime($attDate, $inRaw, $attDate ?: $today_date);
+        $in = $inValue ? strtotime($inValue) : false;
+        if ($in === false) {
+            continue;
+        }
+
         if (!empty($row['time_out']) && $row['time_out'] != '00:00:00') {
-            $out = strtotime($row['time_out']);
+            $outValue = attendance_pause_build_datetime($attDate, $row['time_out'], $attDate ?: $today_date);
+            $out = $outValue ? strtotime($outValue) : false;
         } else {
-            if (isset($row['att_date']) && $row['att_date'] == $today_date) {
+            if ($attDate === $today_date) {
                 $out = time();
             } else {
                 $out = $in;
             }
         }
 
-        $duration = max(0, $out - $in);
+        if ($out === false) {
+            $out = $in;
+        }
+
+        $pausedSeconds = (int)($pauseSummaries[$attendanceId]['paused_seconds'] ?? 0);
+        $duration = max(0, ($out - $in) - $pausedSeconds);
         $total_seconds_all += $duration;
 
-        if (isset($row['att_date']) && $row['att_date'] == $today_date) {
+        if ($attDate === $today_date) {
             $total_seconds_today += $duration;
         }
 
+        $latest_attendance_id = $attendanceId > 0 ? $attendanceId : $latest_attendance_id;
         $latest_in = $row['time_in'];
         $latest_out = $row['time_out'];
+        $latest_is_paused = (bool)($pauseSummaries[$attendanceId]['is_paused'] ?? false);
+        $latest_pause_reason = $pauseSummaries[$attendanceId]['pause_reason'] ?? null;
+        $latest_pause_started_at = $pauseSummaries[$attendanceId]['paused_at'] ?? null;
     }
 
     $all_h = floor($total_seconds_all / 3600);
@@ -200,11 +236,15 @@ function get_todays_attendance_stats($pdo, $user_id)
     $day_m = floor(($total_seconds_today % 3600) / 60);
 
     return [
+        'attendance_id' => (!empty($latest_out) && $latest_out != '00:00:00') ? null : $latest_attendance_id,
         'time_in' => $latest_in ? date("h:i A", strtotime($latest_in)) : '--:--',
         'time_out' => (!empty($latest_out) && $latest_out != '00:00:00') ? date("h:i A", strtotime($latest_out)) : '--:--',
         'total_duration' => "{$all_h}h {$all_m}m",
         'overall_duration' => "{$all_h}h {$all_m}m",
-        'daily_duration' => "{$day_h}h {$day_m}m"
+        'daily_duration' => "{$day_h}h {$day_m}m",
+        'is_paused' => $latest_is_paused,
+        'pause_reason' => $latest_pause_reason,
+        'pause_started_at' => $latest_pause_started_at,
     ];
 }
 

@@ -277,10 +277,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         <span class="invite-method-icon">
                             <i class="fa fa-cloud-upload"></i>
                         </span>
-                        <div>
+                        <div class="invite-method-head-copy">
                             <h3 class="workspace-panel-title">Bulk Invite Upload</h3>
                             <p class="workspace-panel-sub">Import via <span class="invite-ext-chip">.xlsx</span>, <span class="invite-ext-chip">.csv</span>, or <span class="invite-ext-chip">.pdf</span></p>
                         </div>
+                        <span class="invite-bulk-hover-indicator" aria-hidden="true">
+                            <i class="fa fa-info-circle"></i>
+                        </span>
                     </div>
                     <div class="invite-method-divider"></div>
                     <form action="app/invite-users-bulk.php" method="POST" enctype="multipart/form-data" class="workspace-form-grid invite-method-form">
@@ -332,79 +335,122 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                             </button>
                         </div>
                     </form>
-                    <div class="bulk-invite-hover-guide" aria-hidden="true">
-                        <div class="bulk-invite-hover-guide-head">
-                            <span class="bulk-invite-hover-guide-head-icon">
+                    <div class="bulk-invite-hover-guide" id="bulkInviteHoverGuide">
+                        <div class="bulk-invite-hover-guide-top">
+                            <span class="bulk-invite-hover-guide-top-icon">
                                 <i class="fa fa-info-circle"></i>
                             </span>
                             <div>
-                                <p class="bulk-invite-hover-guide-heading">How to Bulk Invite</p>
-                                <p class="bulk-invite-hover-guide-subheading">Follow these 4 steps</p>
+                                <p class="bulk-invite-hover-guide-kicker">How to Bulk Invite</p>
+                                <p class="bulk-invite-hover-guide-title">Follow these 4 steps</p>
                             </div>
                         </div>
-                        <ol class="bulk-invite-hover-guide-steps">
-                            <li class="bulk-invite-hover-guide-step">
-                                <span class="bulk-invite-hover-guide-badge">1</span>
-                                <div>
-                                    <p class="bulk-invite-hover-guide-step-title">Download the template</p>
-                                    <p class="bulk-invite-hover-guide-step-text">
-                                        Click <strong>Download</strong> to get the pre-formatted <code>.xlsx</code> file.
-                                    </p>
+                        <div class="bulk-invite-hover-guide-body">
+                            <div class="bulk-invite-hover-video-shell" id="bulkInviteGuideShell">
+                                <video
+                                    class="bulk-invite-hover-video"
+                                    id="bulkInviteGuideVideo"
+                                    preload="metadata"
+                                    muted
+                                    playsinline
+                                >
+                                    <source src="videos/bulk-invite.mp4" type="video/mp4">
+                                </video>
+                                <button
+                                    class="bulk-invite-hover-video-toggle"
+                                    id="bulkInviteGuideToggle"
+                                    type="button"
+                                    aria-label="Play bulk invite guide video"
+                                >
+                                    <span class="bulk-invite-hover-video-toggle-disc">
+                                        <i class="fa fa-play"></i>
+                                    </span>
+                                </button>
+                                <button
+                                    class="bulk-invite-hover-video-pause"
+                                    id="bulkInviteGuidePause"
+                                    type="button"
+                                    aria-label="Pause bulk invite guide video"
+                                >
+                                    <i class="fa fa-pause"></i>
+                                </button>
+                                <span class="bulk-invite-hover-video-badge">
+                                    <i class="fa fa-play"></i>
+                                    Guide
+                                </span>
+                            </div>
+
+                            <div class="bulk-invite-hover-guide-divider">
+                                <span>Steps</span>
+                            </div>
+
+                            <div class="bulk-invite-hover-guide-scroll">
+                                <ol class="bulk-invite-hover-guide-steps">
+                                    <li class="bulk-invite-hover-guide-step-card">
+                                        <span class="bulk-invite-hover-guide-step-badge">1</span>
+                                        <div>
+                                            <p class="bulk-invite-hover-guide-step-title">Download the template</p>
+                                            <p class="bulk-invite-hover-guide-step-text">
+                                                Click <strong>Download</strong> to get the pre-formatted <code>.xlsx</code> file.
+                                            </p>
+                                        </div>
+                                    </li>
+                                    <li class="bulk-invite-hover-guide-step-card">
+                                        <span class="bulk-invite-hover-guide-step-badge">2</span>
+                                        <div>
+                                            <p class="bulk-invite-hover-guide-step-title">Fill in employee details</p>
+                                            <p class="bulk-invite-hover-guide-step-text">
+                                                Add <code>Full Name</code> and <code>Email</code> - one row per person. Do not rename headers.
+                                            </p>
+                                        </div>
+                                    </li>
+                                    <li class="bulk-invite-hover-guide-step-card">
+                                        <span class="bulk-invite-hover-guide-step-badge">3</span>
+                                        <div>
+                                            <p class="bulk-invite-hover-guide-step-title">Save your file</p>
+                                            <p class="bulk-invite-hover-guide-step-text">
+                                                Keep as <code>.xlsx</code> or <code>.csv</code>. Max <strong>45 rows</strong> per upload.
+                                            </p>
+                                        </div>
+                                    </li>
+                                    <li class="bulk-invite-hover-guide-step-card">
+                                        <span class="bulk-invite-hover-guide-step-badge">4</span>
+                                        <div>
+                                            <p class="bulk-invite-hover-guide-step-title">Upload &amp; send</p>
+                                            <p class="bulk-invite-hover-guide-step-text">
+                                                Choose your file below, then click <strong>Upload And Send Invites</strong>.
+                                            </p>
+                                        </div>
+                                    </li>
+                                </ol>
+
+                                <div class="bulk-invite-hover-guide-sample">
+                                    <p class="bulk-invite-hover-guide-sample-title">Expected Format</p>
+                                    <div class="bulk-invite-hover-guide-table-wrap">
+                                        <table class="bulk-invite-hover-guide-table">
+                                            <thead>
+                                            <tr>
+                                                <th>Full Name</th>
+                                                <th>Email</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td>Jane Doe</td>
+                                                <td>jane@company.com</td>
+                                            </tr>
+                                            <tr>
+                                                <td>John Smith</td>
+                                                <td>john@company.com</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Maria Garcia</td>
+                                                <td>maria@company.com</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </li>
-                            <li class="bulk-invite-hover-guide-step">
-                                <span class="bulk-invite-hover-guide-badge">2</span>
-                                <div>
-                                    <p class="bulk-invite-hover-guide-step-title">Fill in employee details</p>
-                                    <p class="bulk-invite-hover-guide-step-text">
-                                        Add <code>Full Name</code> and <code>Email</code> - one row per person. Do not rename headers.
-                                    </p>
-                                </div>
-                            </li>
-                            <li class="bulk-invite-hover-guide-step">
-                                <span class="bulk-invite-hover-guide-badge">3</span>
-                                <div>
-                                    <p class="bulk-invite-hover-guide-step-title">Save your file</p>
-                                    <p class="bulk-invite-hover-guide-step-text">
-                                        Keep as <code>.xlsx</code> or <code>.csv</code>. Max <strong>45 rows</strong> per upload.
-                                    </p>
-                                </div>
-                            </li>
-                            <li class="bulk-invite-hover-guide-step">
-                                <span class="bulk-invite-hover-guide-badge">4</span>
-                                <div>
-                                    <p class="bulk-invite-hover-guide-step-title">Upload &amp; send</p>
-                                    <p class="bulk-invite-hover-guide-step-text">
-                                        Choose your file below, then click <strong>Upload And Send Invites</strong>.
-                                    </p>
-                                </div>
-                            </li>
-                        </ol>
-                        <div class="bulk-invite-hover-guide-sample">
-                            <p class="bulk-invite-hover-guide-sample-title">Expected Format</p>
-                            <div class="bulk-invite-hover-guide-table-wrap">
-                                <table class="bulk-invite-hover-guide-table">
-                                    <thead>
-                                    <tr>
-                                        <th>Full Name</th>
-                                        <th>Email</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <tr>
-                                        <td>Jane Doe</td>
-                                        <td>jane@company.com</td>
-                                    </tr>
-                                    <tr>
-                                        <td>John Smith</td>
-                                        <td>john@company.com</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Maria Garcia</td>
-                                        <td>maria@company.com</td>
-                                    </tr>
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
                     </div>
@@ -687,6 +733,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
     var bulkFileIconWrap = document.getElementById('bulkFileIconWrap');
     var bulkFileRemove = document.getElementById('bulkFileRemove');
     var bulkUploadTimer = null;
+    var bulkInvitePanel = document.querySelector('.invite-bulk-panel');
+    var bulkInviteHoverGuide = document.getElementById('bulkInviteHoverGuide');
+    var bulkInviteGuideShell = document.getElementById('bulkInviteGuideShell');
+    var bulkInviteGuideVideo = document.getElementById('bulkInviteGuideVideo');
+    var bulkInviteGuideToggle = document.getElementById('bulkInviteGuideToggle');
+    var bulkInviteGuidePause = document.getElementById('bulkInviteGuidePause');
+    var bulkInviteGuideHideTimer = null;
 
     var BULK_EXT_ICON_CLASSES = {
         xlsx: 'fa-file-excel-o',
@@ -700,6 +753,81 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         if (!bytes || bytes < 1024) return (bytes || 0) + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function bulkSyncGuideVideoState() {
+        if (!bulkInviteGuideShell || !bulkInviteGuideVideo) return;
+        var isPlaying = !bulkInviteGuideVideo.paused && !bulkInviteGuideVideo.ended;
+        bulkInviteGuideShell.classList.toggle('is-playing', isPlaying);
+        if (bulkInviteGuideToggle) {
+            bulkInviteGuideToggle.tabIndex = isPlaying ? -1 : 0;
+            bulkInviteGuideToggle.setAttribute('aria-hidden', isPlaying ? 'true' : 'false');
+        }
+        if (bulkInviteGuidePause) {
+            bulkInviteGuidePause.tabIndex = isPlaying ? 0 : -1;
+            bulkInviteGuidePause.setAttribute('aria-hidden', isPlaying ? 'false' : 'true');
+        }
+    }
+
+    function bulkPauseGuideVideo() {
+        if (!bulkInviteGuideVideo) return;
+        if (!bulkInviteGuideVideo.paused) {
+            bulkInviteGuideVideo.pause();
+        }
+        bulkSyncGuideVideoState();
+    }
+
+    function bulkPlayGuideVideo() {
+        if (!bulkInviteGuideVideo) return;
+
+        if (bulkInviteGuideVideo.ended) {
+            bulkInviteGuideVideo.currentTime = 0;
+        }
+
+        if (!bulkInviteGuideVideo.paused) {
+            bulkSyncGuideVideoState();
+            return;
+        }
+
+        var playPromise = bulkInviteGuideVideo.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+            playPromise.then(function () {
+                bulkSyncGuideVideoState();
+            }).catch(function () {
+                bulkSyncGuideVideoState();
+            });
+        } else {
+            bulkSyncGuideVideoState();
+        }
+    }
+
+    function bulkToggleGuideVideo() {
+        if (!bulkInviteGuideVideo) return;
+        if (bulkInviteGuideVideo.paused || bulkInviteGuideVideo.ended) {
+            bulkPlayGuideVideo();
+            return;
+        }
+        bulkInviteGuideVideo.pause();
+        bulkSyncGuideVideoState();
+    }
+
+    function bulkShowHoverGuide() {
+        if (!bulkInvitePanel) return;
+        if (bulkInviteGuideHideTimer) {
+            clearTimeout(bulkInviteGuideHideTimer);
+            bulkInviteGuideHideTimer = null;
+        }
+        bulkInvitePanel.classList.add('is-hover-guide-visible');
+        bulkPlayGuideVideo();
+    }
+
+    function bulkHideHoverGuide() {
+        if (!bulkInvitePanel) return;
+        if (bulkInviteGuideHideTimer) clearTimeout(bulkInviteGuideHideTimer);
+        bulkInviteGuideHideTimer = setTimeout(function () {
+            bulkInvitePanel.classList.remove('is-hover-guide-visible');
+            bulkPauseGuideVideo();
+        }, 180);
     }
 
     function bulkShowUploadIdle() {
@@ -833,6 +961,51 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             if (bulkFileInput) bulkFileInput.value = '';
             bulkShowUploadIdle();
         });
+    }
+
+    if (bulkInvitePanel) {
+        bulkInvitePanel.addEventListener('mouseenter', bulkShowHoverGuide);
+        bulkInvitePanel.addEventListener('mouseleave', bulkHideHoverGuide);
+        bulkInvitePanel.addEventListener('focusin', bulkShowHoverGuide);
+        bulkInvitePanel.addEventListener('focusout', function (e) {
+            if (!e.relatedTarget || !bulkInvitePanel.contains(e.relatedTarget)) {
+                bulkHideHoverGuide();
+            }
+        });
+    }
+
+    if (bulkInviteHoverGuide) {
+        bulkInviteHoverGuide.addEventListener('mouseenter', bulkShowHoverGuide);
+        bulkInviteHoverGuide.addEventListener('mouseleave', bulkHideHoverGuide);
+    }
+
+    if (bulkInviteGuideToggle) {
+        bulkInviteGuideToggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            bulkToggleGuideVideo();
+            bulkShowHoverGuide();
+        });
+    }
+
+    if (bulkInviteGuidePause) {
+        bulkInviteGuidePause.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            bulkPauseGuideVideo();
+            bulkShowHoverGuide();
+        });
+    }
+
+    if (bulkInviteGuideVideo) {
+        bulkInviteGuideVideo.addEventListener('click', function (e) {
+            e.preventDefault();
+            bulkToggleGuideVideo();
+        });
+        bulkInviteGuideVideo.addEventListener('play', bulkSyncGuideVideoState);
+        bulkInviteGuideVideo.addEventListener('pause', bulkSyncGuideVideoState);
+        bulkInviteGuideVideo.addEventListener('ended', bulkSyncGuideVideoState);
+        bulkSyncGuideVideoState();
     }
 
     var inviteStatusFilters = document.getElementById('inviteStatusFilters');

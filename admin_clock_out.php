@@ -6,6 +6,7 @@ header('Content-Type: application/json');
 require 'DB_connection.php';
 require_once 'inc/tenant.php';
 require_once 'inc/csrf.php';
+require_once 'inc/attendance_pause.php';
 
 // Only allow admins
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
@@ -53,8 +54,19 @@ if (!$att) {
     exit;
 }
 
-// Calculate total hours
-$hours = round((strtotime($now) - strtotime($att['time_in'])) / 3600, 2);
+// Calculate total hours, excluding paused time.
+$effectiveSeconds = attendance_pause_calculate_effective_seconds(
+    $pdo,
+    $att,
+    tenant_get_current_org_id(),
+    $today . ' ' . $now
+);
+$hours = round($effectiveSeconds / 3600, 2);
+if ($hours < 0) {
+    $hours = 0;
+}
+
+attendance_pause_close_active($pdo, (int)$att['id'], tenant_get_current_org_id(), $today . ' ' . $now);
 
 // Update attendance record
 $sql = "UPDATE attendance SET time_out = ?, total_hours = ? WHERE id = ?";

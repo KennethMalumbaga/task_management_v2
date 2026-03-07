@@ -29,11 +29,12 @@ if ($user_id > 0 && $role === 'employee') {
     try {
         require 'DB_connection.php';
         require_once 'inc/tenant.php';
+        require_once 'inc/attendance_pause.php';
 
         $now = date('H:i:s');
 
         // Auto clock-out on logout if there is an active attendance record.
-        $sql = "SELECT id, time_in FROM attendance
+        $sql = "SELECT id, att_date, time_in, time_out FROM attendance
                 WHERE user_id = ?
                   AND time_in IS NOT NULL
                   AND (time_out IS NULL OR time_out = '00:00:00')";
@@ -48,10 +49,20 @@ if ($user_id > 0 && $role === 'employee') {
         $att = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($att) {
-            $hours = round((strtotime($now) - strtotime($att['time_in'])) / 3600, 2);
+            $hours = round(
+                attendance_pause_calculate_effective_seconds(
+                    $pdo,
+                    $att,
+                    $organization_id,
+                    date('Y-m-d') . ' ' . $now
+                ) / 3600,
+                2
+            );
             if ($hours < 0) {
                 $hours = 0;
             }
+
+            attendance_pause_close_active($pdo, (int)$att['id'], $organization_id, date('Y-m-d') . ' ' . $now);
 
             $update = "UPDATE attendance SET time_out = ?, total_hours = ? WHERE id = ?";
             $updateParams = [$now, $hours, $att['id']];

@@ -487,49 +487,162 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             <?php } else { ?>
             <?php $attStats = get_todays_attendance_stats($pdo, $_SESSION['id']); ?>
             <div class="employee-left-stack">
-                <div class="dash-card employee-time-tracker-card">
-                    <div class="ctt-header">
-                        <div class="ctt-title">
-                            <i class="fa fa-clock-o" style="color:#6C3CE1;"></i>
-                            Time Tracker
-                        </div>
-                        <span class="ctt-camera"><i class="fa fa-camera"></i> Screen captures on</span>
-                    </div>
-
-                    <div class="ctt-row">
-                        <button id="btnTimeIn" class="btn-clock-in" style="display:flex;">
-                            <i class="fa fa-play"></i> Clock In
-                        </button>
-                        <button id="btnTimeOut" class="btn-clock-out" disabled style="display:none;">
-                            <i class="fa fa-pause"></i> Clock Out/Pause
-                        </button>
-                        <div class="ctt-stats">
-                            <div class="ctt-stat">
-                                <div class="ctt-label">Today</div>
-                                <div class="ctt-value"><?= htmlspecialchars((string)$attStats['daily_duration']) ?></div>
+                <div class="dash-card employee-time-tracker-card is-idle" id="employeeTimeTrackerCard">
+                    <div class="ctt-shell">
+                        <div class="ctt-header">
+                            <div class="ctt-title">
+                                <span class="ctt-status-indicator" aria-hidden="true">
+                                    <span class="ctt-status-dot"></span>
+                                </span>
+                                <span class="ctt-title-text">Time Tracker</span>
                             </div>
-                            <div class="ctt-divider"></div>
-                            <div class="ctt-stat ctt-stat-right">
-                                <div class="ctt-label">All Time</div>
-                                <div class="ctt-value"><?= htmlspecialchars((string)$attStats['overall_duration']) ?></div>
+                            <span class="ctt-camera">
+                                <span class="ctt-camera-dot" aria-hidden="true"></span>
+                                <span id="captureStatusLabel">Screen captures on</span>
+                            </span>
+                        </div>
+
+                        <div class="ctt-row">
+                            <div class="ctt-stats">
+                                <div class="ctt-stat ctt-stat-today">
+                                    <div class="ctt-label">Today</div>
+                                    <div class="ctt-value"><?= htmlspecialchars((string)$attStats['daily_duration']) ?></div>
+                                </div>
+                                <div class="ctt-stat ctt-stat-alltime">
+                                    <div class="ctt-label">All Time</div>
+                                    <div class="ctt-value"><?= htmlspecialchars((string)$attStats['overall_duration']) ?></div>
+                                </div>
+                            </div>
+
+                            <div class="ctt-stage">
+                                <div class="clockin-setup-banner" id="clockInSetupBanner" hidden>
+                                    <div class="clockin-setup-banner-copy">
+                                        <span class="clockin-setup-banner-icon">
+                                            <i class="fa fa-exclamation-triangle"></i>
+                                        </span>
+                                        <div>
+                                            <p class="clockin-setup-banner-title">Extension Required</p>
+                                            <p class="clockin-setup-banner-text">Install the screen capture extension to unlock Clock In.</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="clockin-setup-banner-btn" id="clockInSetupBannerBtn">
+                                        Setup <i class="fa fa-arrow-right"></i>
+                                    </button>
+                                </div>
+
+                                <div class="employee-attendance-note" id="attendanceStatusBanner">
+                                    <span class="employee-attendance-note-icon" id="attendanceStatusIcon">
+                                        <i class="fa fa-camera"></i>
+                                    </span>
+                                    <span id="attendanceStatus">Screen captures taken randomly</span>
+                                </div>
+
+                                <div class="clockin-action-stack">
+                                    <div class="clockin-setup-anchor" id="clockInSetupAnchor">
+                                        <button id="btnTimeIn" class="btn-clock-in" type="button" style="display:flex;">
+                                            <span class="clockin-button-main">
+                                                <i id="clockInButtonIcon" class="fa fa-play"></i>
+                                                <span id="clockInButtonLabel">Clock In</span>
+                                            </span>
+                                            <span class="clockin-button-lock-note" id="clockInButtonLockNote">Install extension first</span>
+                                        </button>
+
+                                        <div class="clockin-setup-hover" id="clockInSetupHover" aria-hidden="true">
+                                            <span class="clockin-setup-hover-arrow" aria-hidden="true"></span>
+                                            <div class="clockin-setup-hover-top">
+                                                <span class="clockin-setup-hover-top-icon">
+                                                    <i class="fa fa-lock"></i>
+                                                </span>
+                                                <div>
+                                                    <p class="clockin-setup-hover-kicker">Setup Required</p>
+                                                    <p class="clockin-setup-hover-title">Unlock Clock In in 5 steps</p>
+                                                </div>
+                                            </div>
+                                            <div class="clockin-setup-hover-body">
+                                                <div class="clockin-setup-tab-row is-compact">
+                                                    <button type="button" class="clockin-setup-tab-btn is-active" data-clockin-tab-button="video">
+                                                        <i class="fa fa-video-camera"></i> Video
+                                                    </button>
+                                                    <button type="button" class="clockin-setup-tab-btn" data-clockin-tab-button="slides">
+                                                        <i class="fa fa-clone"></i> Steps
+                                                    </button>
+                                                </div>
+
+                                                <div class="clockin-setup-tab-panel is-active" data-clockin-panel="video" data-clockin-scope="compact">
+                                                    <div class="clockin-guide-video-shell is-compact" data-clockin-video-shell>
+                                                        <video class="clockin-guide-video" data-clockin-video preload="metadata" muted playsinline>
+                                                            <source src="videos/extension-guide.mp4" type="video/mp4">
+                                                        </video>
+                                                        <button class="clockin-guide-video-toggle" data-clockin-video-toggle type="button" aria-label="Play clock-in setup guide">
+                                                            <span class="clockin-guide-video-toggle-disc">
+                                                                <i class="fa fa-play"></i>
+                                                            </span>
+                                                        </button>
+                                                        <button class="clockin-guide-video-pause" data-clockin-video-pause type="button" aria-label="Pause clock-in setup guide">
+                                                            <i class="fa fa-pause"></i>
+                                                        </button>
+                                                        <span class="clockin-guide-video-badge">
+                                                            <i class="fa fa-play"></i>
+                                                            Guide
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="clockin-setup-tab-panel" data-clockin-panel="slides" data-clockin-scope="compact">
+                                                    <div class="clockin-guide-slideshow is-compact" data-clockin-slideshow="compact">
+                                                        <button type="button" class="clockin-guide-slide-nav is-prev" data-clockin-slide-nav="-1" aria-label="Previous setup step">
+                                                            <i class="fa fa-angle-left"></i>
+                                                        </button>
+                                                        <button type="button" class="clockin-guide-slide-nav is-next" data-clockin-slide-nav="1" aria-label="Next setup step">
+                                                            <i class="fa fa-angle-right"></i>
+                                                        </button>
+                                                        <div class="clockin-guide-slide-icon"></div>
+                                                        <div class="clockin-guide-slide-label"></div>
+                                                        <div class="clockin-guide-slide-desc"></div>
+                                                        <div class="clockin-guide-slide-counter"></div>
+                                                    </div>
+                                                    <div class="clockin-guide-slide-dots" data-clockin-slide-dots="compact"></div>
+                                                </div>
+
+                                                <button type="button" class="clockin-setup-primary-btn" id="clockInSetupOpenGuideBtn">
+                                                    View Full Setup Guide <i class="fa fa-arrow-right"></i>
+                                                </button>
+                                                <button type="button" class="clockin-setup-link-btn" id="clockInSetupHideHoverBtn">
+                                                    Don't show this hover again
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="clock-session-actions" id="clockSessionActions" hidden>
+                                        <button id="btnPauseSession" class="clock-session-btn btn-clock-pause" type="button">
+                                            <i class="fa fa-pause"></i> Pause
+                                        </button>
+                                        <button id="btnResumeSession" class="clock-session-btn btn-clock-resume" type="button" hidden>
+                                            <i class="fa fa-play"></i> Resume
+                                        </button>
+                                        <button id="btnTimeOut" class="clock-session-btn btn-clock-out" type="button" disabled>
+                                            <i class="fa fa-stop"></i> Clock Out
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="employee-attendance-note">
-                        <i class="fa fa-camera"></i>
-                        <span id="attendanceStatus">Screen captures taken randomly</span>
-                    </div>
-
-                    <div class="ctt-box">
-                        <div class="ctt-box-row">
-                            <div class="employee-time-title">
-                                <i class="fa fa-clock-o" style="color:#6B7280; font-size:14px; margin-right:4px;"></i>
-                                <span id="statTimeIn"><?= $attStats['time_in'] ?></span>
+                        <div class="ctt-box">
+                            <div class="ctt-box-row">
+                                <div class="employee-time-title">
+                                    <span class="ctt-session-icon" aria-hidden="true">
+                                        <i class="fa fa-clock-o"></i>
+                                    </span>
+                                    <div class="ctt-session-times">
+                                        <span class="ctt-time-in-value" id="statTimeIn"><?= $attStats['time_in'] ?></span>
+                                        <div class="ctt-time-out">OUT: <span id="statTimeOut"><?= $attStats['time_out'] ?></span></div>
+                                    </div>
+                                </div>
+                                <div class="ctt-time-label">TIME IN</div>
                             </div>
-                            <div class="ctt-time-label">TIME IN</div>
                         </div>
-                        <div class="ctt-time-out">OUT: <span id="statTimeOut"><?= $attStats['time_out'] ?></span></div>
                     </div>
                 </div>
 
@@ -859,14 +972,60 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     var bulletinPosts = <?= $bulletinPostsJson ?: '[]' ?>;
     var bulletinTagLabels = { ann: 'Announcement', rem: 'Reminder', alt: 'Alert' };
 
+    const timeTrackerCard = document.getElementById('employeeTimeTrackerCard');
     const btnIn = document.getElementById('btnTimeIn');
     const btnOut = document.getElementById('btnTimeOut');
+    const btnPauseSession = document.getElementById('btnPauseSession');
+    const btnResumeSession = document.getElementById('btnResumeSession');
+    const clockSessionActions = document.getElementById('clockSessionActions');
     const statusSpan = document.getElementById('attendanceStatus');
+    const attendanceStatusBanner = document.getElementById('attendanceStatusBanner');
+    const attendanceStatusIcon = document.getElementById('attendanceStatusIcon');
+    const captureStatusLabel = document.getElementById('captureStatusLabel');
+    const btnInIcon = document.getElementById('clockInButtonIcon');
+    const btnInLabel = document.getElementById('clockInButtonLabel');
+    const btnInLockNote = document.getElementById('clockInButtonLockNote');
+    const clockInSetupAnchor = document.getElementById('clockInSetupAnchor');
+    const clockInSetupHover = document.getElementById('clockInSetupHover');
+    const clockInSetupOpenGuideBtn = document.getElementById('clockInSetupOpenGuideBtn');
+    const clockInSetupHideHoverBtn = document.getElementById('clockInSetupHideHoverBtn');
+    const clockInSetupBanner = document.getElementById('clockInSetupBanner');
+    const clockInSetupBannerBtn = document.getElementById('clockInSetupBannerBtn');
+    let clockInSetupModal = document.getElementById('clockInSetupModal');
+    let clockInSetupCloseBtn = document.getElementById('clockInSetupCloseBtn');
+    let clockInSetupDownloadBtn = document.getElementById('clockInSetupDownloadBtn');
+    let clockInSetupDownloadCard = document.getElementById('clockInSetupDownloadCard');
+    let clockInSetupDownloadIcon = document.getElementById('clockInSetupDownloadIcon');
+    let clockInSetupDownloadTitle = document.getElementById('clockInSetupDownloadTitle');
+    let clockInSetupDownloadText = document.getElementById('clockInSetupDownloadText');
+    let clockInSetupStatusCard = document.getElementById('clockInSetupStatusCard');
+    let clockInSetupStatusCheck = document.getElementById('clockInSetupStatusCheck');
+    let clockInSetupStatusTitle = document.getElementById('clockInSetupStatusTitle');
+    let clockInSetupStatusText = document.getElementById('clockInSetupStatusText');
+    let clockInSetupPrimaryBtn = document.getElementById('clockInSetupPrimaryBtn');
+    let clockInSetupDismissHoverBtn = document.getElementById('clockInSetupDismissHoverBtn');
+    let pauseSessionModal = document.getElementById('pauseSessionModal');
+    let pauseSessionCloseBtn = document.getElementById('pauseSessionCloseBtn');
+    let pauseSessionCancelBtn = document.getElementById('pauseSessionCancelBtn');
+    let pauseSessionConfirmBtn = document.getElementById('pauseSessionConfirmBtn');
+    let pauseSessionLunchBtn = document.getElementById('pauseSessionLunchBtn');
+    let pauseSessionReasonInput = document.getElementById('pauseSessionReasonInput');
+    let clockInGuideTabButtons = Array.prototype.slice.call(document.querySelectorAll('[data-clockin-tab-button]'));
+    let clockInGuidePanels = Array.prototype.slice.call(document.querySelectorAll('[data-clockin-panel]'));
+    let clockInGuideVideoShells = Array.prototype.slice.call(document.querySelectorAll('[data-clockin-video-shell]'));
+    let clockInGuideSlideshows = Array.prototype.slice.call(document.querySelectorAll('[data-clockin-slideshow]'));
     let attendanceId = null;
     let captureWindow = null;
     let hasActiveAttendance = false;
+    let isAttendancePaused = false;
+    let activePauseReason = '';
+    let activePauseStartedAt = '';
+    let isPauseRequestInProgress = false;
+    let isResumeRequestInProgress = false;
+    let pauseSessionUseLunch = false;
     let isAutoClockOutInProgress = false;
     let isManualClockOutInProgress = false;
+    let isClockInRequestInProgress = false;
     const idleCheckThresholdMs = 100000; // 100 seconds
     const idleCheckCountdownStartSeconds = 60;
     let idleCheckTimer = null;
@@ -890,13 +1049,624 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     let lastCaptureInputStateAt = 0;
     let lastCaptureInputThresholdReached = false;
     const clockInNavWarningKey = 'taskflow_nav_clockin_warned_once_user_' + String(currentUserId || 'guest');
+    const clockInGuideHoverDisabledKey = 'taskflow_clockin_hover_guide_disabled_user_' + String(currentUserId || 'guest');
+    const clockInExtensionDownloadKey = 'taskflow_clockin_extension_downloaded_user_' + String(currentUserId || 'guest');
+    const clockInGuideSteps = [
+        {
+            iconClass: 'fa-download',
+            label: 'Step 1: Download the Extension',
+            desc: 'Use the download button below to get the screen capture extension zip file.'
+        },
+        {
+            iconClass: 'fa-puzzle-piece',
+            label: 'Step 2: Open Chrome Extensions',
+            desc: 'Open chrome://extensions in Google Chrome.'
+        },
+        {
+            iconClass: 'fa-wrench',
+            label: 'Step 3: Enable Developer Mode',
+            desc: 'Turn on Developer mode at the top-right of the Extensions page.'
+        },
+        {
+            iconClass: 'fa-folder-open',
+            label: 'Step 4: Load Unpacked',
+            desc: 'Extract the zip, click Load unpacked, then select the extracted extension folder.'
+        },
+        {
+            iconClass: 'fa-check-circle',
+            label: 'Step 5: Refresh and Clock In',
+            desc: 'Refresh this page after loading the extension. Clock In unlocks as soon as the extension is detected.'
+        }
+    ];
     let hasSeenClockInNavWarning = false;
     let pendingNavTarget = null;
     let pendingBulletinDeleteId = null;
+    let isCaptureExtensionAvailable = !!window.screenshotExtensionAvailable;
+    let clockInGuideHoverDisabled = false;
+    let clockInExtensionDownloaded = false;
+    let clockInGuideTab = 'video';
+    let clockInGuideSlideIndex = 0;
+    let clockInGuideSlideTimer = null;
+    let clockInSetupHoverHideTimer = null;
+    let hasClockInSetupBindingsInitialized = false;
     try {
         hasSeenClockInNavWarning = sessionStorage.getItem(clockInNavWarningKey) === '1';
     } catch (e) {
         hasSeenClockInNavWarning = false;
+    }
+    try {
+        clockInGuideHoverDisabled = localStorage.getItem(clockInGuideHoverDisabledKey) === '1';
+        clockInExtensionDownloaded = localStorage.getItem(clockInExtensionDownloadKey) === '1';
+    } catch (e) {
+        clockInGuideHoverDisabled = false;
+        clockInExtensionDownloaded = false;
+    }
+
+    function setStoredClockInGuideFlag(key, enabled) {
+        try {
+            if (enabled) {
+                localStorage.setItem(key, '1');
+            } else {
+                localStorage.removeItem(key);
+            }
+        } catch (e) {
+            // no-op
+        }
+    }
+
+    function refreshClockInSetupDeferredElements() {
+        clockInSetupModal = document.getElementById('clockInSetupModal');
+        clockInSetupCloseBtn = document.getElementById('clockInSetupCloseBtn');
+        clockInSetupDownloadBtn = document.getElementById('clockInSetupDownloadBtn');
+        clockInSetupDownloadCard = document.getElementById('clockInSetupDownloadCard');
+        clockInSetupDownloadIcon = document.getElementById('clockInSetupDownloadIcon');
+        clockInSetupDownloadTitle = document.getElementById('clockInSetupDownloadTitle');
+        clockInSetupDownloadText = document.getElementById('clockInSetupDownloadText');
+        clockInSetupStatusCard = document.getElementById('clockInSetupStatusCard');
+        clockInSetupStatusCheck = document.getElementById('clockInSetupStatusCheck');
+        clockInSetupStatusTitle = document.getElementById('clockInSetupStatusTitle');
+        clockInSetupStatusText = document.getElementById('clockInSetupStatusText');
+        clockInSetupPrimaryBtn = document.getElementById('clockInSetupPrimaryBtn');
+        clockInSetupDismissHoverBtn = document.getElementById('clockInSetupDismissHoverBtn');
+        pauseSessionModal = document.getElementById('pauseSessionModal');
+        pauseSessionCloseBtn = document.getElementById('pauseSessionCloseBtn');
+        pauseSessionCancelBtn = document.getElementById('pauseSessionCancelBtn');
+        pauseSessionConfirmBtn = document.getElementById('pauseSessionConfirmBtn');
+        pauseSessionLunchBtn = document.getElementById('pauseSessionLunchBtn');
+        pauseSessionReasonInput = document.getElementById('pauseSessionReasonInput');
+        clockInGuideTabButtons = Array.prototype.slice.call(document.querySelectorAll('[data-clockin-tab-button]'));
+        clockInGuidePanels = Array.prototype.slice.call(document.querySelectorAll('[data-clockin-panel]'));
+        clockInGuideVideoShells = Array.prototype.slice.call(document.querySelectorAll('[data-clockin-video-shell]'));
+        clockInGuideSlideshows = Array.prototype.slice.call(document.querySelectorAll('[data-clockin-slideshow]'));
+    }
+
+    refreshClockInSetupDeferredElements();
+
+    function isClockInSetupLocked() {
+        return !hasActiveAttendance && !isCaptureExtensionAvailable;
+    }
+
+    function syncClockInGuideVideoState(shell) {
+        if (!shell) return;
+        var video = shell.querySelector('[data-clockin-video]');
+        if (!video) return;
+        shell.classList.toggle('is-playing', !video.paused && !video.ended);
+    }
+
+    function pauseClockInGuideVideo(scope) {
+        clockInGuideVideoShells.forEach(function (shell) {
+            var shellScope = shell.parentNode && shell.parentNode.getAttribute('data-clockin-scope');
+            if (scope && shellScope !== scope) return;
+            var video = shell.querySelector('[data-clockin-video]');
+            if (video && !video.paused) {
+                video.pause();
+            }
+            syncClockInGuideVideoState(shell);
+        });
+    }
+
+    function playClockInGuideVideo(scope) {
+        clockInGuideVideoShells.forEach(function (shell) {
+            var shellScope = shell.parentNode && shell.parentNode.getAttribute('data-clockin-scope');
+            if (scope && shellScope !== scope) return;
+            var video = shell.querySelector('[data-clockin-video]');
+            if (!video) return;
+            if (video.ended) {
+                video.currentTime = 0;
+            }
+            var playPromise = video.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.then(function () {
+                    syncClockInGuideVideoState(shell);
+                }).catch(function () {
+                    syncClockInGuideVideoState(shell);
+                });
+                return;
+            }
+            syncClockInGuideVideoState(shell);
+        });
+    }
+
+    function toggleClockInGuideVideo(shell) {
+        if (!shell) return;
+        var video = shell.querySelector('[data-clockin-video]');
+        if (!video) return;
+        if (video.paused || video.ended) {
+            if (video.ended) {
+                video.currentTime = 0;
+            }
+            var playPromise = video.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.then(function () {
+                    syncClockInGuideVideoState(shell);
+                }).catch(function () {
+                    syncClockInGuideVideoState(shell);
+                });
+                return;
+            }
+            syncClockInGuideVideoState(shell);
+            return;
+        }
+        video.pause();
+        syncClockInGuideVideoState(shell);
+    }
+
+    function ensureClockInGuideSlideTimer() {
+        if (clockInGuideSlideTimer) {
+            clearInterval(clockInGuideSlideTimer);
+        }
+        clockInGuideSlideTimer = setInterval(function () {
+            clockInGuideSlideIndex = (clockInGuideSlideIndex + 1) % clockInGuideSteps.length;
+            renderClockInGuideSlides();
+        }, 3500);
+    }
+
+    function buildClockInGuideDots(container) {
+        if (!container) return;
+        container.innerHTML = '';
+        clockInGuideSteps.forEach(function (step, index) {
+            var dot = document.createElement('button');
+            dot.type = 'button';
+            dot.className = 'clockin-guide-slide-dot' + (index === clockInGuideSlideIndex ? ' is-active' : '');
+            dot.setAttribute('aria-label', 'Show clock-in setup step ' + String(index + 1));
+            dot.addEventListener('click', function () {
+                clockInGuideSlideIndex = index;
+                renderClockInGuideSlides();
+                ensureClockInGuideSlideTimer();
+            });
+            container.appendChild(dot);
+        });
+    }
+
+    function renderClockInGuideSlides() {
+        var step = clockInGuideSteps[clockInGuideSlideIndex];
+        clockInGuideSlideshows.forEach(function (slideshow) {
+            var iconEl = slideshow.querySelector('.clockin-guide-slide-icon');
+            var labelEl = slideshow.querySelector('.clockin-guide-slide-label');
+            var descEl = slideshow.querySelector('.clockin-guide-slide-desc');
+            var counterEl = slideshow.querySelector('.clockin-guide-slide-counter');
+            if (iconEl) {
+                iconEl.innerHTML = '<i class="fa ' + step.iconClass + '"></i>';
+            }
+            if (labelEl) {
+                labelEl.textContent = step.label;
+            }
+            if (descEl) {
+                descEl.textContent = step.desc;
+            }
+            if (counterEl) {
+                counterEl.textContent = String(clockInGuideSlideIndex + 1) + '/' + String(clockInGuideSteps.length);
+            }
+
+            var size = slideshow.getAttribute('data-clockin-slideshow') || '';
+            var dots = document.querySelector('[data-clockin-slide-dots="' + size + '"]');
+            buildClockInGuideDots(dots);
+        });
+    }
+
+    function setClockInGuideTab(tabName) {
+        clockInGuideTab = tabName === 'slides' ? 'slides' : 'video';
+        clockInGuideTabButtons.forEach(function (button) {
+            var isActive = button.getAttribute('data-clockin-tab-button') === clockInGuideTab;
+            button.classList.toggle('is-active', isActive);
+        });
+        clockInGuidePanels.forEach(function (panel) {
+            var isActive = panel.getAttribute('data-clockin-panel') === clockInGuideTab;
+            panel.classList.toggle('is-active', isActive);
+        });
+
+        if (clockInGuideTab === 'video') {
+            if (clockInSetupAnchor && clockInSetupAnchor.classList.contains('is-hover-guide-visible')) {
+                playClockInGuideVideo('compact');
+            }
+            if (clockInSetupModal && !clockInSetupModal.hidden) {
+                playClockInGuideVideo('full');
+            }
+        } else {
+            pauseClockInGuideVideo('compact');
+            pauseClockInGuideVideo('full');
+        }
+    }
+
+    function syncClockInSetupDownloadCard() {
+        if (!clockInSetupDownloadCard) return;
+        clockInSetupDownloadCard.classList.toggle('is-downloaded', clockInExtensionDownloaded);
+        if (clockInSetupDownloadIcon) {
+            clockInSetupDownloadIcon.className = 'fa ' + (clockInExtensionDownloaded ? 'fa-check' : 'fa-archive');
+        }
+        if (clockInSetupDownloadTitle) {
+            clockInSetupDownloadTitle.textContent = clockInExtensionDownloaded
+                ? 'Extension package downloaded'
+                : 'TaskFlow Screen Capture Extension';
+        }
+        if (clockInSetupDownloadText) {
+            clockInSetupDownloadText.textContent = clockInExtensionDownloaded
+                ? 'Next: extract the zip, open chrome://extensions, then load the folder as an unpacked extension.'
+                : 'Download the zip file first, then load the extracted folder in Chrome.';
+        }
+        if (clockInSetupDownloadBtn) {
+            clockInSetupDownloadBtn.textContent = clockInExtensionDownloaded ? 'Download Again' : 'Download';
+        }
+    }
+
+    function syncClockInSetupStatusCard() {
+        if (!clockInSetupStatusCard) return;
+        clockInSetupStatusCard.classList.toggle('is-ready', isCaptureExtensionAvailable);
+        if (clockInSetupStatusTitle) {
+            clockInSetupStatusTitle.textContent = isCaptureExtensionAvailable
+                ? 'Extension detected'
+                : 'Extension not detected yet';
+        }
+        if (clockInSetupStatusText) {
+            clockInSetupStatusText.textContent = isCaptureExtensionAvailable
+                ? 'This page can see the screen capture extension. Clock In is unlocked now.'
+                : 'Load it unpacked in chrome://extensions, then refresh this page to unlock Clock In.';
+        }
+        if (clockInSetupStatusCheck) {
+            clockInSetupStatusCheck.innerHTML = '<i class="fa ' + (isCaptureExtensionAvailable ? 'fa-check' : 'fa-refresh') + '"></i>';
+        }
+        if (clockInSetupPrimaryBtn) {
+            clockInSetupPrimaryBtn.textContent = isCaptureExtensionAvailable
+                ? 'Clock In Is Now Unlocked'
+                : 'Refresh Page After Install';
+        }
+    }
+
+    function closeClockInSetupHover() {
+        if (!clockInSetupAnchor) return;
+        if (clockInSetupHoverHideTimer) {
+            clearTimeout(clockInSetupHoverHideTimer);
+            clockInSetupHoverHideTimer = null;
+        }
+        clockInSetupAnchor.classList.remove('is-hover-guide-visible');
+        if (clockInSetupHover) {
+            clockInSetupHover.setAttribute('aria-hidden', 'true');
+        }
+        pauseClockInGuideVideo('compact');
+    }
+
+    function openClockInSetupHover() {
+        if (!clockInSetupAnchor || !clockInSetupHover) return;
+        if (clockInGuideHoverDisabled || !isClockInSetupLocked()) return;
+        if (window.matchMedia && !window.matchMedia('(hover: hover)').matches) return;
+        if (clockInSetupModal && !clockInSetupModal.hidden) return;
+        if (clockInSetupHoverHideTimer) {
+            clearTimeout(clockInSetupHoverHideTimer);
+            clockInSetupHoverHideTimer = null;
+        }
+        clockInSetupAnchor.classList.add('is-hover-guide-visible');
+        clockInSetupHover.setAttribute('aria-hidden', 'false');
+        if (clockInGuideTab === 'video') {
+            playClockInGuideVideo('compact');
+        }
+    }
+
+    function scheduleClockInSetupHoverClose() {
+        if (!clockInSetupAnchor) return;
+        if (clockInSetupHoverHideTimer) {
+            clearTimeout(clockInSetupHoverHideTimer);
+        }
+        clockInSetupHoverHideTimer = setTimeout(function () {
+            closeClockInSetupHover();
+        }, 180);
+    }
+
+    function openClockInSetupModal(preferredTab) {
+        if (!clockInSetupModal) return;
+        if (preferredTab) {
+            setClockInGuideTab(preferredTab);
+        }
+        clockInSetupModal.hidden = false;
+        document.body.classList.add('is-clockin-setup-modal-open');
+        closeClockInSetupHover();
+        syncClockInSetupDownloadCard();
+        syncClockInSetupStatusCard();
+        if (clockInGuideTab === 'video') {
+            playClockInGuideVideo('full');
+        }
+    }
+
+    function closeClockInSetupModal() {
+        if (!clockInSetupModal) return;
+        clockInSetupModal.hidden = true;
+        document.body.classList.remove('is-clockin-setup-modal-open');
+        pauseClockInGuideVideo('full');
+    }
+
+    function hideClockInSetupHoverGuide() {
+        clockInGuideHoverDisabled = true;
+        setStoredClockInGuideFlag(clockInGuideHoverDisabledKey, true);
+        closeClockInSetupHover();
+    }
+
+    function syncClockInSetupUi() {
+        var locked = isClockInSetupLocked();
+        if (timeTrackerCard) {
+            timeTrackerCard.classList.toggle('is-setup-locked', locked);
+        }
+        if (clockInSetupBanner) {
+            clockInSetupBanner.hidden = !locked;
+        }
+        if (btnIn) {
+            btnIn.classList.toggle('is-locked', locked);
+            btnIn.disabled = !!isClockInRequestInProgress;
+        }
+        if (btnInLabel) {
+            btnInLabel.textContent = isClockInRequestInProgress ? 'Clocking in...' : 'Clock In';
+        }
+        if (btnInIcon) {
+            btnInIcon.className = 'fa ' + (isClockInRequestInProgress ? 'fa-spinner fa-spin' : 'fa-play');
+        }
+        if (btnInLockNote) {
+            btnInLockNote.style.display = locked ? 'inline-flex' : 'none';
+        }
+        syncClockInSetupDownloadCard();
+        syncClockInSetupStatusCard();
+        if (!locked) {
+            closeClockInSetupHover();
+        }
+    }
+
+    function setCaptureExtensionAvailability(isAvailable) {
+        isCaptureExtensionAvailable = !!isAvailable;
+        syncClockInSetupUi();
+    }
+
+    function clearIdleCheckStateForPause() {
+        if (idleCheckTimer) {
+            clearTimeout(idleCheckTimer);
+            idleCheckTimer = null;
+        }
+        stopIdleCheckCountdown();
+        closeIdleWarningNotification();
+        isIdleCheckModalOpen = false;
+        idleCheckSecondsRemaining = idleCheckCountdownStartSeconds;
+        updateIdleCheckCountdownLabel();
+        updateIdleAlertIndicators();
+        var idleModal = document.getElementById('idleCheckModal');
+        if (idleModal) {
+            idleModal.style.display = 'none';
+        }
+    }
+
+    function syncPauseSessionUi() {
+        syncTimeTrackerCardState();
+
+        if (clockSessionActions) {
+            clockSessionActions.hidden = !hasActiveAttendance;
+        }
+
+        if (btnPauseSession) {
+            btnPauseSession.hidden = !hasActiveAttendance || isAttendancePaused;
+            btnPauseSession.disabled = !hasActiveAttendance || isPauseRequestInProgress || isResumeRequestInProgress || isManualClockOutInProgress;
+        }
+
+        if (btnResumeSession) {
+            btnResumeSession.hidden = !hasActiveAttendance || !isAttendancePaused;
+            btnResumeSession.disabled = !hasActiveAttendance || isResumeRequestInProgress || isPauseRequestInProgress || isManualClockOutInProgress;
+        }
+
+        if (btnOut) {
+            btnOut.disabled = !hasActiveAttendance || isManualClockOutInProgress || isPauseRequestInProgress || isResumeRequestInProgress;
+        }
+
+        if (captureStatusLabel) {
+            if (isAttendancePaused) {
+                captureStatusLabel.textContent = 'Screen capture paused';
+            } else if (hasActiveAttendance) {
+                captureStatusLabel.textContent = 'Screen capture active';
+            } else {
+                captureStatusLabel.textContent = 'Screen captures on';
+            }
+        }
+
+        if (attendanceStatusBanner) {
+            attendanceStatusBanner.classList.remove('is-active', 'is-paused');
+            if (hasActiveAttendance && isAttendancePaused) {
+                attendanceStatusBanner.classList.add('is-paused');
+            } else if (hasActiveAttendance) {
+                attendanceStatusBanner.classList.add('is-active');
+            }
+        }
+
+        if (attendanceStatusIcon) {
+            attendanceStatusIcon.innerHTML = hasActiveAttendance && isAttendancePaused
+                ? '<i class="fa fa-pause"></i>'
+                : '<i class="fa fa-camera"></i>';
+        }
+
+        if (!statusSpan) return;
+        if (isClockInRequestInProgress || isPauseRequestInProgress || isResumeRequestInProgress || isManualClockOutInProgress || isAutoClockOutInProgress) {
+            return;
+        }
+        if (hasActiveAttendance && isAttendancePaused) {
+            statusSpan.className = '';
+            statusSpan.textContent = activePauseReason
+                ? 'Session paused. Reason: ' + activePauseReason + '.'
+                : 'Session paused.';
+            statusSpan.style.color = '#B45309';
+            return;
+        }
+        if (hasActiveAttendance) {
+            statusSpan.className = '';
+            statusSpan.textContent = 'Timed in. Screen capture active.';
+            statusSpan.style.color = '';
+        }
+    }
+
+    function syncTimeTrackerCardState() {
+        if (!timeTrackerCard) return;
+        timeTrackerCard.classList.remove('is-idle', 'is-running', 'is-paused');
+        if (hasActiveAttendance && isAttendancePaused) {
+            timeTrackerCard.classList.add('is-paused');
+            return;
+        }
+        if (hasActiveAttendance) {
+            timeTrackerCard.classList.add('is-running');
+            return;
+        }
+        timeTrackerCard.classList.add('is-idle');
+    }
+
+    function setAttendancePauseState(isPaused, reason, pausedAt) {
+        isAttendancePaused = !!isPaused && !!hasActiveAttendance;
+        activePauseReason = isAttendancePaused ? String(reason || '').trim() : '';
+        activePauseStartedAt = isAttendancePaused ? String(pausedAt || '') : '';
+
+        if (isAttendancePaused) {
+            lastCaptureHeartbeatAt = 0;
+            lastCaptureInputState = 'unknown';
+            lastCaptureInputStateAt = 0;
+            lastCaptureInputThresholdReached = false;
+            clearIdleCheckStateForPause();
+        } else if (hasActiveAttendance && !isIdleLogoutInProgress) {
+            lastDashboardActivityAt = Date.now();
+            startIdleCheckTimer();
+        }
+
+        syncPauseSessionUi();
+    }
+
+    function getPauseSessionReasonValue() {
+        if (pauseSessionUseLunch) {
+            return 'Lunch';
+        }
+        if (!pauseSessionReasonInput) {
+            return '';
+        }
+        return String(pauseSessionReasonInput.value || '').trim();
+    }
+
+    function syncPauseSessionModalUi() {
+        var finalReason = getPauseSessionReasonValue();
+        var canSubmit = finalReason.length > 0;
+
+        if (pauseSessionLunchBtn) {
+            pauseSessionLunchBtn.classList.toggle('is-active', pauseSessionUseLunch);
+        }
+
+        if (pauseSessionReasonInput) {
+            pauseSessionReasonInput.disabled = pauseSessionUseLunch;
+            pauseSessionReasonInput.classList.toggle('has-value', !pauseSessionUseLunch && String(pauseSessionReasonInput.value || '').trim() !== '');
+        }
+
+        if (pauseSessionConfirmBtn) {
+            pauseSessionConfirmBtn.disabled = !canSubmit;
+            pauseSessionConfirmBtn.classList.toggle('is-enabled', canSubmit);
+        }
+    }
+
+    function openPauseSessionModal() {
+        refreshClockInSetupDeferredElements();
+        if (!pauseSessionModal || !hasActiveAttendance || isAttendancePaused) return;
+        pauseSessionUseLunch = false;
+        if (pauseSessionReasonInput) {
+            pauseSessionReasonInput.value = '';
+        }
+        syncPauseSessionModalUi();
+        pauseSessionModal.hidden = false;
+        document.body.classList.add('is-pause-session-modal-open');
+        if (pauseSessionReasonInput && typeof pauseSessionReasonInput.focus === 'function') {
+            setTimeout(function () {
+                pauseSessionReasonInput.focus();
+            }, 20);
+        }
+    }
+
+    function closePauseSessionModal() {
+        if (!pauseSessionModal) return;
+        pauseSessionModal.hidden = true;
+        document.body.classList.remove('is-pause-session-modal-open');
+        pauseSessionUseLunch = false;
+        if (pauseSessionReasonInput) {
+            pauseSessionReasonInput.value = '';
+        }
+        syncPauseSessionModalUi();
+    }
+
+    function openCaptureWindowForAttendance(options) {
+        var opts = options || {};
+        if (!attendanceId) return;
+
+        if (opts.replaceExisting && captureWindow && !captureWindow.closed) {
+            try {
+                captureWindow.close();
+            } catch (e) {
+                // no-op
+            }
+            captureWindow = null;
+        }
+
+        if (captureWindow && !captureWindow.closed) {
+            try {
+                captureWindow.focus();
+            } catch (e) {
+                // no-op
+            }
+            return;
+        }
+
+        var width = 400;
+        var height = 300;
+        var left = screen.width - width;
+        var top = screen.height - height;
+        var captureUrl = 'capture.html?attendanceId=' + encodeURIComponent(attendanceId) +
+            '&userId=' + encodeURIComponent(currentUserId) +
+            '&csrf_token=' + encodeURIComponent(attendanceAjaxCsrfToken);
+        if (opts.resumeMode) {
+            captureUrl += '&resume=1';
+        }
+
+        captureWindow = window.open(
+            captureUrl,
+            'TaskFlowCapture',
+            'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top
+        );
+
+        if (!captureWindow && opts.resumeMode) {
+            isResumeRequestInProgress = false;
+            if (statusSpan) {
+                statusSpan.textContent = 'Unable to open the screen sharing window. Session is still paused.';
+                statusSpan.style.color = '#B45309';
+            }
+            syncPauseSessionUi();
+        }
+    }
+
+    function stopCaptureWindowForPause(reason) {
+        signalCaptureStop(reason || 'attendance_paused');
+        if (captureWindow && !captureWindow.closed) {
+            setTimeout(function () {
+                try {
+                    captureWindow.close();
+                } catch (e) {
+                    // no-op
+                }
+                captureWindow = null;
+            }, 700);
+        } else {
+            captureWindow = null;
+        }
     }
 
     function markClockInNavWarningSeen() {
@@ -1065,21 +1835,32 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         hasActiveAttendance = !!isTimedIn;
         if (!btnIn || !btnOut) return;
         if (isTimedIn) {
+            closeClockInSetupHover();
+            closeClockInSetupModal();
             btnIn.style.display = 'none';
-            btnOut.style.display = 'flex';
-            btnOut.style.marginTop = '0px'; 
-            btnOut.innerHTML = '<i class="fa fa-pause"></i> Clock Out/Pause';
+            if (clockSessionActions) {
+                clockSessionActions.hidden = false;
+            }
             btnOut.disabled = false;
+            syncPauseSessionUi();
         } else {
             lastCaptureHeartbeatAt = 0;
             lastCaptureInputState = 'unknown';
             lastCaptureInputStateAt = 0;
             lastCaptureInputThresholdReached = false;
+            isAttendancePaused = false;
+            activePauseReason = '';
+            activePauseStartedAt = '';
             console.log("Resetting to Clock In state");
+            isClockInRequestInProgress = false;
+            isPauseRequestInProgress = false;
+            isResumeRequestInProgress = false;
             btnIn.style.display = 'flex';
-            btnIn.innerHTML = '<i class="fa fa-play"></i> Clock In';
-            btnOut.style.display = 'none';
-            btnIn.disabled = false;
+            if (clockSessionActions) {
+                clockSessionActions.hidden = true;
+            }
+            syncClockInSetupUi();
+            syncPauseSessionUi();
         }
     }
 
@@ -1128,16 +1909,57 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         if (!statusSpan) return;
         
         if (event.data.type === 'CAPTURE_STARTED') {
+            if (event.source) {
+                captureWindow = event.source;
+            }
+            if (event.data.resume_mode && isResumeRequestInProgress) {
+                ajax(
+                    'resume_attendance.php',
+                    'csrf_token=' + encodeURIComponent(attendanceAjaxCsrfToken) + '&attendance_id=' + encodeURIComponent(attendanceId || ''),
+                    function (res) {
+                        isResumeRequestInProgress = false;
+                        if (res.status === 'success') {
+                            setAttendancePauseState(false, '', '');
+                            statusSpan.textContent = 'Timed in. Screen capture active.';
+                            statusSpan.className = '';
+                            statusSpan.style.color = '';
+                            lastDashboardActivityAt = Date.now();
+                            startIdleCheckTimer();
+                            return;
+                        }
+
+                        statusSpan.textContent = res.message || 'Unable to resume the session.';
+                        statusSpan.style.color = '#EF4444';
+                        syncPauseSessionUi();
+                        stopCaptureWindowForPause('attendance_paused');
+                    }
+                );
+                return;
+            }
             statusSpan.textContent = 'Timed in. Screen capture active.';
             statusSpan.className = '';
             statusSpan.style.color = ''; // Reset color
         } else if (event.data.type === 'CAPTURE_STOPPED') {
+            captureWindow = null;
+            var stopReason = event.data.reason || '';
+            if (stopReason === 'attendance_paused' || stopReason === 'attendance_ended' || stopReason === 'attendance_inactive' || stopReason === 'idle_logout') {
+                syncPauseSessionUi();
+                return;
+            }
             statusSpan.textContent = 'Screen capture stopped.';
-            if (!isManualClockOutInProgress && (!event.data.reason || event.data.reason !== 'attendance_ended')) {
+            if (!isManualClockOutInProgress) {
                 autoClockOutDueToCaptureIssue('Screen sharing stopped. You have been clocked out.');
             }
         } else if (event.data.type === 'CAPTURE_ERROR') {
-             autoClockOutDueToCaptureIssue('Screen share denied/canceled. You have been clocked out.');
+            captureWindow = null;
+            if (event.data.resume_mode && isResumeRequestInProgress) {
+                isResumeRequestInProgress = false;
+                statusSpan.textContent = 'Resume canceled. Session is still paused.';
+                statusSpan.style.color = '#B45309';
+                syncPauseSessionUi();
+                return;
+            }
+            autoClockOutDueToCaptureIssue('Screen share denied/canceled. You have been clocked out.');
         }
     });
 
@@ -1150,7 +1972,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 closeIdleCheckModal();
                 return;
             }
-            if (hasActiveAttendance && !isIdleCheckModalOpen && !isIdleLogoutInProgress) {
+            if (hasActiveAttendance && !isAttendancePaused && !isIdleCheckModalOpen && !isIdleLogoutInProgress) {
                 startIdleCheckTimer();
             }
             return;
@@ -1164,7 +1986,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 closeIdleCheckModal();
                 return;
             }
-            if (hasActiveAttendance && !isIdleCheckModalOpen && !isIdleLogoutInProgress) {
+            if (hasActiveAttendance && !isAttendancePaused && !isIdleCheckModalOpen && !isIdleLogoutInProgress) {
                 startIdleCheckTimer();
             }
         }
@@ -1195,11 +2017,37 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         });
     }
 
+    function downloadCaptureExtensionPackage() {
+        var downloadLink = document.createElement('a');
+        downloadLink.href = 'extension.zip';
+        downloadLink.download = 'taskflow-screen-capture-extension.zip';
+        downloadLink.rel = 'noopener';
+        downloadLink.style.display = 'none';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        clockInExtensionDownloaded = true;
+        setStoredClockInGuideFlag(clockInExtensionDownloadKey, true);
+        syncClockInSetupDownloadCard();
+        if (statusSpan && !hasActiveAttendance) {
+            statusSpan.className = '';
+            statusSpan.textContent = 'Extension download started. Install it, then refresh this page.';
+            statusSpan.style.color = '#B45309';
+        }
+    }
+
     // Clock In Handler
     if (btnIn) {
         btnIn.addEventListener('click', async function () {
+            if (isClockInSetupLocked()) {
+                openClockInSetupModal('video');
+                return;
+            }
+
             requestIdleNotificationPermission();
-            btnIn.disabled = true;
+            isClockInRequestInProgress = true;
+            syncClockInSetupUi();
+            statusSpan.className = '';
             statusSpan.textContent = 'Clocking in...';
             statusSpan.style.color = ''; // Reset color
             
@@ -1207,6 +2055,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 if (res.status === 'success') {
                     attendanceId = res.attendance_id || null;
                     hasActiveAttendance = true;
+                    isClockInRequestInProgress = false;
                     setLastCaptureHeartbeat(Date.now(), true);
                     setLastCaptureInputState('active', Date.now(), false, true);
                     
@@ -1218,26 +2067,40 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     var elOut = document.getElementById('statTimeOut');
                     if(elOut) elOut.innerText = '--:--';
                     
-                    // Open capture window
-                    // Width/Height small, bottom right or minimized
-                    const width = 400;
-                    const height = 300;
-                    const left = screen.width - width;
-                    const top = screen.height - height;
-                    
-                    captureWindow = window.open(
-                        'capture.html?attendanceId=' + encodeURIComponent(attendanceId) + '&userId=' + encodeURIComponent(currentUserId) + '&csrf_token=' + encodeURIComponent(attendanceAjaxCsrfToken),
-                        'TaskFlowCapture',
-                        'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top
-                    );
-
+                    setAttendancePauseState(false, '', '');
+                    openCaptureWindowForAttendance();
                     updateButtonState(true);
                 } else {
+                    isClockInRequestInProgress = false;
                     statusSpan.textContent = res.message || 'Error during time in';
                     statusSpan.style.color = '#EF4444';
-                    btnIn.disabled = false;
+                    syncClockInSetupUi();
                 }
             });
+        });
+    }
+
+    if (btnPauseSession) {
+        btnPauseSession.addEventListener('click', function () {
+            if (!hasActiveAttendance || isAttendancePaused || isPauseRequestInProgress || isResumeRequestInProgress || isManualClockOutInProgress) {
+                return;
+            }
+            openPauseSessionModal();
+        });
+    }
+
+    if (btnResumeSession) {
+        btnResumeSession.addEventListener('click', function () {
+            if (!hasActiveAttendance || !isAttendancePaused || isResumeRequestInProgress || isPauseRequestInProgress || isManualClockOutInProgress) {
+                return;
+            }
+            isResumeRequestInProgress = true;
+            syncPauseSessionUi();
+            if (statusSpan) {
+                statusSpan.textContent = 'Select the screen to resume monitoring...';
+                statusSpan.style.color = '';
+            }
+            openCaptureWindowForAttendance({ resumeMode: true });
         });
     }
 
@@ -1252,6 +2115,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     // Actual Clock Out Logic
     function confirmClockOut() {
         document.getElementById('confirmModal').style.display = 'none';
+        closePauseSessionModal();
         isManualClockOutInProgress = true;
         
         btnOut.disabled = true;
@@ -1263,7 +2127,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         
         // Close capture window
         if (captureWindow && !captureWindow.closed) {
-            captureWindow.close();
+            setTimeout(function () {
+                try {
+                    captureWindow.close();
+                } catch (e) {
+                    // no-op
+                }
+                captureWindow = null;
+            }, 700);
         }
         
         // Then record time out
@@ -1300,6 +2171,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         lastCaptureInputState = 'unknown';
         lastCaptureInputStateAt = 0;
         lastCaptureInputThresholdReached = false;
+        closePauseSessionModal();
         updateButtonState(false);
         if (statusSpan) {
             statusSpan.textContent = message || 'Timed out. Session ended.';
@@ -1324,6 +2196,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
     function startIdleCheckTimer() {
         if (window.__taskflowSharedIdleEnabled) return;
+        if (isAttendancePaused) return;
         if (idleCheckTimer) {
             clearTimeout(idleCheckTimer);
         }
@@ -1521,6 +2394,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         idleCheckSecondsRemaining = idleCheckCountdownStartSeconds;
         updateIdleCheckCountdownLabel();
         lastDashboardActivityAt = Date.now();
+        if (isAttendancePaused) return;
         startIdleCheckTimer();
     }
 
@@ -1565,15 +2439,261 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 syncHeartbeatFromAttendancePayload(res);
                 refreshCaptureHeartbeatFromStorage(true);
                 refreshCaptureInputStateFromStorage(true);
-                
-                // Always show Timed In state (Clock Out button) if DB says we are active.
-                // This persists across page refreshes/navigation.
+                hasActiveAttendance = true;
+                setAttendancePauseState(!!res.is_paused, res.pause_reason || '', res.pause_started_at || '');
                 updateButtonState(true);
-                statusSpan.textContent = 'Timed in. Monitoring active.';
             } else if (res.status === 'success') {
                 setClockedOutUI();
             }
         }, 'GET');
+    }
+
+    if (window.screenshotExtensionAvailable) {
+        setCaptureExtensionAvailability(true);
+    }
+
+    window.addEventListener('screenshotExtensionReady', function () {
+        setCaptureExtensionAvailability(true);
+    });
+
+    function initClockInSetupBindings() {
+        if (hasClockInSetupBindingsInitialized) return;
+        hasClockInSetupBindingsInitialized = true;
+        refreshClockInSetupDeferredElements();
+
+        clockInGuideVideoShells.forEach(function (shell) {
+            var toggle = shell.querySelector('[data-clockin-video-toggle]');
+            var pause = shell.querySelector('[data-clockin-video-pause]');
+            var video = shell.querySelector('[data-clockin-video]');
+            if (toggle) {
+                toggle.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleClockInGuideVideo(shell);
+                });
+            }
+            if (pause) {
+                pause.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (video) {
+                        video.pause();
+                    }
+                    syncClockInGuideVideoState(shell);
+                });
+            }
+            if (video) {
+                video.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    toggleClockInGuideVideo(shell);
+                });
+                video.addEventListener('play', function () {
+                    syncClockInGuideVideoState(shell);
+                });
+                video.addEventListener('pause', function () {
+                    syncClockInGuideVideoState(shell);
+                });
+                video.addEventListener('ended', function () {
+                    syncClockInGuideVideoState(shell);
+                });
+                syncClockInGuideVideoState(shell);
+            }
+        });
+
+        clockInGuideTabButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                setClockInGuideTab(button.getAttribute('data-clockin-tab-button'));
+            });
+        });
+
+        clockInGuideSlideshows.forEach(function (slideshow) {
+            var navButtons = Array.prototype.slice.call(slideshow.querySelectorAll('[data-clockin-slide-nav]'));
+            navButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var dir = Number(button.getAttribute('data-clockin-slide-nav') || '0');
+                    if (!dir) return;
+                    clockInGuideSlideIndex = (clockInGuideSlideIndex + dir + clockInGuideSteps.length) % clockInGuideSteps.length;
+                    renderClockInGuideSlides();
+                    ensureClockInGuideSlideTimer();
+                });
+            });
+        });
+
+        if (clockInSetupAnchor) {
+            clockInSetupAnchor.addEventListener('mouseenter', openClockInSetupHover);
+            clockInSetupAnchor.addEventListener('mouseleave', scheduleClockInSetupHoverClose);
+            clockInSetupAnchor.addEventListener('focusin', openClockInSetupHover);
+            clockInSetupAnchor.addEventListener('focusout', function (e) {
+                if (!e.relatedTarget || !clockInSetupAnchor.contains(e.relatedTarget)) {
+                    scheduleClockInSetupHoverClose();
+                }
+            });
+        }
+
+        if (clockInSetupBannerBtn) {
+            clockInSetupBannerBtn.addEventListener('click', function () {
+                openClockInSetupModal('video');
+            });
+        }
+
+        if (clockInSetupOpenGuideBtn) {
+            clockInSetupOpenGuideBtn.addEventListener('click', function () {
+                openClockInSetupModal(clockInGuideTab);
+            });
+        }
+
+        if (clockInSetupHideHoverBtn) {
+            clockInSetupHideHoverBtn.addEventListener('click', function () {
+                hideClockInSetupHoverGuide();
+            });
+        }
+
+        if (pauseSessionLunchBtn) {
+            pauseSessionLunchBtn.addEventListener('click', function () {
+                pauseSessionUseLunch = !pauseSessionUseLunch;
+                if (pauseSessionUseLunch && pauseSessionReasonInput) {
+                    pauseSessionReasonInput.value = '';
+                }
+                syncPauseSessionModalUi();
+                if (!pauseSessionUseLunch && pauseSessionReasonInput) {
+                    pauseSessionReasonInput.focus();
+                }
+            });
+        }
+
+        if (pauseSessionReasonInput) {
+            pauseSessionReasonInput.addEventListener('input', function () {
+                if (String(pauseSessionReasonInput.value || '').trim() !== '') {
+                    pauseSessionUseLunch = false;
+                }
+                syncPauseSessionModalUi();
+            });
+        }
+
+        if (pauseSessionCloseBtn) {
+            pauseSessionCloseBtn.addEventListener('click', function () {
+                closePauseSessionModal();
+            });
+        }
+
+        if (pauseSessionCancelBtn) {
+            pauseSessionCancelBtn.addEventListener('click', function () {
+                closePauseSessionModal();
+            });
+        }
+
+        if (pauseSessionConfirmBtn) {
+            pauseSessionConfirmBtn.addEventListener('click', function () {
+                var pauseReason = getPauseSessionReasonValue();
+                if (!pauseReason || !attendanceId || !hasActiveAttendance || isAttendancePaused || isPauseRequestInProgress) {
+                    syncPauseSessionModalUi();
+                    return;
+                }
+
+                isPauseRequestInProgress = true;
+                syncPauseSessionUi();
+                if (statusSpan) {
+                    statusSpan.textContent = 'Pausing session...';
+                    statusSpan.style.color = '';
+                }
+
+                ajax(
+                    'pause_attendance.php',
+                    'csrf_token=' + encodeURIComponent(attendanceAjaxCsrfToken) +
+                        '&attendance_id=' + encodeURIComponent(attendanceId || '') +
+                        '&pause_reason=' + encodeURIComponent(pauseReason),
+                    function (res) {
+                        isPauseRequestInProgress = false;
+                        if (res.status === 'success') {
+                            setAttendancePauseState(true, res.pause_reason || pauseReason, res.paused_at || '');
+                            closePauseSessionModal();
+                            stopCaptureWindowForPause('attendance_paused');
+                            if (statusSpan) {
+                                statusSpan.textContent = 'Session paused. Reason: ' + (activePauseReason || pauseReason) + '.';
+                                statusSpan.style.color = '#B45309';
+                            }
+                            return;
+                        }
+
+                        if (statusSpan) {
+                            statusSpan.textContent = res.message || 'Unable to pause the session.';
+                            statusSpan.style.color = '#EF4444';
+                        }
+                        syncPauseSessionUi();
+                    }
+                );
+            });
+        }
+
+        if (clockInSetupDismissHoverBtn) {
+            clockInSetupDismissHoverBtn.addEventListener('click', function () {
+                hideClockInSetupHoverGuide();
+            });
+        }
+
+        if (clockInSetupCloseBtn) {
+            clockInSetupCloseBtn.addEventListener('click', function () {
+                closeClockInSetupModal();
+            });
+        }
+
+        if (clockInSetupModal) {
+            clockInSetupModal.addEventListener('click', function (e) {
+                if (e.target === clockInSetupModal) {
+                    closeClockInSetupModal();
+                }
+            });
+        }
+
+        if (pauseSessionModal) {
+            pauseSessionModal.addEventListener('click', function (e) {
+                if (e.target === pauseSessionModal) {
+                    closePauseSessionModal();
+                }
+            });
+        }
+
+        if (clockInSetupDownloadBtn) {
+            clockInSetupDownloadBtn.addEventListener('click', function () {
+                downloadCaptureExtensionPackage();
+                syncClockInSetupUi();
+            });
+        }
+
+        if (clockInSetupPrimaryBtn) {
+            clockInSetupPrimaryBtn.addEventListener('click', function () {
+                if (isCaptureExtensionAvailable) {
+                    closeClockInSetupModal();
+                    if (btnIn) {
+                        btnIn.focus();
+                    }
+                    return;
+                }
+                window.location.reload();
+            });
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && clockInSetupModal && !clockInSetupModal.hidden) {
+                closeClockInSetupModal();
+            }
+            if (e.key === 'Escape' && pauseSessionModal && !pauseSessionModal.hidden) {
+                closePauseSessionModal();
+            }
+        });
+
+        renderClockInGuideSlides();
+        ensureClockInGuideSlideTimer();
+        setClockInGuideTab(clockInGuideTab);
+        syncClockInSetupUi();
+        syncPauseSessionModalUi();
+        syncPauseSessionUi();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initClockInSetupBindings);
+    } else {
+        initClockInSetupBindings();
     }
 
     // Keep UI in sync if admin clocks out the user (SSE with fallback)
@@ -1586,10 +2706,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 refreshCaptureHeartbeatFromStorage(true);
                 refreshCaptureInputStateFromStorage(true);
                 hasActiveAttendance = true;
-                updateButtonState(true);
-                if (statusSpan) {
-                    statusSpan.textContent = 'Timed in. Monitoring active.';
+                setAttendancePauseState(!!payload.is_paused, payload.pause_reason || '', payload.pause_started_at || '');
+                if (payload.is_paused && captureWindow && !captureWindow.closed) {
+                    stopCaptureWindowForPause('attendance_paused');
                 }
+                updateButtonState(true);
                 if (payload.time_in) {
                     var elIn = document.getElementById('statTimeIn');
                     if (elIn) elIn.innerText = payload.time_in;
@@ -1603,7 +2724,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     signalCaptureStop('attendance_inactive');
                 }
                 if (captureWindow && !captureWindow.closed) {
-                    captureWindow.close();
+                    setTimeout(function () {
+                        try {
+                            captureWindow.close();
+                        } catch (e) {
+                            // no-op
+                        }
+                        captureWindow = null;
+                    }, 700);
                 }
                 hasActiveAttendance = false;
                 setClockedOutUI();
@@ -2159,6 +3287,141 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         </p>
         <div style="display:flex; justify-content:center;">
             <button onclick="closeIdleCheckModal()" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>
+        </div>
+    </div>
+</div>
+
+<!-- Pause Session Modal -->
+<div id="pauseSessionModal" class="pause-session-modal" hidden>
+    <div class="pause-session-dialog" role="dialog" aria-modal="true" aria-labelledby="pauseSessionModalTitle">
+        <div class="pause-session-head">
+            <button type="button" class="pause-session-close" id="pauseSessionCloseBtn" aria-label="Close pause session dialog">
+                <i class="fa fa-times"></i>
+            </button>
+            <p class="pause-session-kicker">Pausing Session</p>
+            <h3 class="pause-session-title" id="pauseSessionModalTitle">Why are you pausing?</h3>
+            <p class="pause-session-copy">A reason is required before pausing your session.</p>
+        </div>
+
+        <div class="pause-session-body">
+            <div class="pause-session-section">
+                <p class="pause-session-section-label">Quick Select</p>
+                <button type="button" class="pause-session-quick-btn" id="pauseSessionLunchBtn">
+                    <span class="pause-session-quick-icon">
+                        <i class="fa fa-cutlery"></i>
+                    </span>
+                    <span class="pause-session-quick-copy">
+                        <strong>Lunch</strong>
+                        <small>Taking a lunch break</small>
+                    </span>
+                    <span class="pause-session-quick-check">
+                        <i class="fa fa-check"></i>
+                    </span>
+                </button>
+            </div>
+
+            <div class="pause-session-divider">
+                <span></span>
+                <strong>or type a reason</strong>
+                <span></span>
+            </div>
+
+            <div class="pause-session-field">
+                <textarea id="pauseSessionReasonInput" class="pause-session-textarea" rows="3" placeholder="e.g. Doctor's appointment, quick errand..."></textarea>
+            </div>
+
+            <div class="pause-session-actions">
+                <button type="button" class="pause-session-cancel" id="pauseSessionCancelBtn">Cancel</button>
+                <button type="button" class="pause-session-confirm" id="pauseSessionConfirmBtn" disabled>
+                    <i class="fa fa-pause"></i> Confirm Pause
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clock In Setup Modal -->
+<div id="clockInSetupModal" class="clockin-setup-modal" hidden>
+    <div class="clockin-setup-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="clockInSetupModalTitle">
+        <div class="clockin-setup-modal-head">
+            <button type="button" class="clockin-setup-modal-close" id="clockInSetupCloseBtn" aria-label="Close clock-in setup guide">
+                <i class="fa fa-times"></i>
+            </button>
+            <p class="clockin-setup-modal-kicker">Required Setup</p>
+            <h3 class="clockin-setup-modal-title" id="clockInSetupModalTitle">Install Screen Capture Extension</h3>
+            <p class="clockin-setup-modal-copy">Clock In stays locked until this page can detect the extension.</p>
+        </div>
+
+        <div class="clockin-setup-modal-body">
+            <div class="clockin-setup-tab-row">
+                <button type="button" class="clockin-setup-tab-btn is-active" data-clockin-tab-button="video">
+                    <i class="fa fa-video-camera"></i> Video Guide
+                </button>
+                <button type="button" class="clockin-setup-tab-btn" data-clockin-tab-button="slides">
+                    <i class="fa fa-clone"></i> Step-by-Step
+                </button>
+            </div>
+
+            <div class="clockin-setup-tab-panel is-active" data-clockin-panel="video" data-clockin-scope="full">
+                <div class="clockin-guide-video-shell" data-clockin-video-shell>
+                    <video class="clockin-guide-video" data-clockin-video preload="metadata" muted playsinline>
+                        <source src="videos/extension-guide.mp4" type="video/mp4">
+                    </video>
+                    <button class="clockin-guide-video-toggle" data-clockin-video-toggle type="button" aria-label="Play clock-in setup guide">
+                        <span class="clockin-guide-video-toggle-disc">
+                            <i class="fa fa-play"></i>
+                        </span>
+                    </button>
+                    <button class="clockin-guide-video-pause" data-clockin-video-pause type="button" aria-label="Pause clock-in setup guide">
+                        <i class="fa fa-pause"></i>
+                    </button>
+                    <span class="clockin-guide-video-badge">
+                        <i class="fa fa-play"></i>
+                        Guide
+                    </span>
+                </div>
+                <p class="clockin-guide-video-caption">Watch the setup once, then load the extension in Chrome and refresh this page.</p>
+            </div>
+
+            <div class="clockin-setup-tab-panel" data-clockin-panel="slides" data-clockin-scope="full">
+                <div class="clockin-guide-slideshow" data-clockin-slideshow="full">
+                    <button type="button" class="clockin-guide-slide-nav is-prev" data-clockin-slide-nav="-1" aria-label="Previous setup step">
+                        <i class="fa fa-angle-left"></i>
+                    </button>
+                    <button type="button" class="clockin-guide-slide-nav is-next" data-clockin-slide-nav="1" aria-label="Next setup step">
+                        <i class="fa fa-angle-right"></i>
+                    </button>
+                    <div class="clockin-guide-slide-icon"></div>
+                    <div class="clockin-guide-slide-label"></div>
+                    <div class="clockin-guide-slide-desc"></div>
+                    <div class="clockin-guide-slide-counter"></div>
+                </div>
+                <div class="clockin-guide-slide-dots" data-clockin-slide-dots="full"></div>
+            </div>
+
+            <div class="clockin-setup-download-card" id="clockInSetupDownloadCard">
+                <span class="clockin-setup-download-icon">
+                    <i id="clockInSetupDownloadIcon" class="fa fa-archive"></i>
+                </span>
+                <div class="clockin-setup-download-copy">
+                    <p class="clockin-setup-download-title" id="clockInSetupDownloadTitle">TaskFlow Screen Capture Extension</p>
+                    <p class="clockin-setup-download-text" id="clockInSetupDownloadText">Download the zip file first, then load the extracted folder in Chrome.</p>
+                </div>
+                <button type="button" class="clockin-setup-download-btn" id="clockInSetupDownloadBtn">Download</button>
+            </div>
+
+            <div class="clockin-setup-status-card" id="clockInSetupStatusCard">
+                <span class="clockin-setup-status-check" id="clockInSetupStatusCheck">
+                    <i class="fa fa-refresh"></i>
+                </span>
+                <div class="clockin-setup-status-copy">
+                    <p class="clockin-setup-status-title" id="clockInSetupStatusTitle">Extension not detected yet</p>
+                    <p class="clockin-setup-status-text" id="clockInSetupStatusText">Load it unpacked in chrome://extensions, then refresh this page to unlock Clock In.</p>
+                </div>
+            </div>
+
+            <button type="button" class="clockin-setup-modal-primary" id="clockInSetupPrimaryBtn">Refresh Page After Install</button>
+            <button type="button" class="clockin-setup-modal-link" id="clockInSetupDismissHoverBtn">Don't show the hover guide again</button>
         </div>
     </div>
 </div>

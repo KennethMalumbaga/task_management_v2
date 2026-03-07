@@ -10,6 +10,7 @@ if (!isset($_SESSION['id'], $_SESSION['role']) || $_SESSION['role'] !== 'employe
 
 require 'DB_connection.php';
 require_once 'inc/tenant.php';
+require_once 'inc/attendance_pause.php';
 
 $user_id = $_SESSION['id'];
 $organization_id = isset($_SESSION['organization_id']) ? (int)$_SESSION['organization_id'] : null;
@@ -38,6 +39,7 @@ $stmt->execute($params);
 $attendance = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if ($attendance) {
+    $activePause = attendance_pause_get_active($pdo, (int)$attendance['id'], (int)$user_id, $organization_id);
     $lastHeartbeatAt = null;
     $heartbeatAgeSeconds = null;
     if ($hasHeartbeatColumn && !empty($attendance['last_heartbeat_at'])) {
@@ -51,6 +53,9 @@ if ($attendance) {
         'status' => 'success',
         'has_active_attendance' => true,
         'attendance_id' => $attendance['id'],
+        'is_paused' => $activePause ? true : false,
+        'pause_reason' => $activePause['pause_reason'] ?? null,
+        'pause_started_at' => $activePause['paused_at'] ?? null,
         'last_heartbeat_at' => $lastHeartbeatAt,
         'heartbeat_age_seconds' => $heartbeatAgeSeconds
     ]);

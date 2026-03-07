@@ -26,68 +26,67 @@ if (!csrf_verify('attendance_ajax_actions', $_POST['csrf_token'] ?? null, false)
     exit;
 }
 
-$user_id = (int)$_SESSION['id'];
-$organization_id = isset($_SESSION['organization_id']) ? (int)$_SESSION['organization_id'] : null;
-$organization_id = $organization_id > 0 ? $organization_id : null;
+$userId = (int)$_SESSION['id'];
+$organizationId = isset($_SESSION['organization_id']) ? (int)$_SESSION['organization_id'] : null;
+$organizationId = $organizationId > 0 ? $organizationId : null;
+$attendanceId = isset($_POST['attendance_id']) ? (int)$_POST['attendance_id'] : 0;
 session_write_close();
-$today = date('Y-m-d');
-$now = date('H:i:s');
 
 try {
-    $sql = "SELECT id, att_date, time_in, time_out
+    if (!attendance_pause_ensure_schema($pdo)) {
+        throw new RuntimeException('pause_schema_unavailable');
+    }
+
+    $today = date('Y-m-d');
+    $sql = "SELECT id
             FROM attendance
             WHERE user_id = ?
               AND att_date = ?
               AND time_in IS NOT NULL
               AND (time_out IS NULL OR time_out = '00:00:00')";
-    $params = [$user_id, $today];
-    $scope = tenant_get_scope($pdo, 'attendance', '', 'AND', 'organization_id', $organization_id);
+    $params = [$userId, $today];
+    if ($attendanceId > 0) {
+        $sql .= " AND id = ?";
+        $params[] = $attendanceId;
+    }
+    $scope = tenant_get_scope($pdo, 'attendance', '', 'AND', 'organization_id', $organizationId);
     $sql .= $scope['sql'] . "
             ORDER BY id DESC
             LIMIT 1";
     $params = array_merge($params, $scope['params']);
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    $att = $stmt->fetch(PDO::FETCH_ASSOC);
+    $attendance = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$att) {
+    if (!$attendance) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'No active attendance session found.']);
+        exit;
+    }
+
+    $activePause = attendance_pause_get_active($pdo, (int)$attendance['id'], $userId, $organizationId);
+    if (!$activePause) {
         echo json_encode([
             'status' => 'success',
-            'message' => 'Already timed out',
+            'attendance_id' => (int)$attendance['id'],
+            'message' => 'Session already active.',
         ]);
         exit;
     }
 
-    $effectiveSeconds = attendance_pause_calculate_effective_seconds(
-        $pdo,
-        $att,
-        $organization_id,
-        $today . ' ' . $now
-    );
-    $hours = round($effectiveSeconds / 3600, 2);
-    if ($hours < 0) {
-        $hours = 0;
-    }
-
-    attendance_pause_close_active($pdo, (int)$att['id'], $organization_id, $today . ' ' . $now);
-
-    $updateSql = "UPDATE attendance SET time_out = ?, total_hours = ? WHERE id = ?";
-    $updateParams = [$now, $hours, (int)$att['id']];
-    $scope = tenant_get_scope($pdo, 'attendance', '', 'AND', 'organization_id', $organization_id);
-    $updateSql .= $scope['sql'];
-    $updateParams = array_merge($updateParams, $scope['params']);
-    $updateStmt = $pdo->prepare($updateSql);
-    $updateStmt->execute($updateParams);
+    $resumedAt = date('Y-m-d H:i:s');
+    attendance_pause_close_active($pdo, (int)$attendance['id'], $organizationId, $resumedAt);
 
     echo json_encode([
         'status' => 'success',
-        'time_out' => $now,
-        'total_hours' => $hours,
+        'attendance_id' => (int)$attendance['id'],
+        'resumed_at' => $resumedAt,
+        'message' => 'Session resumed.',
     ]);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Unable to clock out right now.',
+        'message' => 'Unable to resume the session right now.',
     ]);
 }

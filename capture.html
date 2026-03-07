@@ -110,6 +110,7 @@
         userId = params.get('userId');
         sessionId = params.get('sessionId');
         csrfToken = params.get('csrf_token');
+        const resumeMode = params.get('resume') === '1';
 
         const statusDiv = document.getElementById('status');
         const heartbeatStatusDiv = document.getElementById('heartbeatStatus');
@@ -146,7 +147,7 @@
 
                 // Signal success to main window
                 if (window.opener) {
-                    window.opener.postMessage({ type: 'CAPTURE_STARTED' }, '*');
+                    window.opener.postMessage({ type: 'CAPTURE_STARTED', resume_mode: resumeMode }, '*');
                 }
 
                 // Request minimize
@@ -164,9 +165,15 @@
                 statusDiv.innerText = "Error: " + err.message;
                 statusDiv.className = "error";
                 stopHeartbeat(); // Stop heartbeat
-                await requestClockOutFromCapture();
                 if (window.opener) {
-                    window.opener.postMessage({ type: 'CAPTURE_ERROR', message: err.message }, '*');
+                    window.opener.postMessage({ type: 'CAPTURE_ERROR', message: err.message, resume_mode: resumeMode }, '*');
+                }
+                if (!resumeMode) {
+                    await requestClockOutFromCapture();
+                } else {
+                    setTimeout(() => {
+                        window.close();
+                    }, 500);
                 }
             }
         }
@@ -453,6 +460,36 @@
             }, 500);
         }
 
+        function parseForceStopPayload(rawValue) {
+            try {
+                const payload = JSON.parse(rawValue);
+                const reason = payload && payload.reason ? String(payload.reason) : 'clocked_out_elsewhere';
+                let message = 'Logged out. Screen sharing stopped.';
+                if (reason === 'attendance_paused') {
+                    message = 'Session paused. Screen sharing stopped.';
+                } else if (reason === 'attendance_inactive' || reason === 'attendance_ended') {
+                    message = 'Session ended.';
+                } else if (reason === 'idle_logout') {
+                    message = 'Logged out due to inactivity.';
+                } else if (reason === 'manual_clock_out') {
+                    message = 'Clocked out. Screen sharing stopped.';
+                }
+                return {
+                    reason: reason,
+                    message: message,
+                    clockOut: false,
+                    logout: false
+                };
+            } catch (e) {
+                return {
+                    reason: 'clocked_out_elsewhere',
+                    message: 'Logged out. Screen sharing stopped.',
+                    clockOut: false,
+                    logout: false
+                };
+            }
+        }
+
         function scheduleNext(stream) {
             const delay = MIN_INTERVAL + Math.random() * (MAX_INTERVAL - MIN_INTERVAL);
             captureInterval = setTimeout(() => {
@@ -575,7 +612,12 @@
                 return;
             }
             if (event.key === 'taskflow_force_stop_capture' && event.newValue) {
-                stopCaptureAndClose('Logged out. Screen sharing stopped.', { reason: 'clocked_out_elsewhere' });
+                const stopPayload = parseForceStopPayload(event.newValue);
+                stopCaptureAndClose(stopPayload.message, {
+                    reason: stopPayload.reason,
+                    clockOut: !!stopPayload.clockOut,
+                    logout: !!stopPayload.logout
+                });
             }
         });
 
