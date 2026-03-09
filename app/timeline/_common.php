@@ -62,7 +62,7 @@ if (!function_exists('timeline_api_require_leader_permissions')) {
         }
 
         if (!timeline_can_modify_project($pdo, $projectId, $auth['role'], (int)$auth['id'])) {
-            timeline_api_send(false, 'Only the assigned project leader can edit this timeline.');
+            timeline_api_send(false, 'Only admins or the assigned project leader can edit this timeline.');
         }
     }
 }

@@ -6,9 +6,14 @@
     }
 
     var STATUS_META = {
-        active: { label: 'Active', bg: '#DCFCE7', color: '#166534', dot: '#10B981' },
+        ongoing: { label: 'Ongoing', bg: '#DCFCE7', color: '#166534', dot: '#10B981' },
         planning: { label: 'Planning', bg: '#FEF3C7', color: '#92400E', dot: '#F59E0B' },
         completed: { label: 'Completed', bg: '#EDE9FE', color: '#5B21B6', dot: '#8B5CF6' }
+    };
+    var PHASE_TRACKING_META = {
+        planning: { label: 'Planning', bg: '#F3F4F6', color: '#4B5563' },
+        ongoing: { label: 'Ongoing', bg: '#FEF3C7', color: '#92400E' },
+        completed: { label: 'Completed', bg: '#DCFCE7', color: '#166534' }
     };
 
     var COLORS = ['#6C3CE1', '#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#0EA5E9', '#EC4899'];
@@ -74,6 +79,10 @@
         phaseDescInput: document.getElementById('tlpPhaseDescInput'),
         phaseStartInput: document.getElementById('tlpPhaseStartInput'),
         phaseDurationInput: document.getElementById('tlpPhaseDurationInput'),
+        phaseGuideCount: document.getElementById('tlpPhaseGuideCount'),
+        phaseGuideLimit: document.getElementById('tlpPhaseGuideLimit'),
+        phaseGuideList: document.getElementById('tlpPhaseGuideList'),
+        phaseGuideTip: document.getElementById('tlpPhaseGuideTip'),
         iconGrid: document.getElementById('tlpIconGrid'),
         colorGrid: document.getElementById('tlpColorGrid'),
         phaseSaveBtn: document.getElementById('tlpPhaseSaveBtn'),
@@ -117,7 +126,15 @@
 
     function safeStatus(status) {
         var key = String(status || '').toLowerCase();
+        if (key === 'active') {
+            key = 'ongoing';
+        }
         return STATUS_META[key] ? key : 'planning';
+    }
+
+    function safePhaseTrackingStatus(status) {
+        var key = String(status || '').toLowerCase();
+        return PHASE_TRACKING_META[key] ? key : 'planning';
     }
 
     function normalizeIcon(iconClass) {
@@ -289,6 +306,132 @@
         return Math.floor(n);
     }
 
+    function getPhaseGuideItemsForTask(timelineTaskId, excludedPhaseId) {
+        var context = getTaskContextByTimelineTaskId(timelineTaskId);
+        if (!context || !context.task || !Array.isArray(context.task.phases)) {
+            return [];
+        }
+
+        var excludedId = Number(excludedPhaseId || 0);
+        return context.task.phases
+            .map(function (phase, index) {
+                var phaseId = Number(phase.id || 0);
+                if (excludedId > 0 && phaseId === excludedId) {
+                    return null;
+                }
+                var startDay = clampNumber(phase.start_day, 1, 365, 1);
+                var durationDays = clampNumber(phase.duration_days, 1, 180, 1);
+                return {
+                    id: phaseId,
+                    index: index,
+                    name: String(phase.name || 'Phase'),
+                    startDay: startDay,
+                    durationDays: durationDays,
+                    endDay: startDay + durationDays - 1
+                };
+            })
+            .filter(Boolean)
+            .sort(function (a, b) {
+                if (a.startDay !== b.startDay) {
+                    return a.startDay - b.startDay;
+                }
+                if (a.endDay !== b.endDay) {
+                    return a.endDay - b.endDay;
+                }
+                return a.index - b.index;
+            });
+    }
+
+    function getSuggestedStartDay(phaseItems, dayLimit) {
+        if (!Array.isArray(phaseItems) || !phaseItems.length) {
+            return 1;
+        }
+
+        var maxEndDay = 0;
+        phaseItems.forEach(function (item) {
+            maxEndDay = Math.max(maxEndDay, Number(item.endDay || 0));
+        });
+
+        return clampNumber(maxEndDay + 1, 1, dayLimit, 1);
+    }
+
+    function getRangeOverlapItems(startDay, endDay, phaseItems) {
+        if (!Array.isArray(phaseItems) || !phaseItems.length) {
+            return [];
+        }
+        return phaseItems.filter(function (item) {
+            return !(endDay < item.startDay || startDay > item.endDay);
+        });
+    }
+
+    function setPhaseGuideTip(mode, text) {
+        if (!el.phaseGuideTip) {
+            return;
+        }
+        var normalizedMode = String(mode || '').trim();
+        var className = 'tlp-phase-guide-tip';
+        if (normalizedMode) {
+            className += ' ' + normalizedMode;
+        }
+        el.phaseGuideTip.className = className;
+        el.phaseGuideTip.textContent = String(text || '');
+    }
+
+    function renderPhaseGuide() {
+        if (!el.phaseGuideList || !el.phaseGuideTip || !el.phaseGuideLimit) {
+            return;
+        }
+
+        var dayLimit = clampNumber(state.phaseDayLimit, 1, 365, 365);
+        var phaseItems = getPhaseGuideItemsForTask(state.phaseModalTaskId, state.editingPhaseId);
+        var suggestion = getSuggestedStartDay(phaseItems, dayLimit);
+        var phaseCount = phaseItems.length;
+
+        el.phaseGuideLimit.textContent = 'Day 1-' + dayLimit;
+        if (el.phaseGuideCount) {
+            el.phaseGuideCount.textContent = phaseCount + ' phase' + (phaseCount === 1 ? '' : 's');
+        }
+
+        if (!phaseItems.length) {
+            el.phaseGuideList.innerHTML = '<div class="tlp-phase-guide-empty">No phases yet for this timeline task.</div>';
+        } else {
+            el.phaseGuideList.innerHTML = phaseItems.map(function (item) {
+                var dayLabel = item.startDay === item.endDay
+                    ? ('D' + item.startDay)
+                    : ('D' + item.startDay + '-' + item.endDay);
+                var titleText = item.name + ' (Day ' + item.startDay + '-' + item.endDay + ')';
+                return '' +
+                    '<div class="tlp-phase-guide-chip" title="' + escapeHtml(titleText) + '">' +
+                        '<span class="tlp-phase-guide-chip-days">' + dayLabel + '</span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        var startDay = clampNumber(el.phaseStartInput.value, 1, dayLimit, 1);
+        var maxDuration = Math.max(1, (dayLimit - startDay) + 1);
+        var durationDays = clampNumber(el.phaseDurationInput.value, 1, maxDuration, 1);
+        var endDay = startDay + durationDays - 1;
+        var overlaps = getRangeOverlapItems(startDay, endDay, phaseItems);
+
+        if (overlaps.length > 0) {
+            setPhaseGuideTip(
+                'warning',
+                'Day ' + startDay + '-' + endDay + ' overlaps with ' + overlaps.length + ' existing phase(s).'
+            );
+            return;
+        }
+
+        if (state.editingPhaseId) {
+            setPhaseGuideTip('ok', 'Day ' + startDay + '-' + endDay + ' is clear.');
+            return;
+        }
+
+        setPhaseGuideTip(
+            'info',
+            'Suggested: start on Day ' + suggestion + '. Current Day ' + startDay + '-' + endDay + ' is clear.'
+        );
+    }
+
     function syncPhaseDayInputs(options) {
         options = options || {};
         var forceNormalize = !!options.forceNormalize;
@@ -309,6 +452,8 @@
             var duration = rawDuration === null ? 1 : clampNumber(rawDuration, 1, maxDuration, 1);
             el.phaseDurationInput.value = String(duration);
         }
+
+        renderPhaseGuide();
     }
 
     function getStatusMeta(statusKey) {
@@ -334,14 +479,14 @@
 
     function buildStats() {
         var total = state.projects.length;
-        var active = 0;
+        var ongoing = 0;
         var planning = 0;
         var completed = 0;
 
         state.projects.forEach(function (project) {
             var statusKey = safeStatus(project.status);
-            if (statusKey === 'active') {
-                active += 1;
+            if (statusKey === 'ongoing') {
+                ongoing += 1;
             } else if (statusKey === 'planning') {
                 planning += 1;
             } else if (statusKey === 'completed') {
@@ -351,7 +496,7 @@
 
         var cards = [
             { icon: 'fa-line-chart', iconBg: '#EDE9FE', value: total, label: 'Total Projects', color: '#6C3CE1' },
-            { icon: 'fa-bolt', iconBg: '#DCFCE7', value: active, label: 'Active', color: '#059669' },
+            { icon: 'fa-bolt', iconBg: '#DCFCE7', value: ongoing, label: 'Ongoing', color: '#059669' },
             { icon: 'fa-clock-o', iconBg: '#FEF3C7', value: planning, label: 'Planning', color: '#D97706' },
             { icon: 'fa-check', iconBg: '#DBEAFE', value: completed, label: 'Completed', color: '#2563EB' }
         ];
@@ -487,6 +632,7 @@
         var visibleDays = Math.min(totalDays, Math.max(preferredVisibleDays, Math.min(maxVisibleDays, totalDays)));
         var dayColumnWidth = Math.max(MIN_DAY_COLUMN_WIDTH, Math.floor(dayAreaWidthPx / visibleDays));
         var timelineWidthPx = totalDays * dayColumnWidth;
+        var phaseBarGapPx = Math.max(2, Math.min(6, Math.round(dayColumnWidth * 0.08)));
         var dayHeaders = [];
         for (var day = 1; day <= totalDays; day += 1) {
             var cls = day === today ? 'tlp-day today' : 'tlp-day';
@@ -578,8 +724,18 @@
                 var endDay = item.endDay;
                 var lane = Number(laneByIndex[item.phaseIndex] || 0);
                 var topPx = lanePadding + (lane * (laneHeight + laneGap));
-                var leftPct = ((start - 1) / totalDays) * 100;
                 var widthPct = (duration / totalDays) * 100;
+                var leftPx = ((start - 1) * dayColumnWidth) + (phaseBarGapPx / 2);
+                var widthPx = (duration * dayColumnWidth) - phaseBarGapPx;
+                if (leftPx < 0) {
+                    leftPx = 0;
+                }
+                if (widthPx < 8) {
+                    widthPx = 8;
+                }
+                if ((leftPx + widthPx) > timelineWidthPx) {
+                    widthPx = Math.max(8, timelineWidthPx - leftPx);
+                }
                 var color = normalizeColor(phase.color);
                 var icon = normalizeIcon(phase.icon || 'fa-circle');
                 var phaseDescription = String(phase.description || '').trim();
@@ -599,7 +755,7 @@
                     '<div class="tlp-phase-bar"' +
                         (canEdit ? ' data-action="edit-phase"' : '') +
                         commonDataset +
-                        ' style="top:' + topPx + 'px;left:' + leftPct + '%;width:' + widthPct + '%;height:' + laneHeight + 'px;min-width:8px;background:' + color + ';box-shadow:0 2px 7px ' + color + '55">' +
+                        ' style="top:' + topPx + 'px;left:' + leftPx + 'px;width:' + widthPx + 'px;height:' + laneHeight + 'px;min-width:8px;background:' + color + ';box-shadow:0 2px 7px ' + color + '55">' +
                         '<i class="fa ' + icon + '"></i>' +
                         (showName ? '<span class="tlp-phase-bar-name">' + escapeHtml(phase.name || 'Phase') + '</span>' : '') +
                     '</div>'
@@ -610,6 +766,16 @@
                     rowActions = '<button type="button" class="tlp-phase-remove-btn" data-action="delete-phase" data-phase-id="' + phaseId + '" title="Remove phase"><i class="fa fa-times"></i></button>';
                 }
 
+                var tracking = phase.tracking || {};
+                var trackingStatusKey = safePhaseTrackingStatus(tracking.status);
+                var trackingMeta = PHASE_TRACKING_META[trackingStatusKey];
+                var subtasksTotal = clampNumber(tracking.subtasks_total, 0, 9999, 0);
+                var memberDoneCount = clampNumber(tracking.member_done_count, 0, 9999, 0);
+                var leaderDoneCount = clampNumber(tracking.leader_done_count, 0, 9999, 0);
+                var trackingHint = subtasksTotal > 0
+                    ? ('Member done ' + memberDoneCount + '/' + subtasksTotal + ' | Leader approved ' + leaderDoneCount + '/' + subtasksTotal)
+                    : 'No linked subtasks yet';
+
                 phaseRows.push(
                     '<div class="tlp-phase-row">' +
                         '<div class="tlp-phase-row-main">' +
@@ -617,6 +783,12 @@
                             '<div class="tlp-phase-text">' +
                                 '<span class="tlp-phase-name">' + escapeHtml(phase.name || 'Phase') + '</span>' +
                                 '<span class="tlp-phase-desc">' + escapeHtml(phaseDescription || 'No description') + '</span>' +
+                                '<span class="tlp-phase-desc" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">' +
+                                    '<span style="padding:2px 8px;border-radius:999px;background:' + trackingMeta.bg + ';color:' + trackingMeta.color + ';font-size:11px;font-weight:600;">' +
+                                        escapeHtml(trackingMeta.label) +
+                                    '</span>' +
+                                    '<span style="font-size:11px;color:#6B7280;">' + escapeHtml(trackingHint) + '</span>' +
+                                '</span>' +
                             '</div>' +
                             '<span class="tlp-phase-meta">' +
                                 '<span class="tlp-day-badge" style="background:' + light + ';color:' + color + '">Day ' + start + '-' + endDay + '</span>' +
@@ -950,7 +1122,10 @@
         state.editingPhaseId = phasePayload && phasePayload.phaseId ? Number(phasePayload.phaseId) : null;
         state.phaseDayLimit = getPhaseDayLimitForTask(state.phaseModalTaskId);
 
-        var initialStart = phasePayload && phasePayload.startDay ? Number(phasePayload.startDay) : 1;
+        var phaseGuideItems = getPhaseGuideItemsForTask(state.phaseModalTaskId, state.editingPhaseId);
+        var suggestedStart = getSuggestedStartDay(phaseGuideItems, state.phaseDayLimit);
+
+        var initialStart = phasePayload && phasePayload.startDay ? Number(phasePayload.startDay) : suggestedStart;
         var normalizedStart = clampNumber(initialStart, 1, state.phaseDayLimit, 1);
         var initialDuration = phasePayload && phasePayload.durationDays ? Number(phasePayload.durationDays) : 3;
         var maxDuration = Math.max(1, (state.phaseDayLimit - normalizedStart) + 1);
@@ -980,6 +1155,13 @@
         state.phaseModalTaskId = null;
         state.phaseDayLimit = 365;
         state.editingPhaseId = null;
+        if (el.phaseGuideList) {
+            el.phaseGuideList.innerHTML = '';
+        }
+        if (el.phaseGuideCount) {
+            el.phaseGuideCount.textContent = '0 phases';
+        }
+        setPhaseGuideTip('', '');
         el.phaseModalWrap.classList.remove('show');
     }
 

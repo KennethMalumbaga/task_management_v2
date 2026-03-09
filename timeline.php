@@ -45,7 +45,7 @@ $timelineUserId = (int)($_SESSION['id'] ?? 0);
                 <div class="tlp-filter-row">
                     <div class="tlp-filter-tabs">
                         <button type="button" class="tlp-filter-btn active" data-filter="all">All</button>
-                        <button type="button" class="tlp-filter-btn" data-filter="active">Active</button>
+                        <button type="button" class="tlp-filter-btn" data-filter="ongoing">Ongoing</button>
                         <button type="button" class="tlp-filter-btn" data-filter="planning">Planning</button>
                         <button type="button" class="tlp-filter-btn" data-filter="completed">Completed</button>
                     </div>
@@ -136,6 +136,17 @@ $timelineUserId = (int)($_SESSION['id'] ?? 0);
                     <label class="tlp-form-label">Duration (Days)</label>
                     <input type="number" min="1" max="180" class="tlp-input" id="tlpPhaseDurationInput" value="3">
                 </div>
+            </div>
+            <div class="tlp-form-group tlp-phase-guide">
+                <div class="tlp-phase-guide-head">
+                    <label class="tlp-form-label">Existing Phase Days</label>
+                    <div class="tlp-phase-guide-meta">
+                        <span class="tlp-phase-guide-count" id="tlpPhaseGuideCount">0 phases</span>
+                        <span class="tlp-phase-guide-limit" id="tlpPhaseGuideLimit">Day 1-365</span>
+                    </div>
+                </div>
+                <div class="tlp-phase-guide-list" id="tlpPhaseGuideList"></div>
+                <div class="tlp-phase-guide-tip" id="tlpPhaseGuideTip"></div>
             </div>
             <div class="tlp-form-group">
                 <label class="tlp-form-label">Icon</label>

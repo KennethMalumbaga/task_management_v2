@@ -21,6 +21,8 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
         $parent_id = isset($_POST['parent_id']) ? validate_input($_POST['parent_id']) : null;
         $score = isset($_POST['score']) && is_numeric($_POST['score']) ? (int)$_POST['score'] : null;
 
+        subtask_ensure_schema($pdo);
+
         $subtask = get_subtask_by_id($pdo, $subtask_id);
         if (!$subtask) {
             header("Location: ../my_task.php?error=Subtask not found");
@@ -60,7 +62,7 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] == "employee") || (isset($_SE
              exit();
         }
 
-        update_subtask_status($pdo, $subtask_id, $status, $feedback, $score);
+        update_subtask_status($pdo, $subtask_id, $status, $feedback, $score, (int)$_SESSION['id']);
         
         // Notify the member, but avoid self-notification.
         if ((int)$subtask['member_id'] !== (int)$_SESSION['id']) {
