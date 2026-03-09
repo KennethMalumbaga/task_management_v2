@@ -1027,7 +1027,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     let isManualClockOutInProgress = false;
     let isClockInRequestInProgress = false;
     const idleCheckThresholdMs = 100000; // 100 seconds
-    const idleCheckCountdownStartSeconds = 60;
+    const idleCheckCountdownStartSeconds = 10;
     let idleCheckTimer = null;
     let idleCheckCountdownTimer = null;
     let idleCheckSecondsRemaining = idleCheckCountdownStartSeconds;
@@ -3283,7 +3283,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         <h3 style="margin:0 0 10px; color:#111827;">Are you still there?</h3>
         <p style="color:#6B7280; font-size:14px; margin-bottom:25px; line-height:1.5;">
             You have been idle for 100 seconds on the dashboard.
-            Confirm within <span id="idleCheckCountdown">60</span> seconds or you will be logged out.
+            Confirm within <span id="idleCheckCountdown">10</span> seconds or you will be logged out.
         </p>
         <div style="display:flex; justify-content:center;">
             <button onclick="closeIdleCheckModal()" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>

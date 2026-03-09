@@ -15,10 +15,6 @@
         }
     }
 
-    function toggleSubtaskForm(id) {
-        $("#subtask-form-" + id).toggle();
-    }
-
     function openTaskSubmissionModal(taskId) {
         $("#modal_task_id").val(taskId);
         // Fix: Force flex display for centering, avoid jquery fadeIn default block
@@ -66,6 +62,7 @@
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
+
     });
 
     // Star Rating Functions

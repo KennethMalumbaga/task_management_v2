@@ -604,7 +604,7 @@
         <h3 style="margin:0 0 10px; color:#111827;">Are you still there?</h3>
         <p style="color:#6B7280; font-size:14px; margin-bottom:25px; line-height:1.5;">
             We detected no input activity.
-            Confirm within <span id="sharedIdleCountdown">60</span> seconds or you will be logged out.
+            Confirm within <span id="sharedIdleCountdown">10</span> seconds or you will be logged out.
         </p>
         <div style="display:flex; justify-content:center;">
             <button type="button" id="sharedIdleStayBtn" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>
@@ -622,7 +622,7 @@
 
         window.__taskflowSharedIdleEnabled = true;
 
-        var COUNTDOWN_START_SECONDS = 60;
+        var COUNTDOWN_START_SECONDS = 10;
         var INPUT_STATE_FRESH_MS = 45000;
         var NO_ATTENDANCE_IDLE_THRESHOLD_MS = 60000;
         var DISMISS_SNOOZE_MS = 15000;

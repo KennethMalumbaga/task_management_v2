@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_common.php';
+require_once __DIR__ . '/../model/Subtask.php';
 
 if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
     timeline_api_send(false, 'Invalid request method.');
@@ -48,9 +49,21 @@ try {
         timeline_api_send(false, 'Unable to save timeline task.');
     }
 
+    $phaseSubtaskSync = ['total' => 0, 'synced' => 0];
+    try {
+        $phaseSubtaskSync = subtask_sync_all_phases_for_timeline_task(
+            $pdo,
+            (int)($saved['id'] ?? 0),
+            (int)$auth['id']
+        );
+    } catch (Throwable $syncErr) {
+        $phaseSubtaskSync = ['total' => 0, 'synced' => 0];
+    }
+
     timeline_api_send(true, 'Timeline task saved.', [
         'task' => $saved,
         'project_id' => $projectId,
+        'phase_subtask_sync' => $phaseSubtaskSync,
     ]);
 } catch (Throwable $e) {
     timeline_api_send(false, 'Unable to save timeline task.');

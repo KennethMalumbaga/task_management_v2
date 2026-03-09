@@ -9,7 +9,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     require_once "inc/csrf.php";
 
     $tasks = get_all_tasks_by_user($pdo, $_SESSION['id']);
-    $users = get_all_users($pdo); // For assigning subtasks
+    if (is_array($tasks) && !empty($tasks)) {
+        foreach ($tasks as $taskRowForSync) {
+            $taskIdForSync = (int)($taskRowForSync['id'] ?? 0);
+            if ($taskIdForSync <= 0) {
+                continue;
+            }
+            try {
+                subtask_sync_all_phases_for_project_task($pdo, $taskIdForSync, (int)$_SESSION['id']);
+            } catch (Throwable $syncErr) {
+                // Keep page rendering even if auto-backfill fails for a task.
+            }
+        }
+    }
 
     // Helper: Check if user is leader
     function is_leader($pdo, $task_id, $user_id){
@@ -630,36 +642,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <!-- SUBTASKS SECTION -->
                     <div class="section-label" style="display: flex; justify-content: space-between; align-items: center;">
                         <span>Subtasks</span>
-                        <?php if($isLeader && $task['status'] != 'completed') { ?>
-                            <button class="btn-v2 btn-indigo-light" style="padding: 6px 12px; font-size: 12px;" onclick="toggleSubtaskForm(<?=$task['id']?>)">
-                                <i class="fa fa-plus"></i> Add Subtask
-                            </button>
-                        <?php } ?>
-                    </div>
-
-                    <!-- Create Subtask Form -->
-                    <div class="subtask-create-form" id="subtask-form-<?=$task['id']?>" style="display: none; background: #F9FAFB; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                        <form action="app/add-subtask.php" method="POST">
-                            <?= csrf_field('add_subtask_form') ?>
-                            <input type="hidden" name="task_id" value="<?=$task['id']?>">
-                            <input type="hidden" name="parent_id" value="<?=$task['id']?>"> 
-                            <div class="form-row" style="margin-bottom: 10px;">
-                                <input type="text" name="description" placeholder="Subtask title/description" class="form-input-v2" required style="width: 100%; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px;">
-                            </div>
-                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                                <select name="member_id" class="form-input-v2" required style="padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px;">
-                                    <option value="">Assign to...</option>
-                                    <?php if($assignees != 0) { foreach($assignees as $a) { ?>
-                                        <option value="<?=$a['user_id']?>"><?=$a['full_name']?></option>
-                                    <?php } } ?>
-                                </select>
-                                <input type="date" name="due_date" class="form-input-v2" required style="padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px;">
-                            </div>
-                            <div style="display: flex; gap: 10px;">
-                                <button class="btn-v2 btn-indigo">Create</button>
-                                <button type="button" class="btn-v2 btn-white" onclick="toggleSubtaskForm(<?=$task['id']?>)">Cancel</button>
-                            </div>
-                        </form>
+                        <span style="font-size: 12px; color: #6B7280;">Auto-generated from timeline phases</span>
                     </div>
 
                     <div style="margin-bottom: 24px;">
@@ -679,6 +662,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <div style="font-size: 12px; color: #6B7280;">
                                         <i class="fa fa-user"></i> Assigned to: <?= htmlspecialchars($sub['member_name']) ?>
                                     </div>
+                                    <?php if (!empty($sub['timeline_phase_name'])) { ?>
+                                        <div style="font-size: 12px; color: #6C3CE1;">
+                                            <i class="fa fa-flag"></i> Phase: <?= htmlspecialchars((string)$sub['timeline_phase_name']) ?>
+                                        </div>
+                                    <?php } ?>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <?php if (!empty($sub['score'])) { ?>
