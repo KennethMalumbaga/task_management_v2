@@ -44,7 +44,10 @@
         editingPhaseId: null,
         confirmAction: null,
         selectedIcon: 'fa-circle',
-        selectedColor: '#6C3CE1'
+        selectedColor: '#6C3CE1',
+        phaseBarDrag: null,
+        phaseBarSaveBusy: false,
+        suppressPhaseClickUntil: 0
     };
 
     var el = {
@@ -740,6 +743,9 @@
                 var icon = normalizeIcon(phase.icon || 'fa-circle');
                 var phaseDescription = String(phase.description || '').trim();
                 var showName = widthPct > 7;
+                var resizeHandles = canEdit
+                    ? '<span class="tlp-phase-resize-handle left" aria-hidden="true"></span><span class="tlp-phase-resize-handle right" aria-hidden="true"></span>'
+                    : '';
                 var commonDataset = '' +
                     ' data-project-id="' + Number(project.id) + '"' +
                     ' data-task-id="' + Number(task.id) + '"' +
@@ -756,6 +762,7 @@
                         (canEdit ? ' data-action="edit-phase"' : '') +
                         commonDataset +
                         ' style="top:' + topPx + 'px;left:' + leftPx + 'px;width:' + widthPx + 'px;height:' + laneHeight + 'px;min-width:8px;background:' + color + ';box-shadow:0 2px 7px ' + color + '55">' +
+                        resizeHandles +
                         '<i class="fa ' + icon + '"></i>' +
                         (showName ? '<span class="tlp-phase-bar-name">' + escapeHtml(phase.name || 'Phase') + '</span>' : '') +
                     '</div>'
@@ -820,7 +827,7 @@
                                 '</div>'
                                 : '') +
                         '</div>' +
-                        '<div class="tlp-bar-area" style="height:' + barAreaHeight + 'px;width:' + timelineWidthPx + 'px;min-width:' + timelineWidthPx + 'px">' + gridLines.join('') + phaseBars.join('') + '</div>' +
+                        '<div class="tlp-bar-area" data-day-width="' + dayColumnWidth + '" data-phase-gap="' + phaseBarGapPx + '" data-day-limit="' + totalDays + '" data-timeline-width="' + timelineWidthPx + '" style="height:' + barAreaHeight + 'px;width:' + timelineWidthPx + 'px;min-width:' + timelineWidthPx + 'px">' + gridLines.join('') + phaseBars.join('') + '</div>' +
                     '</div>' +
                     '<div class="tlp-phase-list">' + phaseRows.join('') + '</div>' +
                 '</div>'
@@ -1297,6 +1304,213 @@
         });
     }
 
+    function getPhaseBarDragContext(bar, mode, pointerId, clientX) {
+        if (!bar) {
+            return null;
+        }
+        var barArea = bar.closest('.tlp-bar-area');
+        if (!barArea) {
+            return null;
+        }
+
+        var phaseId = Number(bar.dataset.phaseId || 0);
+        var taskId = Number(bar.dataset.taskId || 0);
+        var startDay = clampNumber(bar.dataset.phaseStart, 1, 365, 1);
+        var durationDays = clampNumber(bar.dataset.phaseDuration, 1, 180, 1);
+        var dayWidth = Number(barArea.dataset.dayWidth || 0);
+        var phaseGap = Number(barArea.dataset.phaseGap || 0);
+        var dayLimit = clampNumber(barArea.dataset.dayLimit, 1, 365, 365);
+        var timelineWidth = Number(barArea.dataset.timelineWidth || 0);
+
+        if (!phaseId || !taskId || dayWidth <= 0 || timelineWidth <= 0) {
+            return null;
+        }
+
+        return {
+            pointerId: pointerId,
+            mode: mode,
+            bar: bar,
+            phaseId: phaseId,
+            taskId: taskId,
+            phaseName: String(bar.dataset.phaseName || 'Phase').trim() || 'Phase',
+            phaseDesc: String(bar.dataset.phaseDesc || ''),
+            phaseIcon: normalizeIcon(bar.dataset.phaseIcon || 'fa-circle'),
+            phaseColor: normalizeColor(bar.dataset.phaseColor || '#6C3CE1'),
+            initialStartDay: startDay,
+            initialDurationDays: durationDays,
+            initialEndDay: startDay + durationDays - 1,
+            draftStartDay: startDay,
+            draftDurationDays: durationDays,
+            dayWidth: dayWidth,
+            phaseGap: Math.max(0, phaseGap),
+            dayLimit: dayLimit,
+            timelineWidth: timelineWidth,
+            startClientX: Number(clientX || 0),
+            changed: false
+        };
+    }
+
+    function applyPhaseBarGeometry(bar, startDay, durationDays) {
+        if (!bar) {
+            return;
+        }
+        var barArea = bar.closest('.tlp-bar-area');
+        if (!barArea) {
+            return;
+        }
+
+        var dayWidth = Number(barArea.dataset.dayWidth || 0);
+        var phaseGap = Math.max(0, Number(barArea.dataset.phaseGap || 0));
+        var timelineWidth = Number(barArea.dataset.timelineWidth || 0);
+        if (dayWidth <= 0 || timelineWidth <= 0) {
+            return;
+        }
+
+        var start = clampNumber(startDay, 1, 365, 1);
+        var duration = clampNumber(durationDays, 1, 365, 1);
+        var leftPx = ((start - 1) * dayWidth) + (phaseGap / 2);
+        var widthPx = (duration * dayWidth) - phaseGap;
+        if (leftPx < 0) {
+            leftPx = 0;
+        }
+        if (widthPx < 8) {
+            widthPx = 8;
+        }
+        if ((leftPx + widthPx) > timelineWidth) {
+            widthPx = Math.max(8, timelineWidth - leftPx);
+        }
+
+        bar.style.left = leftPx + 'px';
+        bar.style.width = widthPx + 'px';
+        bar.dataset.phaseStart = String(start);
+        bar.dataset.phaseDuration = String(duration);
+    }
+
+    function beginPhaseBarDrag(event, bar, mode) {
+        if (!event || !bar || state.phaseBarSaveBusy) {
+            return;
+        }
+        if (bar.dataset.action !== 'edit-phase') {
+            return;
+        }
+
+        var dragContext = getPhaseBarDragContext(bar, mode, event.pointerId, event.clientX);
+        if (!dragContext) {
+            return;
+        }
+
+        state.phaseBarDrag = dragContext;
+        bar.classList.add('dragging');
+        hideTooltip();
+
+        if (typeof bar.setPointerCapture === 'function') {
+            try {
+                bar.setPointerCapture(event.pointerId);
+            } catch (err) {
+                // Pointer capture can fail on some devices; dragging still works via document listeners.
+            }
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    function handlePhaseBarDragMove(event) {
+        var drag = state.phaseBarDrag;
+        if (!drag) {
+            return;
+        }
+        if (event.pointerId !== drag.pointerId) {
+            return;
+        }
+
+        var deltaPx = Number(event.clientX || 0) - drag.startClientX;
+        var deltaDays = Math.round(deltaPx / drag.dayWidth);
+
+        var nextStartDay = drag.initialStartDay;
+        var nextDurationDays = drag.initialDurationDays;
+
+        if (drag.mode === 'move') {
+            var maxStart = Math.max(1, (drag.dayLimit - drag.initialDurationDays) + 1);
+            nextStartDay = clampNumber(drag.initialStartDay + deltaDays, 1, maxStart, drag.initialStartDay);
+        } else if (drag.mode === 'resize-right') {
+            var maxDuration = Math.max(1, (drag.dayLimit - drag.initialStartDay) + 1);
+            nextDurationDays = clampNumber(drag.initialDurationDays + deltaDays, 1, maxDuration, drag.initialDurationDays);
+        } else if (drag.mode === 'resize-left') {
+            var movedStart = clampNumber(drag.initialStartDay + deltaDays, 1, drag.initialEndDay, drag.initialStartDay);
+            nextStartDay = movedStart;
+            nextDurationDays = Math.max(1, (drag.initialEndDay - movedStart) + 1);
+        }
+
+        drag.draftStartDay = nextStartDay;
+        drag.draftDurationDays = nextDurationDays;
+        drag.changed = nextStartDay !== drag.initialStartDay || nextDurationDays !== drag.initialDurationDays;
+
+        applyPhaseBarGeometry(drag.bar, nextStartDay, nextDurationDays);
+        event.preventDefault();
+    }
+
+    function commitPhaseBarDrag(drag) {
+        if (!drag || !drag.changed) {
+            return Promise.resolve();
+        }
+        if (state.phaseBarSaveBusy) {
+            return Promise.resolve();
+        }
+
+        state.phaseBarSaveBusy = true;
+        showAlert('');
+        return apiPost('app/timeline/save_phase.php', {
+            phase_id: drag.phaseId,
+            timeline_task_id: drag.taskId,
+            name: drag.phaseName,
+            description: drag.phaseDesc,
+            icon: drag.phaseIcon,
+            color: drag.phaseColor,
+            start_day: drag.draftStartDay,
+            duration_days: drag.draftDurationDays
+        }).then(function () {
+            return refreshData();
+        }).catch(function (error) {
+            showAlert(error && error.message ? error.message : 'Unable to update phase position.');
+            return refreshData();
+        }).finally(function () {
+            state.phaseBarSaveBusy = false;
+        });
+    }
+
+    function endPhaseBarDrag(event, cancelled) {
+        var drag = state.phaseBarDrag;
+        if (!drag) {
+            return;
+        }
+        if (event && event.pointerId !== undefined && event.pointerId !== drag.pointerId) {
+            return;
+        }
+
+        state.phaseBarDrag = null;
+        if (drag.bar) {
+            drag.bar.classList.remove('dragging');
+            if (event && typeof drag.bar.releasePointerCapture === 'function') {
+                try {
+                    drag.bar.releasePointerCapture(drag.pointerId);
+                } catch (err) {
+                    // Ignore release errors.
+                }
+            }
+        }
+
+        if (cancelled) {
+            applyPhaseBarGeometry(drag.bar, drag.initialStartDay, drag.initialDurationDays);
+            return;
+        }
+
+        if (drag.changed) {
+            state.suppressPhaseClickUntil = Date.now() + 260;
+        }
+        commitPhaseBarDrag(drag);
+    }
+
     function showTooltipFromTarget(event, target) {
         var phaseName = target.dataset.phaseName || '';
         var phaseDesc = target.dataset.phaseDesc || '';
@@ -1395,6 +1609,9 @@
             return;
         }
         if (action === 'edit-phase') {
+            if (Date.now() < Number(state.suppressPhaseClickUntil || 0)) {
+                return;
+            }
             openPhaseFromDataset(target.dataset);
             return;
         }
@@ -1478,6 +1695,36 @@
             }
         });
 
+        document.addEventListener('pointerdown', function (event) {
+            if (event.pointerType === 'mouse' && event.button !== 0) {
+                return;
+            }
+            var bar = event.target.closest('.tlp-phase-bar');
+            if (!bar || bar.dataset.action !== 'edit-phase') {
+                return;
+            }
+
+            var mode = 'move';
+            if (event.target.closest('.tlp-phase-resize-handle.left')) {
+                mode = 'resize-left';
+            } else if (event.target.closest('.tlp-phase-resize-handle.right')) {
+                mode = 'resize-right';
+            }
+            beginPhaseBarDrag(event, bar, mode);
+        });
+
+        document.addEventListener('pointermove', function (event) {
+            handlePhaseBarDragMove(event);
+        });
+
+        document.addEventListener('pointerup', function (event) {
+            endPhaseBarDrag(event, false);
+        });
+
+        document.addEventListener('pointercancel', function (event) {
+            endPhaseBarDrag(event, true);
+        });
+
         document.addEventListener('mouseover', function (event) {
             var bar = event.target.closest('.tlp-phase-bar');
             if (bar) {
@@ -1498,6 +1745,7 @@
 
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
+                endPhaseBarDrag(null, true);
                 closeTaskModal();
                 closePhaseModal();
                 closeConfirmModal();

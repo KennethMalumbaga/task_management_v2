@@ -342,8 +342,7 @@
                 sendAttendanceHeartbeat();
             }, CAPTURE_HEARTBEAT_INTERVAL_MS);
 
-            // Server Session Keep-Alive (every 5 mins) to prevent timeout
-            // since screenshot interval is now 20-30 mins.
+            // Server Session keep-alive (every 5 mins) to prevent timeout.
             keepAliveInterval = setInterval(() => {
                 fetch('check_attendance.php').then(r => console.log('Keep-alive ping:', r.status));
             }, 5 * 60 * 1000);
