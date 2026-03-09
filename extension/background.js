@@ -55,7 +55,12 @@ async function closeOffscreenDocument() {
 
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === 'CAPTURE_SCREENSHOT') {
+    if (request.type === 'REQUEST_MONITOR_STREAM') {
+        requestMonitorStreamId(sender.tab)
+            .then((streamId) => sendResponse({ status: 'success', streamId: streamId }))
+            .catch((err) => sendResponse({ status: 'error', message: err.message }));
+        return true;
+    } else if (request.type === 'CAPTURE_SCREENSHOT') {
         startScreenshotCapture(request.attendanceId, request.userId, request.apiUrl)
             .then(() => sendResponse({ status: 'started' }))
             .catch(err => sendResponse({ status: 'error', message: err.message }));
@@ -109,6 +114,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false;
 });
 
+async function requestMonitorStreamId(tab) {
+    if (!tab || !tab.id) {
+        throw new Error('Unable to identify the monitoring tab');
+    }
+
+    return new Promise((resolve, reject) => {
+        chrome.desktopCapture.chooseDesktopMedia(
+            ['screen'],
+            tab,
+            (streamId) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message || 'Unable to start screen sharing'));
+                    return;
+                }
+
+                if (!streamId) {
+                    reject(new Error('User cancelled screen capture'));
+                    return;
+                }
+
+                resolve(streamId);
+            }
+        );
+    });
+}
+
 async function startScreenshotCapture(attendanceId, userId, url) {
     // Stop any existing capture first
     await stopScreenshotCapture();
@@ -135,7 +166,7 @@ async function startScreenshotCapture(attendanceId, userId, url) {
     return new Promise((resolve, reject) => {
         logDebug('Requesting desktop media...');
         chrome.desktopCapture.chooseDesktopMedia(
-            ['screen', 'window'],
+            ['screen'],
             tabs[0],
             async (streamId) => {
                 if (!streamId) {

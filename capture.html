@@ -100,6 +100,7 @@
         let isHeartbeatRequestInFlight = false;
         let openerMonitorInterval = null;
         let lastHandledIdleCaptureRequestId = null;
+        let extensionBridgeReady = false;
         const hadOpenerAtLaunch = !!window.opener;
         // Robust relative URL
         let apiUrl = new URL('save_screenshot.php', window.location.href).href;
@@ -115,6 +116,8 @@
         const statusDiv = document.getElementById('status');
         const heartbeatStatusDiv = document.getElementById('heartbeatStatus');
         const inputStatusDiv = document.getElementById('inputStatus');
+        const REQUIRED_DISPLAY_SURFACE = 'monitor';
+        const FULL_SCREEN_REQUIRED_ERROR = 'Please share Entire Screen only. Window or tab sharing is not allowed.';
 
         function setHeartbeatStatus(message, level) {
             if (!heartbeatStatusDiv) return;
@@ -128,20 +131,181 @@
             inputStatusDiv.innerText = message;
         }
 
+        function getDisplaySurfaceFromTrack(track) {
+            if (!track || typeof track.getSettings !== 'function') return '';
+            try {
+                const settings = track.getSettings() || {};
+                if (!settings.displaySurface) return '';
+                return String(settings.displaySurface).toLowerCase();
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function enforceEntireScreenTrack(track) {
+            if (!track) {
+                throw new Error('Screen sharing track is unavailable.');
+            }
+
+            const displaySurface = getDisplaySurfaceFromTrack(track);
+            if (displaySurface && displaySurface !== REQUIRED_DISPLAY_SURFACE) {
+                try {
+                    track.stop();
+                } catch (e) {
+                    // no-op
+                }
+                throw new Error(FULL_SCREEN_REQUIRED_ERROR);
+            }
+        }
+
+        function isEntireScreenRequirementError(err) {
+            return !!(err && typeof err.message === 'string' && err.message.indexOf(FULL_SCREEN_REQUIRED_ERROR) !== -1);
+        }
+
+        window.addEventListener('message', function (event) {
+            if (event.origin !== window.location.origin) return;
+            if (!event.data || event.data.type !== 'SCREENSHOT_EXTENSION_BRIDGE_READY') return;
+            extensionBridgeReady = true;
+        });
+
+        function waitForExtensionBridgeReady() {
+            if (extensionBridgeReady) {
+                return Promise.resolve();
+            }
+
+            return new Promise((resolve, reject) => {
+                let settled = false;
+                let timeoutId = null;
+
+                function cleanup() {
+                    window.removeEventListener('message', onMessage);
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
+                }
+
+                function finish(error) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    resolve();
+                }
+
+                function onMessage(event) {
+                    if (event.origin !== window.location.origin) return;
+                    if (!event.data || event.data.type !== 'SCREENSHOT_EXTENSION_BRIDGE_READY') return;
+                    extensionBridgeReady = true;
+                    finish();
+                }
+
+                window.addEventListener('message', onMessage);
+                timeoutId = setTimeout(() => {
+                    if (extensionBridgeReady || window.screenshotExtensionAvailable) {
+                        finish();
+                        return;
+                    }
+                    finish(new Error('Screen capture extension is not available'));
+                }, 2500);
+            });
+        }
+
+        function requestMonitorStreamId() {
+            return new Promise((resolve, reject) => {
+                const requestId = 'monitor_stream_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+                let settled = false;
+                let timeoutId = null;
+
+                function cleanup() {
+                    window.removeEventListener('message', onMessage);
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
+                }
+
+                function finish(error, streamId) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    resolve(streamId);
+                }
+
+                function onMessage(event) {
+                    if (event.origin !== window.location.origin) return;
+                    if (!event.data || event.data.type !== 'MONITOR_STREAM_RESPONSE') return;
+                    if (event.data.requestId !== requestId) return;
+
+                    if (event.data.status === 'success' && event.data.streamId) {
+                        finish(null, String(event.data.streamId));
+                        return;
+                    }
+
+                    finish(new Error(event.data.message || 'Unable to start screen sharing'));
+                }
+
+                window.addEventListener('message', onMessage);
+                timeoutId = setTimeout(() => {
+                    finish(new Error('Screen capture extension did not respond'));
+                }, 5000);
+
+                try {
+                    window.postMessage({
+                        type: 'REQUEST_MONITOR_STREAM',
+                        requestId: requestId
+                    }, window.location.origin);
+                } catch (err) {
+                    finish(err);
+                }
+            });
+        }
+
+        function getDesktopStreamFromExtension(streamId) {
+            const constraints = {
+                audio: false,
+                video: {
+                    mandatory: {
+                        chromeMediaSource: 'desktop',
+                        chromeMediaSourceId: streamId
+                    }
+                }
+            };
+
+            if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+                return navigator.mediaDevices.getUserMedia(constraints);
+            }
+
+            if (typeof navigator.webkitGetUserMedia === 'function') {
+                return new Promise((resolve, reject) => {
+                    navigator.webkitGetUserMedia(constraints, resolve, reject);
+                });
+            }
+
+            return Promise.reject(new Error('This browser does not support desktop capture'));
+        }
+
         async function startCapture() {
             try {
-                statusDiv.innerText = "Please select screen to share...";
-                // Direct standard API call - robust and simple
-                const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "always", displaySurface: "monitor" },
-                    audio: false
-                });
+                statusDiv.innerText = "Please select the entire screen to share...";
+                await waitForExtensionBridgeReady();
+                const streamId = await requestMonitorStreamId();
+                const stream = await getDesktopStreamFromExtension(streamId);
+                const track = stream.getVideoTracks()[0];
+                enforceEntireScreenTrack(track);
                 currentStream = stream;
 
                 statusDiv.innerText = "Monitoring active";
 
                 // Handle stream stop (user clicks 'Stop Sharing')
-                stream.getVideoTracks()[0].onended = () => {
+                track.onended = () => {
                     stopCaptureAndClose('Screen sharing stopped.', { reason: 'stream_ended', clockOut: true });
                 };
 
@@ -507,6 +671,7 @@
             isCaptureInProgress = true;
             try {
                 const track = stream.getVideoTracks()[0];
+                enforceEntireScreenTrack(track);
                 const imageCapture = new ImageCapture(track);
                 const bitmap = await imageCapture.grabFrame();
 
@@ -559,6 +724,13 @@
 
             } catch (err) {
                 console.error("Capture failed:", err);
+                if (isEntireScreenRequirementError(err)) {
+                    stopCaptureAndClose('Entire screen sharing is required. Logging out...', {
+                        reason: 'invalid_display_surface',
+                        clockOut: true
+                    });
+                    return false;
+                }
                 statusDiv.innerText = "Capture failed: " + err.message;
                 statusDiv.className = "error";
                 return false;
