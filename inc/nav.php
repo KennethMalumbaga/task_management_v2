@@ -139,6 +139,12 @@ if (isset($_SESSION['role'], $_SESSION['id']) && $_SESSION['role'] === 'admin' &
 					</a>
 				</li>
 				<li>
+					<a href="reports.php">
+						<i class="fa fa-bar-chart" aria-hidden="true"></i>
+						<span>Reports</span>
+					</a>
+				</li>
+				<li>
 					<a href="logout.php" class="js-logout-link">
 						<i class="fa fa-sign-out" aria-hidden="true"></i>
 						<span>Logout</span>
