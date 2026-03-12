@@ -168,6 +168,10 @@ $endTs = $endDate . ' 23:59:59';
 
 $groupId = isset($_GET['group_id']) ? (int)$_GET['group_id'] : 0;
 $userId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
+$dtrUserId = isset($_GET['dtr_user_id']) ? (int)$_GET['dtr_user_id'] : 0;
+if ($dtrUserId <= 0) {
+    $dtrUserId = $userId;
+}
 
 $groups = [];
 if (tenant_table_exists($pdo, 'groups')) {
@@ -377,20 +381,21 @@ $dtrMonthLabel = report_format_range($startDate, $endDate);
 if ($startDate && $endDate && substr($startDate, 0, 7) === substr($endDate, 0, 7)) {
     $dtrMonthLabel = date('F Y', strtotime($startDate));
 }
-if ($userId > 0) {
+if ($dtrUserId > 0) {
     foreach ($allUsers as $u) {
-        if ((int)$u['id'] === $userId) {
+        if ((int)$u['id'] === $dtrUserId) {
             $dtrUser = $u;
             break;
         }
     }
 }
 
-if ($dtrUser && !in_array($userId, $reportUserIds, true)) {
+if ($dtrUser && !in_array($dtrUserId, $reportUserIds, true)) {
     $dtrUser = null;
+    $dtrUserId = 0;
 }
 
-if ($userId > 0 && $dtrUser) {
+if ($dtrUserId > 0 && $dtrUser) {
     $dtrHasSegmented = tenant_column_exists($pdo, 'attendance', 'morning_in')
         && tenant_column_exists($pdo, 'attendance', 'morning_out')
         && tenant_column_exists($pdo, 'attendance', 'afternoon_in')
@@ -399,7 +404,7 @@ if ($userId > 0 && $dtrUser) {
         && tenant_column_exists($pdo, 'attendance', 'overtime_out');
 
     $dtrAdjustments = $adjustmentsReady
-        ? attendance_adjustment_get_daily_map($pdo, $userId, $startDate, $endDate)
+        ? attendance_adjustment_get_daily_map($pdo, $dtrUserId, $startDate, $endDate)
         : [];
 
     $fields = $dtrHasSegmented
@@ -407,7 +412,7 @@ if ($userId > 0 && $dtrUser) {
         : "att_date, time_in, time_out, total_hours";
 
     $sql = "SELECT $fields FROM attendance WHERE user_id = ? AND att_date BETWEEN ? AND ?";
-    $params = [$userId, $startDate, $endDate];
+    $params = [$dtrUserId, $startDate, $endDate];
     $scope = tenant_get_scope($pdo, 'attendance', '', 'AND', 'organization_id');
     $sql .= $scope['sql'];
     $params = array_merge($params, $scope['params']);
@@ -523,9 +528,9 @@ if ($userId > 0 && $dtrUser) {
 
 $selectedMetrics = null;
 $selectedVisual = null;
-if ($userId > 0 && $dtrUser) {
-    $selectedMetrics = $reportRowByUserId[$userId] ?? null;
-    $selectedVisual = $userVisuals[$userId] ?? null;
+if ($dtrUserId > 0 && $dtrUser) {
+    $selectedMetrics = $reportRowByUserId[$dtrUserId] ?? null;
+    $selectedVisual = $userVisuals[$dtrUserId] ?? null;
 }
 $queryBase = [
     'start' => $startDate,
@@ -541,12 +546,12 @@ if ($userId > 0) {
     $queryBase['user_id'] = $userId;
 }
 $queryBaseNoUser = $queryBase;
-unset($queryBaseNoUser['user_id']);
+unset($queryBaseNoUser['dtr_user_id']);
 $overviewLink = 'reports.php?' . http_build_query($queryBaseNoUser) . '#dtrSection';
 
 $prevMonthLink = null;
 $nextMonthLink = null;
-if ($userId > 0 && $dtrUser) {
+if ($dtrUserId > 0 && $dtrUser) {
     $monthSource = $monthInput ?: ($startDate ? substr($startDate, 0, 7) : null);
     $monthDate = $monthSource ? DateTime::createFromFormat('Y-m', $monthSource) : null;
     if ($monthDate instanceof DateTime) {
@@ -560,14 +565,16 @@ if ($userId > 0 && $dtrUser) {
         $nextQuery['month'] = $nextMonth->format('Y-m');
         $nextQuery['start'] = $nextMonth->format('Y-m-01');
         $nextQuery['end'] = $nextMonth->format('Y-m-t');
+        $prevQuery['dtr_user_id'] = $dtrUserId;
+        $nextQuery['dtr_user_id'] = $dtrUserId;
         $prevMonthLink = 'reports.php?' . http_build_query($prevQuery) . '#dtrSection';
         $nextMonthLink = 'reports.php?' . http_build_query($nextQuery) . '#dtrSection';
     }
 }
 
 $exportType = isset($_GET['export']) ? (string)$_GET['export'] : '';
-if ($exportType === 'dtr_csv' && $userId > 0 && !empty($dtrRows)) {
-    $filename = "dtr_" . $userId . "_" . $startDate . "_to_" . $endDate . ".csv";
+if ($exportType === 'dtr_csv' && $dtrUserId > 0 && !empty($dtrRows)) {
+    $filename = "dtr_" . $dtrUserId . "_" . $startDate . "_to_" . $endDate . ".csv";
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
 
@@ -827,12 +834,12 @@ if ($exportType === 'csv') {
 
 $exportLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'csv']));
 $dtrExportLink = null;
-if ($userId > 0 && $dtrUser) {
-    $dtrExportLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_csv', 'user_id' => $userId]));
+if ($dtrUserId > 0 && $dtrUser) {
+    $dtrExportLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_csv', 'dtr_user_id' => $dtrUserId]));
 }
 $dtrPdfLink = null;
-if ($userId > 0 && $dtrUser) {
-    $dtrPdfLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_pdf', 'user_id' => $userId]));
+if ($dtrUserId > 0 && $dtrUser) {
+    $dtrPdfLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_pdf', 'dtr_user_id' => $dtrUserId]));
 }
 $dtrCsrfToken = csrf_token('attendance_deduction_form');
 
@@ -1059,7 +1066,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                 }
                                 $profileLink = $uid > 0 ? ("user_details.php?id=" . urlencode((string)$uid)) : '';
                                 $viewDtrLink = $uid > 0
-                                    ? ('reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['user_id' => $uid])) . '#dtrSection')
+                                    ? ('reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $uid])) . '#dtrSection')
                                     : '#';
                                 $userTitle = 'Captures: ' . number_format($row['captures']) . ' | Needs rating: ' . number_format($row['unrated_completed']);
                             ?>
@@ -1125,7 +1132,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                         <div class="section-title">Daily Time Record</div>
                         <div class="section-sub">Compare all users at a glance, or drill into individual records to view and adjust.</div>
                     </div>
-                    <div class="dtr-header-actions" <?= ($userId > 0 && $dtrUser) ? '' : 'style="display:none;"' ?>>
+                    <div class="dtr-header-actions" <?= ($dtrUserId > 0 && $dtrUser) ? '' : 'style="display:none;"' ?>>
                         <?php if ($dtrExportLink) { ?>
                             <a class="btn btn-outline" href="<?= htmlspecialchars($dtrExportLink, ENT_QUOTES) ?>">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1146,7 +1153,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                 </div>
 
                 <div class="user-tabs" id="userTabs">
-                    <a class="user-tab <?= $userId > 0 ? '' : 'active' ?>" href="<?= htmlspecialchars($overviewLink, ENT_QUOTES) ?>" id="tab-overview">
+                    <a class="user-tab <?= $dtrUserId > 0 ? '' : 'active' ?>" href="<?= htmlspecialchars($overviewLink, ENT_QUOTES) ?>" id="tab-overview">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                         Overview
                     </a>
@@ -1160,16 +1167,16 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                             $tabName = 'User #' . $tabUid;
                         }
                         $tabVisual = $userVisuals[$tabUid] ?? ['initials' => report_get_initials($tabName), 'color' => report_get_color_for_index($tabIndex)];
-                        $tabLink = 'reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['user_id' => $tabUid])) . '#dtrSection';
+                        $tabLink = 'reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $tabUid])) . '#dtrSection';
                     ?>
-                        <a class="user-tab <?= $tabUid === $userId ? 'active' : '' ?>" href="<?= htmlspecialchars($tabLink, ENT_QUOTES) ?>" id="tab-<?= $tabUid ?>">
+                        <a class="user-tab <?= $tabUid === $dtrUserId ? 'active' : '' ?>" href="<?= htmlspecialchars($tabLink, ENT_QUOTES) ?>" id="tab-<?= $tabUid ?>">
                             <div class="tab-avatar" style="background:<?= htmlspecialchars($tabVisual['color'], ENT_QUOTES) ?>"><?= htmlspecialchars($tabVisual['initials']) ?></div>
                             <?= htmlspecialchars($tabName) ?>
                         </a>
                     <?php } ?>
                 </div>
 
-                <?php if ($userId > 0 && $dtrUser) {
+                <?php if ($dtrUserId > 0 && $dtrUser) {
                     $selectedName = trim((string)($dtrUser['full_name'] ?? 'Employee'));
                     if ($selectedName === '') {
                         $selectedName = 'Employee';
@@ -1290,7 +1297,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                     <?php foreach ($dtrRows as $row) {
                                         $dateKey = $row['date'];
                                         $safeDateKey = str_replace('-', '', $dateKey);
-                                        $formId = 'dtr-form-' . (int)$userId . '-' . $safeDateKey;
+                                        $formId = 'dtr-form-' . (int)$dtrUserId . '-' . $safeDateKey;
                                         $deductedValue = number_format((float)$row['deducted'], 2);
                                         $netValue = number_format((float)$row['net_hours'], 2);
                                         $rawValue = number_format((float)$row['raw_hours'], 2);
@@ -1352,9 +1359,9 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                         <td>
                                             <form id="<?= $formId ?>" method="POST" action="app/update-attendance-deduction.php">
                                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dtrCsrfToken, ENT_QUOTES) ?>">
-                                                <input type="hidden" name="user_id" value="<?= (int)$userId ?>">
+                                                <input type="hidden" name="user_id" value="<?= (int)$dtrUserId ?>">
                                                 <input type="hidden" name="att_date" value="<?= htmlspecialchars($dateKey) ?>">
-                                                <input type="hidden" name="redirect" value="<?= htmlspecialchars(basename($_SERVER['PHP_SELF']) . '?' . http_build_query(array_merge($queryBase, ['user_id' => $userId])), ENT_QUOTES) ?>">
+                                                <input type="hidden" name="redirect" value="<?= htmlspecialchars(basename($_SERVER['PHP_SELF']) . '?' . http_build_query(array_merge($queryBase, ['dtr_user_id' => $dtrUserId])), ENT_QUOTES) ?>">
                                             </form>
                                             <button type="submit" class="save-row-btn" form="<?= $formId ?>">Save</button>
                                         </td>
@@ -1417,7 +1424,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                         }
                                         $email = trim((string)($user['username'] ?? ''));
                                         $visual = $userVisuals[$uid] ?? ['initials' => report_get_initials($name), 'color' => report_get_color_for_index(0)];
-                                        $cardLink = 'reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['user_id' => $uid])) . '#dtrSection';
+                                        $cardLink = 'reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $uid])) . '#dtrSection';
                                         $deductedClass = $row['deducted'] > 0 ? 'red' : '';
                                     ?>
                                         <a class="user-summary-card" href="<?= htmlspecialchars($cardLink, ENT_QUOTES) ?>">
