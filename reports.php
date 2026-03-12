@@ -15,6 +15,37 @@ require_once "inc/csrf.php";
 
 date_default_timezone_set('Asia/Manila');
 
+$workspaceName = trim((string)($_SESSION['organization_name'] ?? 'Workspace'));
+$workspaceAddress = '';
+$workspaceOrgId = tenant_get_current_org_id();
+if ($workspaceOrgId && tenant_table_exists($pdo, 'organizations')) {
+    $nameColumn = tenant_column_exists($pdo, 'organizations', 'name') ? 'name' : null;
+    $addressColumn = null;
+    foreach (['address', 'company_address', 'office_address', 'location', 'billing_address'] as $col) {
+        if (tenant_column_exists($pdo, 'organizations', $col)) {
+            $addressColumn = $col;
+            break;
+        }
+    }
+    $columns = array_values(array_filter([$nameColumn, $addressColumn]));
+    if (!empty($columns)) {
+        $stmtOrg = $pdo->prepare("SELECT " . implode(', ', $columns) . " FROM organizations WHERE id = ? LIMIT 1");
+        $stmtOrg->execute([(int)$workspaceOrgId]);
+        $orgRow = $stmtOrg->fetch(PDO::FETCH_ASSOC);
+        if ($orgRow) {
+            if ($nameColumn && !empty($orgRow[$nameColumn])) {
+                $workspaceName = trim((string)$orgRow[$nameColumn]);
+            }
+            if ($addressColumn && !empty($orgRow[$addressColumn])) {
+                $workspaceAddress = trim((string)$orgRow[$addressColumn]);
+            }
+        }
+    }
+}
+if ($workspaceName === '') {
+    $workspaceName = 'Workspace';
+}
+
 function report_sanitize_date($raw)
 {
     $raw = trim((string)$raw);
@@ -579,57 +610,122 @@ if ($exportType === 'dtr_csv' && $dtrUserId > 0 && !empty($dtrRows)) {
     header('Content-Disposition: attachment; filename="' . $filename . '"');
 
     $out = fopen('php://output', 'w');
-    if ($dtrHasSegmented) {
-        fputcsv($out, [
-            'Date',
-            'Morning In',
-            'Morning Out',
-            'Afternoon In',
-            'Afternoon Out',
-            'Overtime In',
-            'Overtime Out',
-            'Daily Total',
-            'Deducted',
-            'Net Total',
-            'Reason',
-        ]);
-        foreach ($dtrRows as $row) {
-            fputcsv($out, [
-                $row['date'],
-                $row['morning_in'],
-                $row['morning_out'],
-                $row['afternoon_in'],
-                $row['afternoon_out'],
-                $row['overtime_in'],
-                $row['overtime_out'],
-                number_format((float)$row['raw_hours'], 2),
-                number_format((float)$row['deducted'], 2),
-                number_format((float)$row['net_hours'], 2),
-                $row['reason'],
-            ]);
+    $csvWidth = 10;
+    $emit = function (array $cells) use ($out, $csvWidth) {
+        if (count($cells) < $csvWidth) {
+            $cells = array_pad($cells, $csvWidth, '');
         }
-    } else {
-        fputcsv($out, [
-            'Date',
-            'Time In',
-            'Time Out',
-            'Daily Total',
-            'Deducted',
-            'Net Total',
-            'Reason',
-        ]);
-        foreach ($dtrRows as $row) {
-            fputcsv($out, [
-                $row['date'],
-                $row['time_in'],
-                $row['time_out'],
-                number_format((float)$row['raw_hours'], 2),
-                number_format((float)$row['deducted'], 2),
-                number_format((float)$row['net_hours'], 2),
-                $row['reason'],
-            ]);
+        fputcsv($out, $cells);
+    };
+    $formatRatio = function ($value, $precision = 2) {
+        if ($value === null || $value === '') {
+            return '';
+        }
+        $num = number_format((float)$value, $precision, '.', '');
+        $num = rtrim(rtrim($num, '0'), '.');
+        return $num === '' ? '0' : $num;
+    };
+    $pickTime = function (array $times, $mode) {
+        $valid = [];
+        foreach ($times as $time) {
+            $time = trim((string)$time);
+            if ($time === '' || $time === '00:00:00') {
+                continue;
+            }
+            $valid[] = $time;
+        }
+        if (!$valid) {
+            return '';
+        }
+        $sorted = $valid;
+        usort($sorted, function ($a, $b) use ($mode) {
+            $cmp = strtotime($a) <=> strtotime($b);
+            return $mode === 'latest' ? -$cmp : $cmp;
+        });
+        return $sorted[0] ?? '';
+    };
+    $formatTime = function ($time) {
+        $time = trim((string)$time);
+        if ($time === '' || $time === '00:00:00') {
+            return '';
+        }
+        $ts = strtotime($time);
+        if ($ts === false) {
+            return '';
+        }
+        return date('h:i A', $ts);
+    };
+
+    $employeeName = trim((string)($dtrUser['full_name'] ?? 'Employee'));
+    if ($employeeName === '') {
+        $employeeName = 'Employee';
+    }
+    $employeeEmail = trim((string)($dtrUser['username'] ?? ''));
+    $periodLabel = $dtrMonthLabel;
+    $activeDays = 0;
+    foreach ($dtrRows as $row) {
+        if ((float)$row['raw_hours'] > 0) {
+            $activeDays++;
         }
     }
+
+    $emit([strtoupper($workspaceName)]);
+    $emit(['DAILY TIME RECORD - ' . strtoupper($periodLabel)]);
+    $emit([]);
+    $emit([]);
+    $emit(['', 'EMPLOYEE', '', '', 'EMAIL', '', '', 'PERIOD']);
+    $emit(['', $employeeName, '', '', $employeeEmail, '', '', $periodLabel]);
+    $emit([]);
+    $emit([]);
+    $emit([]);
+    $emit(['', 'ACTIVE DAYS', '', 'GROSS TOTAL', '', 'DEDUCTED', '', 'NET TOTAL']);
+    $emit(['', $activeDays, '', $formatRatio($dtrTotals['raw'], 2), '', $formatRatio($dtrTotals['deducted'], 2), '', $formatRatio($dtrTotals['net'], 2)]);
+    $emit([]);
+    $emit([]);
+    $emit([]);
+    $emit(['', 'DATE', 'DAY', 'TIME IN', 'TIME OUT', 'GROSS HRS', 'DEDUCTED', 'NET HRS', 'STATUS']);
+
+    foreach ($dtrRows as $row) {
+        $dateKey = $row['date'];
+        $dateLabel = date('M j', strtotime($dateKey));
+        $dayLabel = date('D', strtotime($dateKey));
+        if ($dtrHasSegmented) {
+            $timeInRaw = $pickTime([$row['morning_in'], $row['afternoon_in'], $row['overtime_in']], 'earliest');
+            $timeOutRaw = $pickTime([$row['morning_out'], $row['afternoon_out'], $row['overtime_out']], 'latest');
+        } else {
+            $timeInRaw = $row['time_in'];
+            $timeOutRaw = $row['time_out'];
+        }
+        $timeIn = $formatTime($timeInRaw);
+        $timeOut = $formatTime($timeOutRaw);
+        if ($timeIn === '') {
+            $timeIn = '-';
+        }
+        if ($timeOut === '') {
+            $timeOut = '-';
+        }
+        $isWeekend = date('N', strtotime($dateKey)) >= 6;
+        $status = $isWeekend ? 'Weekend' : ((float)$row['raw_hours'] > 0 ? 'Present' : 'Absent');
+        $emit([
+            '',
+            $dateLabel,
+            $dayLabel,
+            $timeIn,
+            $timeOut,
+            $formatRatio($row['raw_hours'], 2),
+            $formatRatio($row['deducted'], 2),
+            $formatRatio($row['net_hours'], 2),
+            $status,
+        ]);
+    }
+
+    $emit(['', 'TOTALS', '', '', '', $formatRatio($dtrTotals['raw'], 2), $formatRatio($dtrTotals['deducted'], 2), $formatRatio($dtrTotals['net'], 2), $activeDays]);
+    $emit(['', '', '', '', '', 'Gross', 'Deducted', 'Net Hrs', 'Active Days']);
+    $emit([]);
+    $emit([]);
+    $emit(['', '', '', '', '', '', $employeeName]);
+    $emit(['', 'Prepared by', '', '', '', '', 'Employee Signature']);
+
     fclose($out);
     exit;
 }
@@ -670,8 +766,12 @@ if ($exportType === 'dtr_pdf') {
     <body class="reports-page print-dtr-only">
         <div class="report-dtr-card">
             <div class="dtr-form-header">
-                <div class="dtr-company-name dtr-editable" contenteditable="true" data-placeholder="Company Name">Company Name</div>
-                <div class="dtr-company-address dtr-editable" contenteditable="true" data-placeholder="Company Address">Company Address</div>
+                <div class="dtr-company-name dtr-editable" contenteditable="true" data-placeholder="Company Name"><?= htmlspecialchars($workspaceName) ?></div>
+                <?php if ($workspaceAddress !== '') { ?>
+                    <div class="dtr-company-address dtr-editable" contenteditable="true" data-placeholder="Company Address"><?= htmlspecialchars($workspaceAddress) ?></div>
+                <?php } else { ?>
+                    <div class="dtr-company-address dtr-editable dtr-address-empty" contenteditable="true" data-placeholder="Company Address">&nbsp;</div>
+                <?php } ?>
                 <div class="dtr-form-title">DAILY TIME RECORD</div>
                 <div class="dtr-meta-grid">
                     <div class="dtr-meta-row">
@@ -789,45 +889,127 @@ if ($exportType === 'csv') {
     header('Content-Disposition: attachment; filename="' . $filename . '"');
 
     $out = fopen('php://output', 'w');
-    fputcsv($out, [
-        'User',
-        'Tasks Completed',
-        'Tasks Pending',
-        'Tasks In Progress',
-        'Tasks Overdue',
-        'On-Time %',
-        'Avg Task Rating',
-        'Avg Assignee Rating',
-        'Avg Subtask Score',
-        'Net Hours',
-        'Deducted Hours',
-        'Days Worked',
-        'Captures',
-        'Captures per Hour',
-        'Unrated Completed'
-    ]);
+    $csvWidth = 16;
+    $emit = function (array $cells) use ($out, $csvWidth) {
+        if (count($cells) < $csvWidth) {
+            $cells = array_pad($cells, $csvWidth, '');
+        }
+        fputcsv($out, $cells);
+    };
+    $formatNumber = function ($value, $precision = 2) {
+        if ($value === null || $value === '') {
+            return '';
+        }
+        $num = number_format((float)$value, $precision, '.', '');
+        $num = rtrim(rtrim($num, '0'), '.');
+        return $num === '' ? '0' : $num;
+    };
+    $formatOnTime = function ($percent, $precision = 3) use ($formatNumber) {
+        if ($percent === null || $percent === '') {
+            return '';
+        }
+        return $formatNumber(((float)$percent) / 100, $precision);
+    };
 
+    $rangeLabel = report_format_range($startDate, $endDate);
+    if ($startDate && $endDate && substr($startDate, 0, 7) === substr($endDate, 0, 7)) {
+        $rangeLabel = date('M', strtotime($startDate)) . ' ' . date('j', strtotime($startDate)) . '-' . date('j', strtotime($endDate)) . ', ' . date('Y', strtotime($startDate));
+    }
+    $emit([strtoupper($workspaceName)]);
+    $emit(['PER-USER BREAKDOWN - WEEKLY PERFORMANCE & UTILIZATION - ' . strtoupper($rangeLabel) . ' - ' . strtoupper((string)date_default_timezone_get())]);
+    $emit([]);
+    $emit([]);
+    $emit(['', 'TOTAL USERS', '', 'TOTAL COMPLETED', '', 'TOTAL OVERDUE', '', 'TOTAL PENDING', '', 'TOTAL NET HRS', '', 'TOTAL DEDUCTED HRS', '', 'AVG TASK RATING']);
+    $emit([
+        '',
+        count($reportRows),
+        '',
+        $overall['completed'],
+        '',
+        $overall['overdue'],
+        '',
+        $overall['pending'],
+        '',
+        $formatNumber($overall['hours'], 2),
+        '',
+        $formatNumber($overall['deducted'], 2),
+        '',
+        $formatNumber($overallTaskRatingAvg, 2),
+    ]);
+    $emit([]);
+    $emit([]);
+    $emit([]);
+    $emit(['', 'USER PERFORMANCE DETAILS']);
+    $emit(['', 'Use Excel filters (Data -> Filter) to sort and filter by any column']);
+    $emit([]);
+    $emit(['', 'IDENTITY', '', '', 'TASK METRICS', '', '', '', 'QUALITY SCORES', '', '', '', 'TIME & HOURS']);
+    $emit([]);
+    $emit(['', '#', 'NAME', 'EMAIL', 'COMPLETED', 'PENDING', 'IN PROGRESS', 'OVERDUE', 'ON-TIME %', 'AVG RATING', 'ASSIGNEE RTG', 'SUBTASK SCORE', 'NET HOURS', 'DEDUCTED', 'CAP / HR']);
+
+    $overallOnTimeFraction = $overall['completed'] > 0 ? ($overall['completed_on_time'] / $overall['completed']) : null;
+
+    $rowIndex = 1;
     foreach ($reportRows as $row) {
         $user = $row['user'];
         $name = trim((string)($user['full_name'] ?? ''));
-        fputcsv($out, [
+        if ($name === '') {
+            $name = 'User #' . (int)($user['id'] ?? 0);
+        }
+        $email = trim((string)($user['username'] ?? ''));
+        $emit([
+            '',
+            $rowIndex,
             $name,
+            $email,
             $row['completed'],
             $row['pending'],
             $row['in_progress'],
             $row['overdue'],
-            $row['on_time_rate'] === null ? '' : $row['on_time_rate'] . '%',
-            $row['avg_task_rating'] === null ? '' : number_format((float)$row['avg_task_rating'], 1),
-            $row['avg_assignee_rating'] === null ? '' : number_format((float)$row['avg_assignee_rating'], 1),
-            $row['avg_subtask_score'] === null ? '' : number_format((float)$row['avg_subtask_score'], 1),
-            number_format((float)$row['hours'], 2),
-            number_format((float)$row['deducted'], 2),
-            $row['days'],
-            $row['captures'],
-            $row['capture_rate'] === null ? '' : number_format((float)$row['capture_rate'], 2),
-            $row['unrated_completed'],
+            $formatOnTime($row['on_time_rate'], 3),
+            $row['avg_task_rating'] === null ? '-' : $formatNumber($row['avg_task_rating'], 1),
+            $row['avg_assignee_rating'] === null ? '-' : $formatNumber($row['avg_assignee_rating'], 1),
+            $row['avg_subtask_score'] === null ? '-' : $formatNumber($row['avg_subtask_score'], 1),
+            $formatNumber($row['hours'], 2),
+            $formatNumber($row['deducted'], 2),
+            $row['capture_rate'] === null ? '' : $formatNumber($row['capture_rate'], 2),
         ]);
+        $rowIndex++;
     }
+
+    $emit([
+        '',
+        'TOTALS - ALL USERS',
+        '',
+        '',
+        $overall['completed'],
+        $overall['pending'],
+        $overall['in_progress'],
+        $overall['overdue'],
+        $formatNumber($overallOnTimeFraction, 3),
+        $formatNumber($overallTaskRatingAvg, 2),
+        $formatNumber($overallAssigneeRatingAvg, 2),
+        $formatNumber($overallSubtaskScoreAvg, 1),
+        $formatNumber($overall['hours'], 2),
+        $formatNumber($overall['deducted'], 2),
+        $formatNumber($overallCaptureRate, 3),
+    ]);
+    $emit([
+        '',
+        '',
+        '',
+        '',
+        'Completed',
+        'Pending',
+        'In Progress',
+        'Overdue',
+        'Avg On-Time',
+        'Avg Rating',
+        'Avg Asgn Rtg',
+        'Avg Subtask',
+        'Total Net Hrs',
+        'Total Deducted',
+        'Avg Cap/Hr',
+    ]);
     fclose($out);
     exit;
 }
@@ -1236,8 +1418,12 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                         </div>
 
                         <div class="dtr-form-header">
-                            <div class="dtr-company-name dtr-editable" contenteditable="true" data-placeholder="Company Name">Company Name</div>
-                            <div class="dtr-company-address dtr-editable" contenteditable="true" data-placeholder="Company Address">Company Address</div>
+                            <div class="dtr-company-name dtr-editable" contenteditable="true" data-placeholder="Company Name"><?= htmlspecialchars($workspaceName) ?></div>
+                            <?php if ($workspaceAddress !== '') { ?>
+                                <div class="dtr-company-address dtr-editable" contenteditable="true" data-placeholder="Company Address"><?= htmlspecialchars($workspaceAddress) ?></div>
+                            <?php } else { ?>
+                                <div class="dtr-company-address dtr-editable dtr-address-empty" contenteditable="true" data-placeholder="Company Address">&nbsp;</div>
+                            <?php } ?>
                             <div class="dtr-form-title">DAILY TIME RECORD</div>
                             <div class="dtr-meta-grid">
                                 <div class="dtr-meta-row">
