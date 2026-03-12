@@ -23,6 +23,185 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
     }
 
+    function tasks_page_has_started_subtasks($subtasks)
+    {
+        if (!is_array($subtasks) || empty($subtasks)) {
+            return false;
+        }
+
+        foreach ($subtasks as $subtaskRow) {
+            $subtaskStatus = strtolower(trim((string)($subtaskRow['status'] ?? 'pending')));
+            if (in_array($subtaskStatus, ['submitted', 'completed', 'in_progress', 'revise', 'revision_needed', 'rejected'], true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function tasks_page_resolve_status($taskRow, $subtasks)
+    {
+        $taskStatus = strtolower(trim((string)($taskRow['status'] ?? 'pending')));
+        $taskRating = isset($taskRow['rating']) ? (float)$taskRow['rating'] : 0.0;
+
+        if ($taskStatus === 'completed' && $taskRating <= 0) {
+            return [
+                'code' => 'submitted_review',
+                'badge_class' => 'badge-v2 submitted',
+                'label' => 'submitted for review',
+                'is_awaiting_review' => true,
+            ];
+        }
+
+        if ($taskStatus === 'completed') {
+            return [
+                'code' => 'completed',
+                'badge_class' => 'badge-v2 completed',
+                'label' => 'completed',
+                'is_awaiting_review' => false,
+            ];
+        }
+
+        if (tasks_page_has_started_subtasks($subtasks) || $taskStatus === 'in_progress') {
+            return [
+                'code' => 'in_progress',
+                'badge_class' => 'badge-v2 in_progress',
+                'label' => 'in progress',
+                'is_awaiting_review' => false,
+            ];
+        }
+
+        return [
+            'code' => 'pending',
+            'badge_class' => 'badge-v2 pending',
+            'label' => 'pending',
+            'is_awaiting_review' => false,
+        ];
+    }
+
+    $text = "Tasks";
+    $statusFilter = isset($_GET['status']) ? (string)$_GET['status'] : '';
+    $dueFilter = isset($_GET['due_date']) ? (string)$_GET['due_date'] : '';
+
+    if ($dueFilter === 'Due Today') {
+        $text = "Due Today";
+    } elseif ($dueFilter === 'Overdue') {
+        $text = "Overdue";
+    } elseif ($statusFilter === 'Pending') {
+        $text = "Pending";
+    } elseif ($statusFilter === 'in_progress') {
+        $text = "In Progress";
+    } elseif ($statusFilter === 'Completed') {
+        $text = "Completed";
+    }
+
+    $allTasksForStats = is_array($tasks) ? $tasks : [];
+    $allTaskCount = is_array($allTasksForStats) ? count($allTasksForStats) : 0;
+    $allInProgressCount = 0;
+    $allCompletedCount = 0;
+    $allDueTodayCount = 0;
+    $todayDate = date('Y-m-d');
+
+    if (is_array($allTasksForStats)) {
+        foreach ($allTasksForStats as $taskStatGlobal) {
+            $taskGlobalId = (int)($taskStatGlobal['id'] ?? 0);
+            if ($taskGlobalId <= 0) {
+                continue;
+            }
+            $subtasksGlobal = [];
+            try {
+                $subtasksGlobal = get_subtasks_by_task($pdo, $taskGlobalId);
+            } catch (Throwable $e) {
+                $subtasksGlobal = [];
+            }
+            $globalResolved = tasks_page_resolve_status($taskStatGlobal, is_array($subtasksGlobal) ? $subtasksGlobal : []);
+            if (($globalResolved['code'] ?? '') === 'in_progress') {
+                $allInProgressCount++;
+            }
+            if (in_array(($globalResolved['code'] ?? ''), ['completed', 'submitted_review'], true)) {
+                $allCompletedCount++;
+            }
+            if (!empty($taskStatGlobal['due_date'])) {
+                $dueDateOnly = date('Y-m-d', strtotime((string)$taskStatGlobal['due_date']));
+                if ($dueDateOnly === $todayDate && !in_array(($globalResolved['code'] ?? ''), ['completed', 'submitted_review'], true)) {
+                    $allDueTodayCount++;
+                }
+            }
+        }
+    }
+
+    $taskSubtasksMap = [];
+    $taskViewStatusMap = [];
+    if (is_array($tasks)) {
+        foreach ($tasks as $taskStatusRow) {
+            $taskStatusId = (int)($taskStatusRow['id'] ?? 0);
+            if ($taskStatusId <= 0) {
+                continue;
+            }
+            $subtasksForStatus = [];
+            try {
+                $subtasksForStatus = get_subtasks_by_task($pdo, $taskStatusId);
+            } catch (Throwable $e) {
+                $subtasksForStatus = [];
+            }
+            if (!is_array($subtasksForStatus)) {
+                $subtasksForStatus = [];
+            }
+            $taskSubtasksMap[$taskStatusId] = $subtasksForStatus;
+            $taskViewStatusMap[$taskStatusId] = tasks_page_resolve_status($taskStatusRow, $subtasksForStatus);
+        }
+    }
+
+    if ($dueFilter === 'Due Today') {
+        $filteredTasks = [];
+        foreach ((array)$tasks as $taskFilterRow) {
+            $taskFilterId = (int)($taskFilterRow['id'] ?? 0);
+            $resolvedCode = (string)($taskViewStatusMap[$taskFilterId]['code'] ?? 'pending');
+            $rawTaskStatus = strtolower(trim((string)($taskFilterRow['status'] ?? 'pending')));
+            if (!empty($taskFilterRow['due_date'])) {
+                $dueDateOnly = date('Y-m-d', strtotime((string)$taskFilterRow['due_date']));
+                if ($dueDateOnly === $todayDate && !in_array($resolvedCode, ['completed', 'submitted_review'], true) && $rawTaskStatus !== 'completed') {
+                    $filteredTasks[] = $taskFilterRow;
+                }
+            }
+        }
+        $tasks = $filteredTasks;
+    } elseif ($dueFilter === 'Overdue') {
+        $filteredTasks = [];
+        foreach ((array)$tasks as $taskFilterRow) {
+            $taskFilterId = (int)($taskFilterRow['id'] ?? 0);
+            $resolvedCode = (string)($taskViewStatusMap[$taskFilterId]['code'] ?? 'pending');
+            $rawTaskStatus = strtolower(trim((string)($taskFilterRow['status'] ?? 'pending')));
+            if (!empty($taskFilterRow['due_date'])) {
+                $dueDateOnly = date('Y-m-d', strtotime((string)$taskFilterRow['due_date']));
+                if ($dueDateOnly < $todayDate && !in_array($resolvedCode, ['completed', 'submitted_review'], true) && $rawTaskStatus !== 'completed') {
+                    $filteredTasks[] = $taskFilterRow;
+                }
+            }
+        }
+        $tasks = $filteredTasks;
+    } elseif ($statusFilter === 'Pending' || $statusFilter === 'in_progress' || $statusFilter === 'Completed') {
+        $filteredTasks = [];
+        foreach ((array)$tasks as $taskFilterRow) {
+            $taskFilterId = (int)($taskFilterRow['id'] ?? 0);
+            $resolvedCode = (string)($taskViewStatusMap[$taskFilterId]['code'] ?? 'pending');
+            $rawTaskStatus = strtolower(trim((string)($taskFilterRow['status'] ?? 'pending')));
+
+            if ($statusFilter === 'Pending' && ($resolvedCode === 'pending' || $rawTaskStatus === 'pending')) {
+                $filteredTasks[] = $taskFilterRow;
+            } elseif ($statusFilter === 'in_progress' && ($resolvedCode === 'in_progress' || $rawTaskStatus === 'in_progress')) {
+                $filteredTasks[] = $taskFilterRow;
+            } elseif (
+                $statusFilter === 'Completed'
+                && (in_array($resolvedCode, ['completed', 'submitted_review'], true) || $rawTaskStatus === 'completed')
+            ) {
+                $filteredTasks[] = $taskFilterRow;
+            }
+        }
+        $tasks = $filteredTasks;
+    }
+
+    $shownTaskCount = is_array($tasks) ? count($tasks) : 0;
+
     // Helper: Check if user is leader
     function is_leader($pdo, $task_id, $user_id){
         $assignees = get_task_assignees($pdo, $task_id);
@@ -47,6 +226,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/task_redesign.css">
+    <link rel="stylesheet" href="css/tasks-page.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         // Ensure global modal helpers exist even if later PHP errors truncate output.
@@ -328,53 +508,99 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
     </style>
 </head>
-<body>
+<body class="tasks-page">
     
     <!-- Sidebar -->
     <?php include "inc/new_sidebar.php"; ?>
 
     <!-- Main Content -->
     <div class="dash-main">
-        <?php if($_SESSION['role'] == 'admin') { ?>
-            <div style="margin-bottom: 24px; display: flex; justify-content: flex-end; align-items: center;">
-                <a href="create_task.php" class="btn-v2 btn-indigo"><i class="fa fa-plus"></i> Create Task</a>
-            </div>
-        <?php } ?>
+        <div class="tasks-shell">
+            <section class="tasks-hero">
+                <div class="tasks-hero-main">
+                    <h2><?= htmlspecialchars((string)$text) ?> Board</h2>
+                    <p>Track priorities, audit progress, and review completions from one focused control surface designed for daily task operations.</p>
+                    <div class="tasks-filter-row">
+                        <a href="my_task.php" class="tasks-filter-pill <?= (!isset($_GET['due_date']) && !isset($_GET['status'])) ? 'active' : '' ?>">All</a>
+                        <a href="my_task.php?due_date=Due+Today" class="tasks-filter-pill <?= (isset($_GET['due_date']) && $_GET['due_date'] === 'Due Today') ? 'active' : '' ?>">Due Today</a>
+                        <a href="my_task.php?due_date=Overdue" class="tasks-filter-pill <?= (isset($_GET['due_date']) && $_GET['due_date'] === 'Overdue') ? 'active' : '' ?>">Overdue</a>
+                        <a href="my_task.php?status=Pending" class="tasks-filter-pill <?= (isset($_GET['status']) && $_GET['status'] === 'Pending') ? 'active' : '' ?>">Pending</a>
+                        <a href="my_task.php?status=in_progress" class="tasks-filter-pill <?= (isset($_GET['status']) && $_GET['status'] === 'in_progress') ? 'active' : '' ?>">In Progress</a>
+                        <a href="my_task.php?status=Completed" class="tasks-filter-pill <?= (isset($_GET['status']) && $_GET['status'] === 'Completed') ? 'active' : '' ?>">Completed</a>
+                    </div>
+                </div>
+                <div class="tasks-hero-side">
+                    <div class="tasks-hero-stats">
+                        <div class="tasks-hero-stat">
+                            <span>All Tasks</span>
+                            <strong><?= (int)$allTaskCount ?></strong>
+                            <small>total task<?= $allTaskCount === 1 ? '' : 's' ?> assigned to you</small>
+                        </div>
+                        <div class="tasks-hero-stat">
+                            <span>In Progress</span>
+                            <strong><?= (int)$allInProgressCount ?></strong>
+                            <small>active across your tasks</small>
+                        </div>
+                        <div class="tasks-hero-stat">
+                            <span>Completed</span>
+                            <strong><?= (int)$allCompletedCount ?></strong>
+                            <small>ready for audit/review</small>
+                        </div>
+                        <div class="tasks-hero-stat">
+                            <span>Due Today</span>
+                            <strong><?= (int)$allDueTodayCount ?></strong>
+                            <small>needs immediate focus</small>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-        <?php if (isset($_GET['success'])) {?>
-            <div style="background: #D1FAE5; color: #065F46; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-              <?= stripcslashes($_GET['success']); ?>
-            </div>
-        <?php } ?>
-        <?php if (isset($_GET['error'])) {?>
-            <div style="background: #FEE2E2; color: #991B1B; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-              <?= stripcslashes($_GET['error']); ?>
-            </div>
-        <?php } ?>
+            <?php if (isset($_GET['success'])) {?>
+                <div class="tasks-flash success">
+                    <i class="fa fa-check-circle"></i>
+                    <span><?php echo stripcslashes($_GET['success']); ?></span>
+                </div>
+            <?php } ?>
+            <?php if (isset($_GET['error'])) {?>
+                <div class="tasks-flash error">
+                    <i class="fa fa-exclamation-circle"></i>
+                    <span><?php echo stripcslashes($_GET['error']); ?></span>
+                </div>
+            <?php } ?>
 
-        <div class="tasks-grid">
+            <section class="tasks-board">
+                <div class="tasks-board-head">
+                    <div>
+                        <h3><?= htmlspecialchars((string)$text) ?></h3>
+                        <p>Open any card to inspect full details, subtasks, ratings, and review actions.</p>
+                    </div>
+                    <div class="tasks-board-head-actions">
+                        <span class="tasks-board-count"><?= (int)$shownTaskCount ?> record<?= $shownTaskCount === 1 ? '' : 's' ?></span>
+                        <?php if ($_SESSION['role'] == 'admin') { ?>
+                        <a href="create_task.php" class="tasks-board-create-btn">
+                            <i class="fa fa-plus"></i> Create Task
+                        </a>
+                        <?php } ?>
+                    </div>
+                </div>
+
+                <div class="tasks-grid">
             <?php if (!empty($tasks)) { 
                 foreach ($tasks as $task) { 
-                    $isLeader = is_leader($pdo, $task['id'], $_SESSION['id']);
-                    $subtasks = get_subtasks_by_task($pdo, $task['id']);
-                    
-                    // Status Badge Class
-                    $statusClass = "pending";
-                    $statusText = str_replace('_', ' ', $task['status']);
-                    
-                    if ($task['status'] == 'in_progress') $statusClass = "in_progress";
-                    if ($task['status'] == 'completed') {
-                        if (isset($task['rating']) && $task['rating'] > 0) {
-                            $statusClass = "completed";
-                            $statusText = "completed";
-                        } else {
-                            $statusClass = "submitted"; 
-                            $statusText = "submitted for review";
-                        }
-                    }
+                    $taskId = (int)($task['id'] ?? 0);
+                    $isLeader = is_leader($pdo, $taskId, $_SESSION['id']);
+                    $subtasks = $taskSubtasksMap[$taskId] ?? [];
+                    $taskViewStatus = $taskViewStatusMap[$taskId] ?? [
+                        'code' => 'pending',
+                        'badge_class' => 'badge-v2 pending',
+                        'label' => 'pending',
+                        'is_awaiting_review' => false,
+                    ];
+                    $badgeClass = (string)$taskViewStatus['badge_class'];
+                    $statusDisplay = (string)$taskViewStatus['label'];
 
                     // Prepare Assignees Data
-                    $assignees = get_task_assignees($pdo, $task['id']);
+                    $assignees = get_task_assignees($pdo, $taskId);
                     $leader = null;
                     $members = [];
                     if ($assignees != 0) {
@@ -388,11 +614,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     }
             ?>
             <!-- Task Card (Trigger) -->
-            <div class="task-card" id="task-card-<?=$task['id']?>" onclick="openTaskModal(<?=$task['id']?>)">
+            <div class="task-card" id="task-card-<?=$taskId?>" onclick="openTaskModal(<?=$taskId?>)">
                 
                 <!-- Action Buttons (Admin Edit) -->
                 <?php if($_SESSION['role'] == 'admin') { ?>
-                    <object><a href="tasks.php?open_task=<?=$task['id']?>" style="position: absolute; top: 24px; right: 24px; color: #9CA3AF; text-decoration: none; font-size: 14px; z-index: 10;"><i class="fa fa-pencil"></i></a></object>
+                    <object><a href="tasks.php?open_task=<?=$taskId?>" style="position: absolute; top: 24px; right: 24px; color: #9CA3AF; text-decoration: none; font-size: 14px; z-index: 10;"><i class="fa fa-pencil"></i></a></object>
                 <?php } ?>
 
                 <div style="margin-bottom: 12px;">
@@ -400,7 +626,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 </div>
                 
                 <div style="margin-bottom: 16px;">
-                    <span class="badge-v2 <?=$statusClass?>"><?= $statusText ?></span>
+                    <span class="<?= $badgeClass ?>"><?= $statusDisplay ?></span>
                 </div>
                 
                 <!-- Preview Content -->
@@ -460,6 +686,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <h3>No tasks found</h3>
                 </div>
             <?php } ?>
+                </div>
+            </section>
         </div>
     </div>
 
@@ -467,33 +695,31 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <?php if (!empty($tasks)) { 
         foreach ($tasks as $task) { 
             // Re-populate variables needed for Modal
-            $isLeader = is_leader($pdo, $task['id'], $_SESSION['id']);
-            $subtasks = get_subtasks_by_task($pdo, $task['id']);
-            // Status Logic
-            $statusClass = "pending";
-            $statusText = str_replace('_', ' ', $task['status']);
-            if ($task['status'] == 'in_progress') $statusClass = "in_progress";
-            if ($task['status'] == 'completed') {
-                if (isset($task['rating']) && $task['rating'] > 0) {
-                    $statusClass = "completed"; $statusText = "completed";
-                } else {
-                    $statusClass = "submitted"; $statusText = "submitted for review";
-                }
-            }
-            $assignees = get_task_assignees($pdo, $task['id']);
+            $taskId = (int)($task['id'] ?? 0);
+            $isLeader = is_leader($pdo, $taskId, $_SESSION['id']);
+            $subtasks = $taskSubtasksMap[$taskId] ?? [];
+            $taskViewStatus = $taskViewStatusMap[$taskId] ?? [
+                'code' => 'pending',
+                'badge_class' => 'badge-v2 pending',
+                'label' => 'pending',
+                'is_awaiting_review' => false,
+            ];
+            $badgeClass = (string)$taskViewStatus['badge_class'];
+            $statusDisplay = (string)$taskViewStatus['label'];
+            $assignees = get_task_assignees($pdo, $taskId);
             $leader = null; $members = [];
             if ($assignees != 0) {
                foreach ($assignees as $a) { if ($a['role'] == 'leader') $leader = $a; else $members[] = $a; }
             }
     ?>
             <!-- MODAL STRUCTURE -->
-            <div class="modal-overlay" id="modal-task-<?=$task['id']?>" onclick="if(event.target === this) closeTaskModal(<?=$task['id']?>)">
+            <div class="modal-overlay" id="modal-task-<?=$taskId?>" onclick="if(event.target === this) closeTaskModal(<?=$taskId?>)">
                 <div class="modal-content">
-                    <button class="close-modal" onclick="closeTaskModal(<?=$task['id']?>)"><i class="fa fa-times"></i></button>
+                    <button class="close-modal" onclick="closeTaskModal(<?=$taskId?>)"><i class="fa fa-times"></i></button>
 
                     <div class="modal-header-section">
                         <h2 style="margin: 0 0 10px 0; font-size: 20px; color: #111827;"><?= htmlspecialchars($task['title']) ?></h2>
-                        <span class="badge-v2 <?=$statusClass?>"><?= $statusText ?></span>
+                        <span class="<?= $badgeClass ?>"><?= $statusDisplay ?></span>
                     </div>
 
                     <div style="margin-bottom: 24px;">
