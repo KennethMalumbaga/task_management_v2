@@ -7,6 +7,7 @@ require 'DB_connection.php';
 require_once 'inc/tenant.php';
 require_once 'inc/csrf.php';
 require_once 'inc/attendance_pause.php';
+require_once 'app/model/Notification.php';
 
 // Only allow admins
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
@@ -75,6 +76,19 @@ $scope = tenant_get_scope($pdo, 'attendance');
 $sql .= $scope['sql'];
 $params = array_merge($params, $scope['params']);
 $pdo->prepare($sql)->execute($params);
+
+// Notify the user (do not block clock out if notification fails)
+try {
+    $adminName = trim((string)($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Admin'));
+    if ($adminName === '') {
+        $adminName = 'Admin';
+    }
+    $timeLabel = date('h:i A', strtotime($now));
+    $message = "You were clocked out by {$adminName} at {$timeLabel}.";
+    insert_notification($pdo, [$message, $user_id, 'Clock Out']);
+} catch (Throwable $e) {
+    // Ignore notification failures
+}
 
 echo json_encode([
     'status' => 'success',

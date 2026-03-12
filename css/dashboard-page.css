@@ -6,6 +6,686 @@ body.dashboard-page {
         #f6f7fd;
 }
 
+/* Admin dashboard refresh */
+body.dashboard-page.role-admin .admin-dashboard {
+    --admin-purple: #6d28d9;
+    --admin-purple-mid: #7c3aed;
+    --admin-purple-dark: #4c1d95;
+    --admin-purple-light: #ede9fe;
+    --admin-border: #e8e4f3;
+    --admin-text: #1e1b4b;
+    --admin-muted: #8b8aaa;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+body.dashboard-page.role-admin .admin-top-row,
+body.dashboard-page.role-admin .admin-bottom-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 16px;
+    align-items: stretch;
+}
+
+body.dashboard-page.role-admin .admin-bottom-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+body.dashboard-page.role-admin .admin-top-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+body.dashboard-page.role-admin .admin-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid var(--admin-border);
+    box-shadow: 0 2px 12px rgba(109, 40, 217, 0.06);
+    padding: 0;
+    overflow: hidden;
+}
+
+body.dashboard-page.role-admin .admin-card::before,
+body.dashboard-page.role-admin .admin-card::after {
+    display: none;
+}
+
+body.dashboard-page.role-admin .admin-bulletin-card .bulletin-head,
+body.dashboard-page.role-admin .admin-card-head {
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--admin-border);
+    gap: 10px;
+}
+
+body.dashboard-page.role-admin .admin-card-head h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--admin-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body.dashboard-page.role-admin .admin-card-subtitle {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--admin-muted);
+}
+
+body.dashboard-page.role-admin .admin-card-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 9px;
+    background: var(--admin-purple-mid);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.24);
+    transition: transform 0.15s, background 0.15s;
+}
+
+body.dashboard-page.role-admin .admin-card-action:hover {
+    background: var(--admin-purple-dark);
+    transform: translateY(-1px);
+}
+
+body.dashboard-page.role-admin .admin-bulletin-card .bulletin-list {
+    padding: 8px 0;
+}
+
+body.dashboard-page.role-admin .admin-bulletin-card .btn-post {
+    background: var(--admin-purple-mid);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+body.dashboard-page.role-admin .admin-stats-card {
+    padding: 16px 20px;
+}
+
+body.dashboard-page.role-admin .admin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+body.dashboard-page.role-admin .admin-stat-item {
+    background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+    border: 1px solid rgba(196, 181, 253, 0.3);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+body.dashboard-page.role-admin .admin-stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(124, 58, 237, 0.12);
+}
+
+body.dashboard-page.role-admin .admin-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+body.dashboard-page.role-admin .admin-stat-icon.is-purple {
+    background: rgba(124, 58, 237, 0.15);
+    color: var(--admin-purple);
+}
+
+body.dashboard-page.role-admin .admin-stat-icon.is-green {
+    background: rgba(16, 185, 129, 0.15);
+    color: #059669;
+}
+
+body.dashboard-page.role-admin .admin-stat-value {
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--admin-text);
+    line-height: 1;
+}
+
+body.dashboard-page.role-admin .admin-stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--admin-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .admin-tab-bar {
+    display: flex;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .admin-tab-btn {
+    flex: 1;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--admin-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .admin-tab-btn.active {
+    color: var(--admin-purple-mid);
+    border-bottom-color: var(--admin-purple-mid);
+    font-weight: 700;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .admin-tab-panel {
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    padding: 0 0;
+    max-height: 240px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .leaderboard-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    border-bottom: 1px solid #faf9ff;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .leaderboard-item:last-child {
+    border-bottom: none;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .rank-badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .leaderboard-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .leaderboard-info {
+    flex: 1;
+    min-width: 0;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .leaderboard-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.dashboard-page.role-admin .admin-leaderboard-card .leaderboard-meta {
+    font-size: 10px;
+    color: var(--admin-muted);
+}
+
+body.dashboard-page.role-admin .admin-tasks-list,
+body.dashboard-page.role-admin .admin-active-list {
+    padding: 6px 0;
+    max-height: 320px;
+    min-height: 320px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+body.dashboard-page.role-admin .admin-task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    border-bottom: 1px solid #faf9ff;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+body.dashboard-page.role-admin .admin-task-item:hover {
+    background: #faf9ff;
+}
+
+body.dashboard-page.role-admin .admin-task-item:last-child {
+    border-bottom: none;
+}
+
+body.dashboard-page.role-admin .admin-task-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+body.dashboard-page.role-admin .admin-task-info {
+    flex: 1;
+    min-width: 0;
+}
+
+body.dashboard-page.role-admin .admin-task-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.dashboard-page.role-admin .admin-task-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--admin-muted);
+    margin-top: 2px;
+    flex-wrap: wrap;
+}
+
+body.dashboard-page.role-admin .admin-task-unassigned {
+    color: var(--admin-muted);
+    font-style: italic;
+}
+
+body.dashboard-page.role-admin .admin-task-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--admin-muted);
+}
+
+body.dashboard-page.role-admin .admin-task-leader-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+body.dashboard-page.role-admin .admin-task-leader-avatar.is-initials {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+}
+
+body.dashboard-page.role-admin .admin-task-status {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: lowercase;
+    white-space: nowrap;
+}
+
+body.dashboard-page.role-admin .admin-task-status.status-in_progress {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+body.dashboard-page.role-admin .admin-task-status.status-completed {
+    background: #d1fae5;
+    color: #059669;
+}
+
+body.dashboard-page.role-admin .admin-task-status.status-pending {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+body.dashboard-page.role-admin .admin-task-status.status-submitted {
+    background: #e0e7ff;
+    color: #4338ca;
+}
+
+body.dashboard-page.role-admin .admin-card-footer {
+    padding: 11px;
+    border-top: 1px solid var(--admin-border);
+    text-align: center;
+}
+
+body.dashboard-page.role-admin .admin-view-all-link {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--admin-purple-mid);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+body.dashboard-page.role-admin .admin-active-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    display: inline-block;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+body.dashboard-page.role-admin .admin-active-count {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: #d1fae5;
+    color: #059669;
+}
+
+body.dashboard-page.role-admin .admin-user-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    border-bottom: 1px solid #faf9ff;
+    transition: background 0.15s;
+}
+
+body.dashboard-page.role-admin .admin-user-row:hover {
+    background: #faf9ff;
+}
+
+body.dashboard-page.role-admin .admin-user-row:last-child {
+    border-bottom: none;
+}
+
+body.dashboard-page.role-admin .admin-user-rank {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: var(--admin-purple-mid);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+body.dashboard-page.role-admin .admin-user-avatar {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+}
+
+body.dashboard-page.role-admin .admin-user-avatar img,
+body.dashboard-page.role-admin .admin-user-avatar-initials {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--admin-purple-light);
+}
+
+body.dashboard-page.role-admin .admin-user-avatar img {
+    object-fit: cover;
+}
+
+body.dashboard-page.role-admin .admin-user-avatar-initials {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+body.dashboard-page.role-admin .admin-user-online {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #10b981;
+    border: 2px solid #fff;
+}
+
+body.dashboard-page.role-admin .admin-user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+body.dashboard-page.role-admin .admin-user-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.dashboard-page.role-admin .admin-user-meta {
+    font-size: 10px;
+    color: var(--admin-muted);
+}
+
+body.dashboard-page.role-admin .admin-user-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+body.dashboard-page.role-admin .admin-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border-radius: 7px;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1.5px solid transparent;
+    background: #fff;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: transform 0.15s, background 0.15s, border-color 0.15s;
+}
+
+body.dashboard-page.role-admin .admin-btn-clockout {
+    border-color: #fecaca;
+    background: #fff5f5;
+    color: #ef4444;
+}
+
+body.dashboard-page.role-admin .admin-btn-clockout:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    transform: translateY(-1px);
+}
+
+body.dashboard-page.role-admin .admin-btn-capture {
+    border-color: #c4b5fd;
+    background: #f5f3ff;
+    color: var(--admin-purple-mid);
+}
+
+body.dashboard-page.role-admin .admin-btn-capture:hover {
+    background: #ede9fe;
+    border-color: #a78bfa;
+    transform: translateY(-1px);
+}
+
+body.dashboard-page.role-admin .admin-btn-ghost {
+    border-color: #e5e7eb;
+    background: #f9fafb;
+    color: #374151;
+}
+
+body.dashboard-page.role-admin .admin-btn-ghost:hover {
+    background: #f3f4f6;
+}
+
+body.dashboard-page.role-admin .admin-btn-danger {
+    border-color: #fecaca;
+    background: #ef4444;
+    color: #fff;
+}
+
+body.dashboard-page.role-admin .admin-btn-danger:hover {
+    background: #dc2626;
+}
+
+body.dashboard-page.role-admin .admin-clockout-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1500;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    padding: 16px;
+}
+
+body.dashboard-page.role-admin .admin-clockout-dialog {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px 22px;
+    width: min(420px, 100%);
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+body.dashboard-page.role-admin .admin-clockout-dialog h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--admin-text);
+}
+
+body.dashboard-page.role-admin .admin-clockout-dialog p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--admin-muted);
+}
+
+body.dashboard-page.role-admin .admin-clockout-kicker {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #9ca3af;
+}
+
+body.dashboard-page.role-admin .admin-clockout-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+body.dashboard-page.role-admin .admin-clockout-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    border: none;
+    background: #f3f4f6;
+    color: #6b7280;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.dashboard-page.role-admin .admin-clockout-close:hover {
+    background: #e5e7eb;
+}
+
+body.dashboard-page.role-admin .admin-empty-state {
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--admin-muted);
+    font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+    body.dashboard-page.role-admin .admin-top-row,
+    body.dashboard-page.role-admin .admin-bottom-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    body.dashboard-page.role-admin .admin-card-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    body.dashboard-page.role-admin .admin-user-actions {
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    body.dashboard-page.role-admin .admin-tasks-list,
+    body.dashboard-page.role-admin .admin-active-list {
+        max-height: none;
+        min-height: 0;
+    }
+}
+
 body.dashboard-page .dash-main {
     padding-top: 96px;
     padding-bottom: 30px;
@@ -1077,13 +1757,14 @@ body.dashboard-page.is-pause-session-modal-open {
 body.dashboard-page .pause-session-modal {
     position: fixed;
     inset: 0;
-    z-index: 1006;
+    z-index: 1500;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
     background: rgba(17, 7, 40, 0.62);
     backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
 }
 
 body.dashboard-page .pause-session-dialog {
@@ -1320,13 +2001,14 @@ body.dashboard-page .pause-session-confirm.is-enabled {
 body.dashboard-page .clockin-setup-modal {
     position: fixed;
     inset: 0;
-    z-index: 1005;
+    z-index: 1500;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
     background: rgba(17, 7, 40, 0.65);
     backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
 }
 
 body.dashboard-page .clockin-setup-modal-dialog {
@@ -1850,11 +2532,22 @@ body.dashboard-page.role-admin .bulletin-empty {
 body.dashboard-page .bulletin-modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1005;
+    z-index: 1500;
     display: none;
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+body.dashboard-page #confirmModal,
+body.dashboard-page #navClockInModal,
+body.dashboard-page #autoClockOutModal,
+body.dashboard-page #idleCheckModal {
+    z-index: 1500 !important;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 body.dashboard-page .bulletin-modal {

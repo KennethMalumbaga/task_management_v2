@@ -17,22 +17,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $num_task = count_tasks($pdo);
         $completed = count_completed_tasks($pdo);
         $num_users = count_users($pdo); // Employees
-        $avgSql = "SELECT AVG(rating) FROM tasks WHERE status = 'completed' AND rating IS NOT NULL AND rating > 0";
-        $scope = tenant_get_scope($pdo, 'tasks');
-        $avgSql .= $scope['sql'];
-        $avgStmt = $pdo->prepare($avgSql);
-        $avgStmt->execute($scope['params']);
-        $avgVal = $avgStmt->fetchColumn();
-        $avg_rating = $avgVal ? number_format((float)$avgVal, 1) : "0.0";
         $top_users = get_top_rated_users($pdo, 5);
         $top_groups = get_top_rated_groups($pdo, 5);
-        $collabSql = "SELECT AVG(score) FROM subtasks WHERE score IS NOT NULL AND score > 0";
-        $scope = tenant_get_scope($pdo, 'subtasks');
-        $collabSql .= $scope['sql'];
-        $collab_stmt = $pdo->prepare($collabSql);
-        $collab_stmt->execute($scope['params']);
-        $collab_avg = $collab_stmt->fetchColumn();
-        $collaborative_rate = $collab_avg ? number_format($collab_avg, 1) : "0.0";
     } else {
         $num_task = count_my_tasks($pdo, $_SESSION['id']);
         $completed = count_my_completed_tasks($pdo, $_SESSION['id']);
@@ -45,8 +31,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $collaborative_rate = $collab_stats['avg'];
     }
 
-    // 2. Recent Tasks (show up to 3 latest items)
-    $recentTaskLimit = 3;
+    // 2. Recent Tasks (admin shows more for scrollable lists)
+    $recentTaskLimit = ($_SESSION['role'] === 'admin') ? 8 : 3;
     if ($_SESSION['role'] == "admin") {
          $sql_recent = "SELECT * FROM tasks WHERE 1=1";
          $scope = tenant_get_scope($pdo, 'tasks');
@@ -74,6 +60,29 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     $bulletinDeleteCsrfToken = csrf_token('bulletin_delete_action');
     $bulletinPosts = get_recent_bulletin_posts($pdo, 30);
     $bulletinPostsJson = json_encode($bulletinPosts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    $active_users = [];
+    if ($_SESSION['role'] === 'admin') {
+        date_default_timezone_set('Asia/Manila');
+        $today = date('Y-m-d');
+        $sql_active = "SELECT a.id AS attendance_id, a.user_id, a.time_in, u.full_name, u.username, u.profile_image
+                       FROM attendance a
+                       INNER JOIN users u ON a.user_id = u.id
+                       WHERE a.att_date = ?
+                         AND a.time_in IS NOT NULL
+                         AND (a.time_out IS NULL OR a.time_out = '00:00:00')
+                         AND u.role = 'employee'";
+        $params_active = [$today];
+        $scope_att = tenant_get_scope($pdo, 'attendance', 'a');
+        $sql_active .= $scope_att['sql'];
+        $params_active = array_merge($params_active, $scope_att['params']);
+        $scope_user = tenant_get_scope($pdo, 'users', 'u');
+        $sql_active .= $scope_user['sql'];
+        $params_active = array_merge($params_active, $scope_user['params']);
+        $sql_active .= " ORDER BY a.time_in DESC";
+        $stmt_active = $pdo->prepare($sql_active);
+        $stmt_active->execute($params_active);
+        $active_users = $stmt_active->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
 ?>
 <!DOCTYPE html>
 <html>
@@ -401,6 +410,298 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         <div class="dashboard-shell">
         
         <!-- Top Section: Dashboard Panels -->
+        <?php if ($_SESSION['role'] == 'admin') { ?>
+            <div class="admin-dashboard">
+                <div class="admin-top-row">
+                    <div class="dash-card admin-card admin-bulletin-card">
+                        <div class="bulletin-head">
+                            <div class="bulletin-head-left">
+                                <div class="bulletin-icon-box"><i class="fa fa-thumb-tack"></i></div>
+                                <span class="bulletin-title">Bulletin Board</span>
+                            </div>
+                            <button type="button" class="btn-post" onclick="openBulletinPostModal()">
+                                <i class="fa fa-plus"></i> Post
+                            </button>
+                        </div>
+                        <div class="bulletin-list" id="bulletinList"></div>
+                    </div>
+
+                    <div class="admin-top-right">
+                        <div class="dash-card admin-card admin-stats-card">
+                            <div class="admin-stats-grid">
+                                <div class="admin-stat-item">
+                                    <div class="admin-stat-icon is-purple"><i class="fa fa-check"></i></div>
+                                    <div>
+                                        <div class="admin-stat-value"><?= $num_task ?></div>
+                                        <div class="admin-stat-label">Total Tasks</div>
+                                    </div>
+                                </div>
+                                <div class="admin-stat-item">
+                                    <div class="admin-stat-icon is-green"><i class="fa fa-bullseye"></i></div>
+                                    <div>
+                                        <div class="admin-stat-value"><?= $completed ?></div>
+                                        <div class="admin-stat-label">Completed</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dash-card admin-card admin-leaderboard-card">
+                            <div class="admin-tab-bar">
+                                <button type="button" class="admin-tab-btn active" id="adminTabEmployees" onclick="switchAdminLeaderboardTab('employees')">Top Employees</button>
+                                <button type="button" class="admin-tab-btn" id="adminTabGroups" onclick="switchAdminLeaderboardTab('groups')">Top Groups</button>
+                            </div>
+
+                            <div class="admin-tab-panel" id="adminPanelEmployees">
+                                <?php if (!empty($top_users)) { ?>
+                                    <div class="leaderboard-list">
+                                        <?php foreach (array_slice($top_users, 0, 6) as $idx => $u) {
+                                            $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#9CA3AF' : ($idx === 2 ? '#CD7C2F' : '#7C3AED'));
+                                            $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
+                                            $ratedCount = (int)$u['rated_task_count'];
+                                        ?>
+                                        <div class="leaderboard-item">
+                                            <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
+                                            <img src="<?= $avatar ?>" class="leaderboard-avatar" alt="User">
+                                            <div class="leaderboard-info">
+                                                <div class="leaderboard-name"><?= htmlspecialchars($u['full_name']) ?></div>
+                                                <div class="leaderboard-meta">
+                                                    <?= $ratedCount ?> rated task<?= ($ratedCount !== 1 ? 's' : '') ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <?php } ?>
+                                    </div>
+                                <?php } else { ?>
+                                    <div class="leaderboard-empty">
+                                        <i class="fa fa-info-circle"></i> No employee ratings yet.
+                                    </div>
+                                <?php } ?>
+                            </div>
+
+                            <div class="admin-tab-panel" id="adminPanelGroups" style="display:none;">
+                                <?php if (!empty($top_groups)) { ?>
+                                    <div class="leaderboard-list">
+                                        <?php foreach (array_slice($top_groups, 0, 6) as $idx => $g) {
+                                            $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#9CA3AF' : ($idx === 2 ? '#CD7C2F' : '#7C3AED'));
+                                            $memberCount = (int)$g['member_count'];
+                                            $ratedTaskCount = (int)$g['rated_task_count'];
+                                        ?>
+                                        <div class="leaderboard-item">
+                                            <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
+                                            <div class="leaderboard-info">
+                                                <div class="leaderboard-name"><?= htmlspecialchars($g['group_name']) ?></div>
+                                                <div class="leaderboard-meta">
+                                                    <?= $memberCount ?> member<?= ($memberCount !== 1 ? 's' : '') ?>
+                                                    &bull;
+                                                    <?= $ratedTaskCount ?> rated task<?= ($ratedTaskCount !== 1 ? 's' : '') ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <?php } ?>
+                                    </div>
+                                <?php } else { ?>
+                                    <div class="leaderboard-empty">
+                                        <i class="fa fa-info-circle"></i> No group ratings yet.
+                                    </div>
+                                <?php } ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-bottom-row">
+                    <div class="dash-card admin-card admin-recent-card">
+                        <div class="admin-card-head">
+                            <div>
+                                <h3>Recent Tasks</h3>
+                                <span class="admin-card-subtitle"><?= count($recent_tasks) ?> total tasks</span>
+                            </div>
+                            <a href="create_task.php" class="admin-card-action">
+                                <i class="fa fa-plus"></i> Create Task
+                            </a>
+                        </div>
+
+                        <div class="admin-tasks-list">
+                            <?php if (!empty($recent_tasks) && count($recent_tasks) > 0) { 
+                                $taskIconStyles = [
+                                    'linear-gradient(135deg,#7c3aed,#a855f7)',
+                                    'linear-gradient(135deg,#10b981,#34d399)',
+                                    'linear-gradient(135deg,#f59e0b,#fbbf24)',
+                                    'linear-gradient(135deg,#ec4899,#f472b6)',
+                                    'linear-gradient(135deg,#0ea5e9,#38bdf8)'
+                                ];
+                                foreach($recent_tasks as $idx => $task) { 
+                                    $statusClass = "pending";
+                                    $statusText = "pending";
+                                    $taskStatusRaw = strtolower(trim((string)($task['status'] ?? 'pending')));
+                                    $taskRating = isset($task['rating']) ? (float)$task['rating'] : 0.0;
+
+                                    $subtasksForStatus = [];
+                                    try {
+                                        $subtasksForStatus = get_subtasks_by_task($pdo, $task['id']);
+                                    } catch (Throwable $e) {
+                                        $subtasksForStatus = [];
+                                    }
+                                    if (!is_array($subtasksForStatus)) {
+                                        $subtasksForStatus = [];
+                                    }
+
+                                    $hasStartedSubtask = false;
+                                    foreach ($subtasksForStatus as $subtaskRow) {
+                                        $subtaskStatus = strtolower(trim((string)($subtaskRow['status'] ?? 'pending')));
+                                        if (in_array($subtaskStatus, ['submitted', 'completed', 'in_progress', 'revise', 'revision_needed', 'rejected'], true)) {
+                                            $hasStartedSubtask = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if ($taskStatusRaw === 'completed' && $taskRating <= 0) {
+                                        $statusClass = "submitted";
+                                        $statusText = "submitted";
+                                    } elseif ($taskStatusRaw === 'completed') {
+                                        $statusClass = "completed";
+                                        $statusText = "completed";
+                                    } elseif ($hasStartedSubtask || $taskStatusRaw === 'in_progress') {
+                                        $statusClass = "in_progress";
+                                        $statusText = "in progress";
+                                    }
+
+                                    $redirectUrl = "tasks.php?open_task=" . $task['id'];
+
+                                    $assignees = get_task_assignees($pdo, $task['id']);
+                                    $leader = null;
+                                    if ($assignees != 0) {
+                                        foreach ($assignees as $a) {
+                                            if ($a['role'] == 'leader') { $leader = $a; break; }
+                                        }
+                                    }
+
+                                    $leaderName = $leader ? trim((string)$leader['full_name']) : '';
+                                    $leaderInitials = '';
+                                    if ($leaderName !== '') {
+                                        $parts = preg_split('/\s+/', $leaderName);
+                                        foreach ($parts as $part) {
+                                            if ($part === '') continue;
+                                            $leaderInitials .= mb_strtoupper(mb_substr($part, 0, 1));
+                                            if (mb_strlen($leaderInitials) >= 2) break;
+                                        }
+                                    }
+                                    if ($leaderInitials === '') {
+                                        $leaderInitials = 'TL';
+                                    }
+
+                                    $iconStyle = $taskIconStyles[$idx % count($taskIconStyles)];
+                                    $iconMap = [
+                                        'completed' => 'fa-check',
+                                        'in_progress' => 'fa-fire',
+                                        'submitted' => 'fa-paper-plane',
+                                        'pending' => 'fa-clock-o'
+                                    ];
+                                    $iconName = $iconMap[$statusClass] ?? 'fa-tasks';
+                            ?>
+                            <div class="admin-task-item" onclick="navigateWithClockInGuard('<?= $redirectUrl ?>')">
+                                <div class="admin-task-icon" style="background: <?= $iconStyle ?>;">
+                                    <i class="fa <?= $iconName ?>"></i>
+                                </div>
+                                <div class="admin-task-info">
+                                    <div class="admin-task-name"><?= htmlspecialchars($task['title']) ?></div>
+                                    <div class="admin-task-meta">
+                                        <span class="admin-task-label">LEADER</span>
+                                        <?php if ($leader) { 
+                                            $leaderAvatar = !empty($leader['profile_image']) ? 'uploads/' . $leader['profile_image'] : '';
+                                        ?>
+                                            <?php if ($leaderAvatar) { ?>
+                                                <img src="<?= $leaderAvatar ?>" class="admin-task-leader-avatar" alt="Leader">
+                                            <?php } else { ?>
+                                                <span class="admin-task-leader-avatar is-initials"><?= htmlspecialchars($leaderInitials) ?></span>
+                                            <?php } ?>
+                                            <span><?= htmlspecialchars($leaderName) ?></span>
+                                        <?php } else { ?>
+                                            <span class="admin-task-unassigned">Unassigned</span>
+                                        <?php } ?>
+                                    </div>
+                                </div>
+                                <span class="admin-task-status status-<?= $statusClass ?>"><?= $statusText ?></span>
+                            </div>
+                            <?php } } else { ?>
+                                <div class="admin-empty-state">
+                                    <i class="fa fa-folder-open-o"></i>
+                                    <span>No recent tasks yet.</span>
+                                </div>
+                            <?php } ?>
+                        </div>
+
+                        <div class="admin-card-footer">
+                            <a href="tasks.php" class="admin-view-all-link">
+                                View All Tasks <i class="fa fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="dash-card admin-card admin-active-card">
+                        <div class="admin-card-head">
+                            <h3><span class="admin-active-dot"></span> Active Users</h3>
+                            <?php $activeUserCount = count($active_users); ?>
+                            <span class="admin-active-count"><?= $activeUserCount ?> online</span>
+                        </div>
+
+                        <div class="admin-active-list">
+                            <?php if (!empty($active_users)) { 
+                                foreach ($active_users as $idx => $u) {
+                                    $userName = trim((string)($u['full_name'] ?? ''));
+                                    $avatarPath = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : '';
+                                    $timeInRaw = trim((string)($u['time_in'] ?? ''));
+                                    $timeInLabel = $timeInRaw !== '' ? date('h:i A', strtotime($timeInRaw)) : '--:--';
+                                    $initials = '';
+                                    if ($userName !== '') {
+                                        $parts = preg_split('/\s+/', $userName);
+                                        foreach ($parts as $part) {
+                                            if ($part === '') continue;
+                                            $initials .= mb_strtoupper(mb_substr($part, 0, 1));
+                                            if (mb_strlen($initials) >= 2) break;
+                                        }
+                                    }
+                                    if ($initials === '') {
+                                        $initials = 'U';
+                                    }
+                            ?>
+                            <div class="admin-user-row" data-user-id="<?= (int)$u['user_id'] ?>">
+                                <div class="admin-user-rank"><?= $idx + 1 ?></div>
+                                <div class="admin-user-avatar">
+                                    <?php if ($avatarPath) { ?>
+                                        <img src="<?= $avatarPath ?>" alt="User">
+                                    <?php } else { ?>
+                                        <span class="admin-user-avatar-initials"><?= htmlspecialchars($initials) ?></span>
+                                    <?php } ?>
+                                    <span class="admin-user-online"></span>
+                                </div>
+                                <div class="admin-user-info">
+                                    <div class="admin-user-name"><?= htmlspecialchars($userName) ?></div>
+                                    <div class="admin-user-meta">Clocked in at <?= htmlspecialchars($timeInLabel) ?></div>
+                                </div>
+                                <div class="admin-user-actions">
+                                    <button type="button" class="admin-btn admin-btn-clockout admin-clockout-btn" data-user-id="<?= (int)$u['user_id'] ?>" data-user-name="<?= htmlspecialchars($userName) ?>">
+                                        <i class="fa fa-sign-out"></i> Clock Out
+                                    </button>
+                                    <a class="admin-btn admin-btn-capture" href="screenshots.php?open_user_id=<?= (int)$u['user_id'] ?>&user_id=<?= (int)$u['user_id'] ?>">
+                                        View Captures <i class="fa fa-arrow-right"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <?php } } else { ?>
+                                <div class="admin-empty-state">
+                                    <i class="fa fa-user-o"></i>
+                                    <span>No active users right now.</span>
+                                </div>
+                            <?php } ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php } ?>
+
+        <?php if ($_SESSION['role'] != 'admin') { ?>
         <div class="dash-top-grid">
             <?php if ($_SESSION['role'] == 'admin') { ?>
             <div class="dash-card admin-leaderboard-compact">
@@ -506,11 +807,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             <div class="ctt-stats">
                                 <div class="ctt-stat ctt-stat-today">
                                     <div class="ctt-label">Today</div>
-                                    <div class="ctt-value"><?= htmlspecialchars((string)$attStats['daily_duration']) ?></div>
+                                    <div class="ctt-value" id="statDurationToday"><?= htmlspecialchars((string)$attStats['daily_duration']) ?></div>
                                 </div>
                                 <div class="ctt-stat ctt-stat-alltime">
                                     <div class="ctt-label">All Time</div>
-                                    <div class="ctt-value"><?= htmlspecialchars((string)$attStats['overall_duration']) ?></div>
+                                    <div class="ctt-value" id="statDurationAllTime"><?= htmlspecialchars((string)$attStats['overall_duration']) ?></div>
                                 </div>
                             </div>
 
@@ -766,55 +1067,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             </div>
             <?php } ?>
         </div>
-            <?php if ($_SESSION['role'] == 'admin') { ?>
-            <!-- Stats Section -->
-            <div class="dash-stats-grid">
-                <!-- Total Tasks -->
-                <div class="stat-card">
-                    <div class="stat-info">
-                        <h4>Total Tasks</h4>
-                        <span><?= $num_task ?></span>
-                    </div>
-                    <div class="stat-icon icon-blue">
-                        <i class="fa fa-check-square-o"></i>
-                    </div>
-                </div>
+        <?php } ?>
 
-                <!-- Completed Tasks -->
-                <div class="stat-card">
-                    <div class="stat-info">
-                        <h4>Completed Tasks</h4>
-                        <span><?= $completed ?></span>
-                    </div>
-                    <div class="stat-icon icon-green">
-                        <i class="fa fa-clock-o"></i>
-                    </div>
-                </div>
-
-                <!-- Collaborative Rate -->
-                <div class="stat-card">
-                    <div class="stat-info">
-                        <h4>Collaborative Rate</h4>
-                        <span><?= $collaborative_rate ?></span>
-                    </div>
-                    <div class="stat-icon icon-purple">
-                        <i class="fa fa-users"></i>
-                    </div>
-                </div>
-
-                <!-- Avg Rating -->
-                <div class="stat-card">
-                    <div class="stat-info">
-                        <h4>Avg Rating</h4>
-                        <span style="display:flex; align-items:center; gap:4px;"><?= $avg_rating ?></span>
-                    </div>
-                    <div class="stat-icon icon-yellow">
-                        <i class="fa fa-star-o"></i>
-                    </div>
-                </div>
-            </div>
-            <?php } ?>
-
+        <?php if ($_SESSION['role'] != 'admin') { ?>
             <section class="dashboard-recent-board">
                 <div class="tasks-section-header">
                     <h3>Recent Tasks</h3>
@@ -955,10 +1210,28 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                      </a>
                 </div>
             </section>
+        <?php } ?>
         </div>
         </div>
 
     </div>
+
+    <?php if ($_SESSION['role'] === 'admin') { ?>
+    <div class="admin-clockout-modal" id="adminClockOutModal" style="display:none;">
+        <div class="admin-clockout-dialog" role="dialog" aria-modal="true" aria-labelledby="adminClockOutTitle">
+            <button type="button" class="admin-clockout-close" id="adminClockOutClose" aria-label="Close clock out confirmation">
+                <i class="fa fa-times"></i>
+            </button>
+            <div class="admin-clockout-kicker">Confirm Action</div>
+            <h3 id="adminClockOutTitle">Clock Out User?</h3>
+            <p>Are you sure you want to clock out <strong id="adminClockOutName">this user</strong>?</p>
+            <div class="admin-clockout-actions">
+                <button type="button" class="admin-btn admin-btn-ghost" id="adminClockOutCancel">Cancel</button>
+                <button type="button" class="admin-btn admin-btn-danger" id="adminClockOutConfirm">Yes, Clock Out</button>
+            </div>
+        </div>
+    </div>
+    <?php } ?>
 
 <!-- SCRIPTS PRESERVED FROM ORIGINAL (Minimally required) -->
 <script type="text/javascript">
@@ -969,6 +1242,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     var attendanceAjaxCsrfToken = <?= json_encode($attendanceAjaxCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var bulletinPostCsrfToken = <?= json_encode($bulletinPostCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var bulletinDeleteCsrfToken = <?= json_encode($bulletinDeleteCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var adminClockOutCsrfToken = <?= json_encode((isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ? csrf_token('admin_clock_out_action') : '') ?>;
     var bulletinPosts = <?= $bulletinPostsJson ?: '[]' ?>;
     var bulletinTagLabels = { ann: 'Announcement', rem: 'Reminder', alt: 'Alert' };
 
@@ -982,6 +1256,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     const attendanceStatusBanner = document.getElementById('attendanceStatusBanner');
     const attendanceStatusIcon = document.getElementById('attendanceStatusIcon');
     const captureStatusLabel = document.getElementById('captureStatusLabel');
+    const durationTodayEl = document.getElementById('statDurationToday');
+    const durationAllEl = document.getElementById('statDurationAllTime');
     const btnInIcon = document.getElementById('clockInButtonIcon');
     const btnInLabel = document.getElementById('clockInButtonLabel');
     const btnInLockNote = document.getElementById('clockInButtonLockNote');
@@ -1026,6 +1302,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     let isAutoClockOutInProgress = false;
     let isManualClockOutInProgress = false;
     let isClockInRequestInProgress = false;
+    let suppressAdminClockOutToastUntil = 0;
+    let durationBaseTodayMinutes = null;
+    let durationBaseAllMinutes = null;
+    let durationLastTickMs = Date.now();
     const idleCheckThresholdMs = 100000; // 100 seconds
     const idleCheckCountdownStartSeconds = 10;
     let idleCheckTimer = null;
@@ -1999,6 +2279,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             return;
         }
 
+        markSelfClockOutToastSuppression();
         isAutoClockOutInProgress = true;
         if (statusSpan) statusSpan.textContent = 'Clocking out...';
 
@@ -2104,6 +2385,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         });
     }
 
+    function markSelfClockOutToastSuppression() {
+        suppressAdminClockOutToastUntil = Date.now() + 12000;
+    }
+
     // Clock Out Handler
     if (btnOut) {
         btnOut.addEventListener('click', function () {
@@ -2117,6 +2402,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         document.getElementById('confirmModal').style.display = 'none';
         closePauseSessionModal();
         isManualClockOutInProgress = true;
+        markSelfClockOutToastSuppression();
         
         btnOut.disabled = true;
         statusSpan.textContent = 'Clocking out...';
@@ -2178,6 +2464,71 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             statusSpan.className = isError ? 'status-error' : '';
             statusSpan.style.color = isError ? '#EF4444' : '';
         }
+    }
+
+    function parseDurationMinutes(text) {
+        var value = String(text || '').trim();
+        if (!value) return 0;
+        var hoursMatch = value.match(/(\d+)\s*h/i);
+        var minsMatch = value.match(/(\d+)\s*m/i);
+        var hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+        var mins = minsMatch ? parseInt(minsMatch[1], 10) : 0;
+        if (isNaN(hours)) hours = 0;
+        if (isNaN(mins)) mins = 0;
+        return (hours * 60) + mins;
+    }
+
+    function formatDurationMinutes(totalMinutes) {
+        var safeMinutes = Math.max(0, parseInt(totalMinutes, 10) || 0);
+        var hours = Math.floor(safeMinutes / 60);
+        var minutes = safeMinutes % 60;
+        return hours + 'h ' + minutes + 'm';
+    }
+
+    function syncDurationBaseFromDom() {
+        if (!durationTodayEl || !durationAllEl) return;
+        durationBaseTodayMinutes = parseDurationMinutes(durationTodayEl.textContent);
+        durationBaseAllMinutes = parseDurationMinutes(durationAllEl.textContent);
+        durationLastTickMs = Date.now();
+    }
+
+    function applyDurationPayload(payload) {
+        if (!payload) return;
+        if (!durationTodayEl || !durationAllEl) return;
+        if (typeof payload.daily_duration === 'string') {
+            durationBaseTodayMinutes = parseDurationMinutes(payload.daily_duration);
+            durationTodayEl.textContent = formatDurationMinutes(durationBaseTodayMinutes);
+        }
+        if (typeof payload.overall_duration === 'string') {
+            durationBaseAllMinutes = parseDurationMinutes(payload.overall_duration);
+            durationAllEl.textContent = formatDurationMinutes(durationBaseAllMinutes);
+        }
+        durationLastTickMs = Date.now();
+    }
+
+    function tickDurationCounters() {
+        if (!durationTodayEl || !durationAllEl) return;
+        if (durationBaseTodayMinutes === null || durationBaseAllMinutes === null) {
+            syncDurationBaseFromDom();
+        }
+        if (!hasActiveAttendance || isAttendancePaused) {
+            durationLastTickMs = Date.now();
+            return;
+        }
+        var now = Date.now();
+        var elapsed = now - durationLastTickMs;
+        if (elapsed < 60000) return;
+        var delta = Math.floor(elapsed / 60000);
+        durationBaseTodayMinutes += delta;
+        durationBaseAllMinutes += delta;
+        durationLastTickMs += delta * 60000;
+        durationTodayEl.textContent = formatDurationMinutes(durationBaseTodayMinutes);
+        durationAllEl.textContent = formatDurationMinutes(durationBaseAllMinutes);
+    }
+
+    if (durationTodayEl && durationAllEl) {
+        syncDurationBaseFromDom();
+        setInterval(tickDurationCounters, 10000);
     }
 
     function signalCaptureStop(reason) {
@@ -2700,12 +3051,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     if (btnIn && btnOut) {
         function applyAttendanceState(payload) {
             if (!payload) return;
+            var wasActive = !!hasActiveAttendance;
             if (payload.has_active_attendance) {
                 attendanceId = payload.attendance_id || attendanceId;
                 syncHeartbeatFromAttendancePayload(payload);
                 refreshCaptureHeartbeatFromStorage(true);
                 refreshCaptureInputStateFromStorage(true);
                 hasActiveAttendance = true;
+                applyDurationPayload(payload);
                 setAttendancePauseState(!!payload.is_paused, payload.pause_reason || '', payload.pause_started_at || '');
                 if (payload.is_paused && captureWindow && !captureWindow.closed) {
                     stopCaptureWindowForPause('attendance_paused');
@@ -2734,10 +3087,25 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     }, 700);
                 }
                 hasActiveAttendance = false;
+                durationLastTickMs = Date.now();
                 setClockedOutUI();
                 if (payload.time_out) {
                     var elOut2 = document.getElementById('statTimeOut');
                     if (elOut2) elOut2.innerText = payload.time_out;
+                }
+            }
+
+            if (wasActive && !hasActiveAttendance) {
+                var now = Date.now();
+                if (
+                    now > suppressAdminClockOutToastUntil &&
+                    !isManualClockOutInProgress &&
+                    !isAutoClockOutInProgress &&
+                    !isIdleLogoutInProgress
+                ) {
+                    if (typeof showToast === 'function') {
+                        showToast('You were clocked out by an admin.', 'warning');
+                    }
                 }
             }
         }
@@ -2857,6 +3225,162 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         groupsPanel.style.display = showEmployees ? 'none' : 'flex';
         requestAnimationFrame(applyBulletinAndTileHeights);
     }
+
+    (function bindAdminActiveUserActions() {
+        if (!isAdminUser) return;
+        var list = document.querySelector('.admin-active-list');
+        if (!list) return;
+        var modal = document.getElementById('adminClockOutModal');
+        var modalName = document.getElementById('adminClockOutName');
+        var modalConfirm = document.getElementById('adminClockOutConfirm');
+        var modalCancel = document.getElementById('adminClockOutCancel');
+        var modalClose = document.getElementById('adminClockOutClose');
+        var pendingBtn = null;
+
+        function updateCount(overrideCount) {
+            var count = typeof overrideCount === 'number' ? overrideCount : list.querySelectorAll('.admin-user-row').length;
+            var badge = document.querySelector('.admin-active-count');
+            if (badge) {
+                badge.textContent = count + ' online';
+            }
+        }
+
+        function openModal(btn) {
+            pendingBtn = btn;
+            if (modalName) {
+                modalName.textContent = btn.getAttribute('data-user-name') || 'this user';
+            }
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeModal() {
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            pendingBtn = null;
+        }
+
+        function doClockOut(btn) {
+            var userId = btn.getAttribute('data-user-id');
+            var userName = btn.getAttribute('data-user-name') || 'this user';
+            if (!userId) return;
+
+            var originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Clocking out...';
+
+            var body = new URLSearchParams();
+            body.append('user_id', userId);
+            body.append('csrf_token', adminClockOutCsrfToken || '');
+
+            fetch('admin_clock_out.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data && data.status === 'success') {
+                    if (typeof showToast === 'function') {
+                        showToast(userName + ' clocked out successfully.', 'success');
+                    }
+                    var row = btn.closest('.admin-user-row');
+                    if (row) {
+                        row.style.opacity = '0.5';
+                        row.style.pointerEvents = 'none';
+                        setTimeout(function () {
+                            row.remove();
+                            updateCount();
+                        }, 250);
+                    } else {
+                        updateCount();
+                    }
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    alert((data && data.message) ? data.message : ('Unable to clock out ' + userName + '.'));
+                }
+            })
+            .catch(function () {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                alert('Failed to clock out user. Please try again.');
+            });
+        }
+
+        list.addEventListener('click', function (ev) {
+            var btn = ev.target.closest('.admin-clockout-btn');
+            if (!btn) return;
+            ev.preventDefault();
+            if (btn.disabled) return;
+
+            if (modal) {
+                openModal(btn);
+            } else {
+                var userName = btn.getAttribute('data-user-name') || 'this user';
+                if (confirm('Clock out ' + userName + '?')) {
+                    doClockOut(btn);
+                }
+            }
+        });
+
+        if (modalConfirm) {
+            modalConfirm.addEventListener('click', function () {
+                if (pendingBtn) {
+                    var btn = pendingBtn;
+                    closeModal();
+                    doClockOut(btn);
+                }
+            });
+        }
+
+        if (modalCancel) {
+            modalCancel.addEventListener('click', closeModal);
+        }
+
+        if (modalClose) {
+            modalClose.addEventListener('click', closeModal);
+        }
+
+        if (modal) {
+            modal.addEventListener('click', function (ev) {
+                if (ev.target === modal) {
+                    closeModal();
+                }
+            });
+        }
+
+        function refreshActiveUsers() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'app/ajax/active_users.php', true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4) return;
+                if (xhr.status < 200 || xhr.status >= 300) return;
+                var data = null;
+                try {
+                    data = JSON.parse(xhr.responseText || '{}');
+                } catch (e) {
+                    data = null;
+                }
+                if (!data || data.status !== 'success' || typeof data.html !== 'string') return;
+
+                var prevScroll = list.scrollTop;
+                list.innerHTML = data.html;
+                list.scrollTop = Math.min(prevScroll, list.scrollHeight || 0);
+                updateCount(typeof data.count === 'number' ? data.count : undefined);
+
+                if (pendingBtn && !document.body.contains(pendingBtn)) {
+                    closeModal();
+                }
+            };
+            xhr.send();
+        }
+
+        refreshActiveUsers();
+        setInterval(refreshActiveUsers, 5000);
+    })();
 
     function escapeHtml(value) {
         return String(value || '')
@@ -2991,7 +3515,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     function applyBulletinAndTileHeights() {
         if (isAdminUser) {
             limitAdminLeaderboardToFourVisibleItems();
-            syncAdminBulletinHeightToLeaderboard();
+            if (document.querySelector('.admin-dashboard')) {
+                limitBulletinListToThreeVisibleItems();
+            } else {
+                syncAdminBulletinHeightToLeaderboard();
+            }
             return;
         }
         var employeeBulletinCard = document.querySelector('.bulletin-card');

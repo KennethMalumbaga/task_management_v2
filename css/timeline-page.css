@@ -559,14 +559,53 @@
     transition: box-shadow 0.14s ease, filter 0.14s ease;
 }
 
+.tlp-phase-bar[data-action="edit-phase"] {
+    cursor: grab;
+}
+
+.tlp-phase-bar.dragging {
+    cursor: grabbing;
+    z-index: 16;
+    filter: brightness(1.04);
+}
+
 .tlp-phase-bar:hover {
     z-index: 10;
     filter: brightness(1.03);
 }
 
+.tlp-phase-resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    background: rgba(255, 255, 255, 0.24);
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    z-index: 2;
+    cursor: ew-resize;
+}
+
+.tlp-phase-resize-handle.left {
+    left: 0;
+    border-radius: 8px 0 0 8px;
+}
+
+.tlp-phase-resize-handle.right {
+    right: 0;
+    border-radius: 0 8px 8px 0;
+}
+
+.tlp-phase-bar:hover .tlp-phase-resize-handle,
+.tlp-phase-bar.dragging .tlp-phase-resize-handle {
+    opacity: 1;
+}
+
 .tlp-phase-bar i {
     font-size: 11px;
     color: #ffffff;
+    position: relative;
+    z-index: 3;
 }
 
 .tlp-phase-bar-name {
@@ -576,6 +615,8 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
+    position: relative;
+    z-index: 3;
 }
 
 .tlp-phase-list {
