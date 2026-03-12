@@ -586,7 +586,9 @@ body.dashboard-page.role-admin .admin-clockout-modal {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1200;
+    z-index: 1500;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     padding: 16px;
 }
 
@@ -1755,13 +1757,14 @@ body.dashboard-page.is-pause-session-modal-open {
 body.dashboard-page .pause-session-modal {
     position: fixed;
     inset: 0;
-    z-index: 1006;
+    z-index: 1500;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
     background: rgba(17, 7, 40, 0.62);
     backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
 }
 
 body.dashboard-page .pause-session-dialog {
@@ -1998,13 +2001,14 @@ body.dashboard-page .pause-session-confirm.is-enabled {
 body.dashboard-page .clockin-setup-modal {
     position: fixed;
     inset: 0;
-    z-index: 1005;
+    z-index: 1500;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
     background: rgba(17, 7, 40, 0.65);
     backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
 }
 
 body.dashboard-page .clockin-setup-modal-dialog {
@@ -2528,11 +2532,22 @@ body.dashboard-page.role-admin .bulletin-empty {
 body.dashboard-page .bulletin-modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1005;
+    z-index: 1500;
     display: none;
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+body.dashboard-page #confirmModal,
+body.dashboard-page #navClockInModal,
+body.dashboard-page #autoClockOutModal,
+body.dashboard-page #idleCheckModal {
+    z-index: 1500 !important;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 body.dashboard-page .bulletin-modal {
