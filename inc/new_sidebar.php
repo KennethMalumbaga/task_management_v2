@@ -872,6 +872,67 @@
         attendanceTimer = setInterval(pollAttendanceState, ATTENDANCE_POLL_MS);
         evalTimer = setInterval(evaluateIdleState, EVALUATE_INTERVAL_MS);
     })();
+
+    (function refreshNotificationsPreview() {
+        var desktopDropdown = document.getElementById('dashTopNotifDropdown');
+        var mobileDropdown = document.getElementById('mobileTopNotifDropdown');
+        var desktopList = desktopDropdown ? desktopDropdown.querySelector('.dash-top-notif-list') : null;
+        var mobileList = mobileDropdown ? mobileDropdown.querySelector('.dash-top-notif-list') : null;
+        var desktopSub = desktopDropdown ? desktopDropdown.querySelector('.dash-top-notif-sub') : null;
+        var mobileSub = mobileDropdown ? mobileDropdown.querySelector('.dash-top-notif-sub') : null;
+        var desktopTrigger = document.getElementById('dashTopNotifTrigger');
+        var mobileTrigger = document.getElementById('mobileTopNotifTrigger');
+
+        if (!desktopList && !mobileList) return;
+
+        function setBadge(trigger, badgeClass, count) {
+            if (!trigger) return;
+            var badge = trigger.querySelector('.' + badgeClass);
+            if (count > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = badgeClass;
+                    trigger.appendChild(badge);
+                }
+                badge.textContent = String(count);
+            } else if (badge) {
+                badge.remove();
+            }
+        }
+
+        function syncContent(data) {
+            if (!data || data.status !== 'success') return;
+            var html = typeof data.html === 'string' ? data.html : '';
+            if (desktopList) desktopList.innerHTML = html;
+            if (mobileList) mobileList.innerHTML = html;
+
+            var unread = typeof data.unread === 'number' ? data.unread : 0;
+            if (desktopSub) desktopSub.textContent = unread + ' unread';
+            if (mobileSub) mobileSub.textContent = unread + ' unread';
+
+            setBadge(desktopTrigger, 'dash-top-badge', unread);
+            setBadge(mobileTrigger, 'mobile-unread-badge', unread);
+        }
+
+        function poll() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'app/ajax/notification_preview.php', true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4) return;
+                if (xhr.status < 200 || xhr.status >= 300) return;
+                try {
+                    var data = JSON.parse(xhr.responseText || '{}');
+                    syncContent(data);
+                } catch (e) {
+                    // ignore parse errors
+                }
+            };
+            xhr.send();
+        }
+
+        poll();
+        setInterval(poll, 5000);
+    })();
 </script>
 
 <?php include_once __DIR__ . "/toast.php"; ?>

@@ -44,6 +44,8 @@ while (true) {
         'attendance_id' => $clocked_in ? ($attendance['attendance_id'] ?? null) : null,
         'time_in' => $attendance['time_in'] ?? '--:--',
         'time_out' => $attendance['time_out'] ?? '--:--',
+        'daily_duration' => $attendance['daily_duration'] ?? null,
+        'overall_duration' => $attendance['overall_duration'] ?? null,
         'is_paused' => !empty($attendance['is_paused']),
         'pause_reason' => $attendance['pause_reason'] ?? null,
         'pause_started_at' => $attendance['pause_started_at'] ?? null,

@@ -11,6 +11,7 @@ if (!isset($_SESSION['id'], $_SESSION['role']) || $_SESSION['role'] !== 'employe
 require 'DB_connection.php';
 require_once 'inc/tenant.php';
 require_once 'inc/attendance_pause.php';
+require_once 'app/model/user.php';
 
 $user_id = $_SESSION['id'];
 $organization_id = isset($_SESSION['organization_id']) ? (int)$_SESSION['organization_id'] : null;
@@ -39,6 +40,7 @@ $stmt->execute($params);
 $attendance = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if ($attendance) {
+    $durationStats = get_todays_attendance_stats($pdo, $user_id);
     $activePause = attendance_pause_get_active($pdo, (int)$attendance['id'], (int)$user_id, $organization_id);
     $lastHeartbeatAt = null;
     $heartbeatAgeSeconds = null;
@@ -53,6 +55,8 @@ if ($attendance) {
         'status' => 'success',
         'has_active_attendance' => true,
         'attendance_id' => $attendance['id'],
+        'daily_duration' => $durationStats['daily_duration'] ?? null,
+        'overall_duration' => $durationStats['overall_duration'] ?? null,
         'is_paused' => $activePause ? true : false,
         'pause_reason' => $activePause['pause_reason'] ?? null,
         'pause_started_at' => $activePause['paused_at'] ?? null,
@@ -60,9 +64,12 @@ if ($attendance) {
         'heartbeat_age_seconds' => $heartbeatAgeSeconds
     ]);
 } else {
+    $durationStats = get_todays_attendance_stats($pdo, $user_id);
     echo json_encode([
         'status' => 'success',
-        'has_active_attendance' => false
+        'has_active_attendance' => false,
+        'daily_duration' => $durationStats['daily_duration'] ?? null,
+        'overall_duration' => $durationStats['overall_duration'] ?? null
     ]);
 }
 
