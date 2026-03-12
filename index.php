@@ -2378,7 +2378,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             isResumeRequestInProgress = true;
             syncPauseSessionUi();
             if (statusSpan) {
-                statusSpan.textContent = 'Select the screen to resume monitoring...';
+                statusSpan.textContent = 'Select the entire screen to resume monitoring...';
                 statusSpan.style.color = '';
             }
             openCaptureWindowForAttendance({ resumeMode: true });

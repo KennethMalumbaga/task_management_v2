@@ -5,3 +5,4 @@ uploads/
 screenshots/
 *.backup
 screenshot_debug.log
+extension.pem

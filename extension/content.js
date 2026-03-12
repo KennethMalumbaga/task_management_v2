@@ -18,7 +18,19 @@
         // Only accept messages from same origin
         if (event.origin !== window.location.origin) return;
 
-        if (event.data.type === 'REQUEST_SCREENSHOT') {
+        if (event.data.type === 'REQUEST_MONITOR_STREAM') {
+            safeSendMessage({
+                type: 'REQUEST_MONITOR_STREAM'
+            }, (response, runtimeError) => {
+                window.postMessage({
+                    type: 'MONITOR_STREAM_RESPONSE',
+                    requestId: event.data.requestId || null,
+                    status: response ? response.status : 'error',
+                    streamId: response ? (response.streamId || null) : null,
+                    message: runtimeError || (response ? response.message : 'no_extension_response')
+                }, window.location.origin);
+            });
+        } else if (event.data.type === 'REQUEST_SCREENSHOT') {
             // Forward to background script
             safeSendMessage({
                 type: 'CAPTURE_SCREENSHOT',
@@ -70,6 +82,14 @@
             }, function () { });
         }
     });
+
+    try {
+        window.postMessage({
+            type: 'SCREENSHOT_EXTENSION_BRIDGE_READY'
+        }, window.location.origin);
+    } catch (err) {
+        // no-op
+    }
 
 
 })();

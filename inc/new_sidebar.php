@@ -111,6 +111,7 @@
         'workspace-billing.php' => 'Billing',
         'groups.php' => 'Groups',
         'screenshots.php' => 'Captures',
+        'reports.php' => 'Reports',
         'profile.php' => 'Profile',
         'edit_profile.php' => 'Edit Profile',
         'notifications.php' => 'Notifications',
@@ -318,6 +319,9 @@
             <div class="dash-nav-section-label">MONITOR</div>
             <a href="screenshots.php" class="dash-nav-item <?= isActive('screenshots.php') ?>">
                 <i class="fa fa-camera"></i> Captures
+            </a>
+            <a href="reports.php" class="dash-nav-item <?= isActive('reports.php') ?>">
+                <i class="fa fa-bar-chart"></i> Reports
             </a>
         <?php } ?>
     </nav>

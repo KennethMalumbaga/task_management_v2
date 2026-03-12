@@ -12,6 +12,8 @@ chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' });
 
 const MIN_INTERVAL = 20 * 60 * 1000; // 20 minutes
 const MAX_INTERVAL = 30 * 60 * 1000; // 30 minutes
+const REQUIRED_DISPLAY_SURFACE = 'monitor';
+const FULL_SCREEN_REQUIRED_ERROR = 'Please share Entire Screen only. Window or tab sharing is not allowed.';
 
 async function logDebug(message) {
     const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
@@ -27,6 +29,32 @@ async function logDebug(message) {
     if (logs.length > 50) logs = logs.slice(-50);
 
     await chrome.storage.local.set({ debugLogs: logs });
+}
+
+function getDisplaySurfaceFromTrack(track) {
+    if (!track || typeof track.getSettings !== 'function') return '';
+    try {
+        const settings = track.getSettings() || {};
+        if (!settings.displaySurface) return '';
+        return String(settings.displaySurface).toLowerCase();
+    } catch (e) {
+        return '';
+    }
+}
+
+function enforceEntireScreenTrack(track) {
+    if (!track) {
+        throw new Error('Screen sharing track is unavailable.');
+    }
+
+    const displaySurface = getDisplaySurfaceFromTrack(track);
+    if (displaySurface && displaySurface !== REQUIRED_DISPLAY_SURFACE) {
+        throw new Error(FULL_SCREEN_REQUIRED_ERROR);
+    }
+}
+
+function isEntireScreenRequirementError(err) {
+    return !!(err && typeof err.message === 'string' && err.message.indexOf(FULL_SCREEN_REQUIRED_ERROR) !== -1);
 }
 
 // Listen for messages from background script
@@ -67,6 +95,7 @@ async function startCapture(streamId, attendanceId, userId, url) {
                 }
             }
         });
+        enforceEntireScreenTrack(mediaStream.getVideoTracks()[0]);
 
         logDebug('Screen capture started (stream obtained)');
 
@@ -135,6 +164,7 @@ async function captureAndSend() {
 
     try {
         const videoTrack = mediaStream.getVideoTracks()[0];
+        enforceEntireScreenTrack(videoTrack);
 
         if (!videoTrack || videoTrack.readyState !== 'live') {
             logDebug('Video track ended or not live');
@@ -183,6 +213,11 @@ async function captureAndSend() {
         reader.readAsDataURL(blob);
 
     } catch (err) {
+        if (isEntireScreenRequirementError(err)) {
+            logDebug('Capture stopped: entire-screen share is required');
+            stopCapture();
+            return;
+        }
         logDebug('Capture failed: ' + err.message);
         console.error('[Offscreen] Failed to capture screenshot:', err);
     }

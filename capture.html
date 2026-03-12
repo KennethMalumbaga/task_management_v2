@@ -1,644 +1,956 @@
-<!DOCTYPE html>
+﻿<!doctype html>
 <html>
-
-<head>
+  <head>
     <title>TaskFlow Screen Monitor</title>
     <style>
-        body {
-            font-family: sans-serif;
-            padding: 20px;
-            text-align: center;
-        }
+      body {
+        font-family: sans-serif;
+        padding: 20px;
+        text-align: center;
+      }
 
-        .status {
-            margin-top: 10px;
-            color: green;
-            font-weight: bold;
-        }
+      .status {
+        margin-top: 10px;
+        color: green;
+        font-weight: bold;
+      }
 
-        .heartbeat-status {
-            margin-top: 8px;
-            font-size: 13px;
-            color: #334155;
-        }
+      .heartbeat-status {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #334155;
+      }
 
-        .heartbeat-status.ok {
-            color: #15803d;
-        }
+      .heartbeat-status.ok {
+        color: #15803d;
+      }
 
-        .heartbeat-status.warn {
-            color: #b45309;
-        }
+      .heartbeat-status.warn {
+        color: #b45309;
+      }
 
-        .heartbeat-status.err {
-            color: #b91c1c;
-        }
+      .heartbeat-status.err {
+        color: #b91c1c;
+      }
 
-        .input-status {
-            margin-top: 6px;
-            font-size: 12px;
-            color: #334155;
-        }
+      .input-status {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #334155;
+      }
 
-        .input-status.ok {
-            color: #15803d;
-        }
+      .input-status.ok {
+        color: #15803d;
+      }
 
-        .input-status.warn {
-            color: #b45309;
-        }
+      .input-status.warn {
+        color: #b45309;
+      }
 
-        .input-status.err {
-            color: #b91c1c;
-        }
+      .input-status.err {
+        color: #b91c1c;
+      }
 
-        .error {
-            color: red;
-        }
+      .error {
+        color: red;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <h3>TaskFlow Monitor Active</h3>
     <p>Do not close this window while working.</p>
     <div id="status" class="status">Initializing...</div>
-    <div id="heartbeatStatus" class="heartbeat-status">Heartbeat: initializing...</div>
+    <div id="heartbeatStatus" class="heartbeat-status">
+      Heartbeat: initializing...
+    </div>
     <div id="inputStatus" class="input-status">Input activity: checking...</div>
     <div id="preview"></div>
 
     <script>
-        // Interval: 20 to 30 MINUTES
-        const MIN_INTERVAL = 20 * 60 * 1000;
-        const MAX_INTERVAL = 30 * 60 * 1000;
-        const CAPTURE_HEARTBEAT_STORAGE_KEY = 'taskflow_capture_heartbeat';
-        const CAPTURE_INPUT_STATE_STORAGE_KEY = 'taskflow_capture_input_state';
-        const CAPTURE_HEARTBEAT_INTERVAL_MS = 2000;
-        const CAPTURE_BEFORE_IDLE_REQUEST_KEY = 'taskflow_capture_before_idle_logout_req';
-        const CAPTURE_BEFORE_IDLE_ACK_KEY = 'taskflow_capture_before_idle_logout_ack';
-        const REQUESTED_INPUT_IDLE_THRESHOLD_SECONDS = 60;
-        const MIN_CHROME_IDLE_THRESHOLD_SECONDS = 15;
-        const EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS = Math.max(
-            MIN_CHROME_IDLE_THRESHOLD_SECONDS,
-            REQUESTED_INPUT_IDLE_THRESHOLD_SECONDS
+      // Interval: 20 to 30 MINUTES
+      const MIN_INTERVAL = 20 * 60 * 1000;
+      const MAX_INTERVAL = 30 * 60 * 1000;
+      const CAPTURE_HEARTBEAT_STORAGE_KEY = "taskflow_capture_heartbeat";
+      const CAPTURE_INPUT_STATE_STORAGE_KEY = "taskflow_capture_input_state";
+      const CAPTURE_HEARTBEAT_INTERVAL_MS = 2000;
+      const SCREEN_SHARE_REQUEST_TIMEOUT_MS = 60000;
+      const CAPTURE_BEFORE_IDLE_REQUEST_KEY =
+        "taskflow_capture_before_idle_logout_req";
+      const CAPTURE_BEFORE_IDLE_ACK_KEY =
+        "taskflow_capture_before_idle_logout_ack";
+      const REQUESTED_INPUT_IDLE_THRESHOLD_SECONDS = 60;
+      const MIN_CHROME_IDLE_THRESHOLD_SECONDS = 15;
+      const EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS = Math.max(
+        MIN_CHROME_IDLE_THRESHOLD_SECONDS,
+        REQUESTED_INPUT_IDLE_THRESHOLD_SECONDS,
+      );
+      function formatInputIdleLabel(thresholdSeconds) {
+        return thresholdSeconds >= 60
+          ? Math.round(thresholdSeconds / 60) + "+ min no input"
+          : thresholdSeconds + "+ sec no input";
+      }
+      let keepAliveInterval = null;
+      let attendanceHeartbeatInterval = null;
+      let captureInterval = null;
+      let attendanceId = null;
+      let sessionId = null;
+      let userId = null;
+      let csrfToken = null;
+      let currentStream = null;
+      let attendanceCheckInterval = null;
+      let isStopping = false;
+      let isCaptureInProgress = false;
+      let isHeartbeatRequestInFlight = false;
+      let openerMonitorInterval = null;
+      let lastHandledIdleCaptureRequestId = null;
+      let extensionBridgeReady = false;
+      const hadOpenerAtLaunch = !!window.opener;
+      // Robust relative URL
+      let apiUrl = new URL("save_screenshot.php", window.location.href).href;
+
+      // Parse query params
+      const params = new URLSearchParams(window.location.search);
+      attendanceId = params.get("attendanceId");
+      userId = params.get("userId");
+      sessionId = params.get("sessionId");
+      csrfToken = params.get("csrf_token");
+      const resumeMode = params.get("resume") === "1";
+
+      const statusDiv = document.getElementById("status");
+      const heartbeatStatusDiv = document.getElementById("heartbeatStatus");
+      const inputStatusDiv = document.getElementById("inputStatus");
+      const REQUIRED_DISPLAY_SURFACE = "monitor";
+      const FULL_SCREEN_REQUIRED_ERROR =
+        "Please share Entire Screen only. Window or tab sharing is not allowed.";
+
+      function setHeartbeatStatus(message, level) {
+        if (!heartbeatStatusDiv) return;
+        heartbeatStatusDiv.className =
+          "heartbeat-status" + (level ? " " + level : "");
+        heartbeatStatusDiv.innerText = message;
+      }
+
+      function setInputStatus(message, level) {
+        if (!inputStatusDiv) return;
+        inputStatusDiv.className = "input-status" + (level ? " " + level : "");
+        inputStatusDiv.innerText = message;
+      }
+
+      function getDisplaySurfaceFromTrack(track) {
+        if (!track || typeof track.getSettings !== "function") return "";
+        try {
+          const settings = track.getSettings() || {};
+          if (!settings.displaySurface) return "";
+          return String(settings.displaySurface).toLowerCase();
+        } catch (e) {
+          return "";
+        }
+      }
+
+      function enforceEntireScreenTrack(track) {
+        if (!track) {
+          throw new Error("Screen sharing track is unavailable.");
+        }
+
+        const displaySurface = getDisplaySurfaceFromTrack(track);
+        if (displaySurface && displaySurface !== REQUIRED_DISPLAY_SURFACE) {
+          try {
+            track.stop();
+          } catch (e) {
+            // no-op
+          }
+          throw new Error(FULL_SCREEN_REQUIRED_ERROR);
+        }
+      }
+
+      function isEntireScreenRequirementError(err) {
+        return !!(
+          err &&
+          typeof err.message === "string" &&
+          err.message.indexOf(FULL_SCREEN_REQUIRED_ERROR) !== -1
         );
-        function formatInputIdleLabel(thresholdSeconds) {
-            return thresholdSeconds >= 60
-                ? (Math.round(thresholdSeconds / 60) + '+ min no input')
-                : (thresholdSeconds + '+ sec no input');
-        }
-        let keepAliveInterval = null;
-        let attendanceHeartbeatInterval = null;
-        let captureInterval = null;
-        let attendanceId = null;
-        let sessionId = null;
-        let userId = null;
-        let csrfToken = null;
-        let currentStream = null;
-        let attendanceCheckInterval = null;
-        let isStopping = false;
-        let isCaptureInProgress = false;
-        let isHeartbeatRequestInFlight = false;
-        let openerMonitorInterval = null;
-        let lastHandledIdleCaptureRequestId = null;
-        const hadOpenerAtLaunch = !!window.opener;
-        // Robust relative URL
-        let apiUrl = new URL('save_screenshot.php', window.location.href).href;
+      }
 
-        // Parse query params
-        const params = new URLSearchParams(window.location.search);
-        attendanceId = params.get('attendanceId');
-        userId = params.get('userId');
-        sessionId = params.get('sessionId');
-        csrfToken = params.get('csrf_token');
-        const resumeMode = params.get('resume') === '1';
+      window.addEventListener("message", function (event) {
+        if (event.origin !== window.location.origin) return;
+        if (
+          !event.data ||
+          event.data.type !== "SCREENSHOT_EXTENSION_BRIDGE_READY"
+        )
+          return;
+        extensionBridgeReady = true;
+      });
 
-        const statusDiv = document.getElementById('status');
-        const heartbeatStatusDiv = document.getElementById('heartbeatStatus');
-        const inputStatusDiv = document.getElementById('inputStatus');
-
-        function setHeartbeatStatus(message, level) {
-            if (!heartbeatStatusDiv) return;
-            heartbeatStatusDiv.className = 'heartbeat-status' + (level ? (' ' + level) : '');
-            heartbeatStatusDiv.innerText = message;
+      function waitForExtensionBridgeReady() {
+        if (extensionBridgeReady) {
+          return Promise.resolve();
         }
 
-        function setInputStatus(message, level) {
-            if (!inputStatusDiv) return;
-            inputStatusDiv.className = 'input-status' + (level ? (' ' + level) : '');
-            inputStatusDiv.innerText = message;
-        }
+        return new Promise((resolve, reject) => {
+          let settled = false;
+          let timeoutId = null;
 
-        async function startCapture() {
-            try {
-                statusDiv.innerText = "Please select screen to share...";
-                // Direct standard API call - robust and simple
-                const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "always", displaySurface: "monitor" },
-                    audio: false
-                });
-                currentStream = stream;
-
-                statusDiv.innerText = "Monitoring active";
-
-                // Handle stream stop (user clicks 'Stop Sharing')
-                stream.getVideoTracks()[0].onended = () => {
-                    stopCaptureAndClose('Screen sharing stopped.', { reason: 'stream_ended', clockOut: true });
-                };
-
-                // Signal success to main window
-                if (window.opener) {
-                    window.opener.postMessage({ type: 'CAPTURE_STARTED', resume_mode: resumeMode }, '*');
-                }
-
-                // Request minimize
-                window.postMessage({ type: 'MINIMIZE_WINDOW' }, '*');
-
-                // Start loop
-                startHeartbeat(); // Start heartbeat
-                startAttendanceCheck(); // Auto-close when session is ended
-                startOpenerMonitor(); // Auto-stop when parent tab is closed
-                takeScreenshot(stream); // First one immediately
-                scheduleNext(stream);
-
-            } catch (err) {
-                console.error("Error:", err);
-                statusDiv.innerText = "Error: " + err.message;
-                statusDiv.className = "error";
-                stopHeartbeat(); // Stop heartbeat
-                if (window.opener) {
-                    window.opener.postMessage({ type: 'CAPTURE_ERROR', message: err.message, resume_mode: resumeMode }, '*');
-                }
-                if (!resumeMode) {
-                    await requestClockOutFromCapture();
-                } else {
-                    setTimeout(() => {
-                        window.close();
-                    }, 500);
-                }
+          function cleanup() {
+            window.removeEventListener("message", onMessage);
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
             }
-        }
+          }
 
-        let heartbeatInterval = null;
-
-        function publishCaptureHeartbeat() {
-            if (!attendanceId) return;
-            try {
-                localStorage.setItem(CAPTURE_HEARTBEAT_STORAGE_KEY, JSON.stringify({
-                    ts: Date.now(),
-                    attendance_id: Number(attendanceId)
-                }));
-            } catch (e) {
-                // no-op
+          function finish(error) {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            if (error) {
+              reject(error);
+              return;
             }
-        }
+            resolve();
+          }
 
-        function publishInputState(state, thresholdReached, thresholdSeconds) {
-            if (!attendanceId) return;
-            try {
-                localStorage.setItem(CAPTURE_INPUT_STATE_STORAGE_KEY, JSON.stringify({
-                    ts: Date.now(),
-                    attendance_id: Number(attendanceId),
-                    state: state || 'unknown',
-                    threshold_seconds: Number(thresholdSeconds || EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS),
-                    threshold_reached: thresholdReached ? 1 : 0
-                }));
-            } catch (e) {
-                // no-op
-            }
-        }
-
-        function requestSystemIdleState() {
-            return new Promise((resolve) => {
-                const requestId = 'idle_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-                let settled = false;
-
-                function cleanup() {
-                    window.removeEventListener('message', onMessage);
-                }
-
-                function finish(payload) {
-                    if (settled) return;
-                    settled = true;
-                    cleanup();
-                    const state = payload && payload.state ? String(payload.state) : 'unknown';
-                    const parsedThreshold = payload && payload.thresholdSeconds != null
-                        ? Number(payload.thresholdSeconds)
-                        : NaN;
-                    const thresholdSeconds = isFinite(parsedThreshold) && parsedThreshold > 0
-                        ? parsedThreshold
-                        : EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS;
-                    resolve({
-                        state: state,
-                        thresholdSeconds: thresholdSeconds,
-                        error: payload && payload.error ? String(payload.error) : null
-                    });
-                }
-
-                function onMessage(event) {
-                    if (event.origin !== window.location.origin) return;
-                    if (!event.data || event.data.type !== 'SYSTEM_IDLE_STATE') return;
-                    if (event.data.requestId !== requestId) return;
-                    finish({
-                        state: event.data.state,
-                        thresholdSeconds: event.data.thresholdSeconds,
-                        error: event.data.error
-                    });
-                }
-
-                window.addEventListener('message', onMessage);
-                setTimeout(() => finish({ state: 'unknown', thresholdSeconds: EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS, error: 'timeout' }), 3500);
-
-                try {
-                    window.postMessage({
-                        type: 'CHECK_SYSTEM_IDLE_STATE',
-                        requestId: requestId,
-                        thresholdSeconds: EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS
-                    }, window.location.origin);
-                } catch (e) {
-                    finish({ state: 'unknown', thresholdSeconds: EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS, error: 'post_message_failed' });
-                }
-            });
-        }
-
-        async function sendAttendanceHeartbeat() {
-            if (isHeartbeatRequestInFlight) {
-                return false;
-            }
-            if (!attendanceId) {
-                setHeartbeatStatus('Heartbeat: unavailable (missing attendance).', 'err');
-                setInputStatus('Input activity: unavailable (missing attendance).', 'err');
-                return false;
-            }
-
-            isHeartbeatRequestInFlight = true;
-            try {
-                const idleResult = await requestSystemIdleState();
-                const idleState = idleResult.state || 'unknown';
-                const idleThresholdSeconds = Number(idleResult.thresholdSeconds || EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS);
-                const idleLabel = formatInputIdleLabel(idleThresholdSeconds);
-                const isInputIdle = idleState === 'idle' || idleState === 'locked';
-                publishInputState(idleState, isInputIdle, idleThresholdSeconds);
-
-                if (idleState === 'active') {
-                    setInputStatus('Input activity: active.', 'ok');
-                } else if (idleState === 'idle') {
-                    setInputStatus('Input activity: idle (' + idleLabel + ').', 'warn');
-                } else if (idleState === 'locked') {
-                    setInputStatus('Input activity: locked.', 'warn');
-                } else if (idleState === 'unsupported') {
-                    setInputStatus('Input activity: extension idle permission missing.', 'err');
-                } else {
-                    const reason = idleResult.error ? String(idleResult.error) : 'no extension response';
-                    setInputStatus('Input activity: unavailable (' + reason + ').', 'err');
-                }
-
-                const body = new URLSearchParams();
-                body.set('attendance_id', String(attendanceId));
-                body.set('csrf_token', csrfToken || '');
-                body.set('input_idle_state', idleState);
-                body.set('input_idle_threshold_seconds', String(idleThresholdSeconds));
-                body.set('input_idle_threshold_reached', isInputIdle ? '1' : '0');
-                const response = await fetch('attendance_heartbeat.php', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: body.toString(),
-                    keepalive: true
-                });
-                if (!response.ok) {
-                    setHeartbeatStatus('Heartbeat: retrying connection...', 'warn');
-                    return false;
-                }
-                const data = await response.json();
-                if (data && data.status === 'success') {
-                    setHeartbeatStatus('Heartbeat: connected (' + new Date().toLocaleTimeString() + ')', 'ok');
-                    return true;
-                }
-                setHeartbeatStatus('Heartbeat: retrying connection...', 'warn');
-                return false;
-            } catch (e) {
-                setHeartbeatStatus('Heartbeat: retrying connection...', 'warn');
-                return false;
-            } finally {
-                isHeartbeatRequestInFlight = false;
-            }
-        }
-
-        function startHeartbeat() {
-            // Update initial immediately
-            localStorage.setItem('taskflow_heartbeat', Date.now());
-            publishCaptureHeartbeat();
-            publishInputState('unknown', false, EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS);
-            sendAttendanceHeartbeat();
-
-            heartbeatInterval = setInterval(() => {
-                localStorage.setItem('taskflow_heartbeat', Date.now());
-            }, 2000);
-
-            attendanceHeartbeatInterval = setInterval(() => {
-                publishCaptureHeartbeat();
-                sendAttendanceHeartbeat();
-            }, CAPTURE_HEARTBEAT_INTERVAL_MS);
-
-            // Server Session keep-alive (every 5 mins) to prevent timeout.
-            keepAliveInterval = setInterval(() => {
-                fetch('check_attendance.php').then(r => console.log('Keep-alive ping:', r.status));
-            }, 5 * 60 * 1000);
-        }
-
-        function stopHeartbeat() {
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
-            if (keepAliveInterval) clearInterval(keepAliveInterval);
-            if (attendanceHeartbeatInterval) clearInterval(attendanceHeartbeatInterval);
-            localStorage.removeItem('taskflow_heartbeat');
-            localStorage.removeItem(CAPTURE_HEARTBEAT_STORAGE_KEY);
-            localStorage.removeItem(CAPTURE_INPUT_STATE_STORAGE_KEY);
-            setHeartbeatStatus('Heartbeat: stopped.', 'err');
-            setInputStatus('Input activity: stopped.', 'err');
-        }
-
-        function startOpenerMonitor() {
-            if (!hadOpenerAtLaunch || openerMonitorInterval) return;
-            openerMonitorInterval = setInterval(function () {
-                if (isStopping) return;
-                if (window.opener && !window.opener.closed) return;
-                stopCaptureAndClose('Main session closed. Logging out...', {
-                    reason: 'parent_tab_closed',
-                    clockOut: true,
-                    logout: true
-                });
-            }, 2000);
-        }
-
-        function stopOpenerMonitor() {
-            if (!openerMonitorInterval) return;
-            clearInterval(openerMonitorInterval);
-            openerMonitorInterval = null;
-        }
-
-        function startAttendanceCheck() {
-            if (attendanceCheckInterval) return;
-            attendanceCheckInterval = setInterval(async () => {
-                try {
-                    const res = await fetch('check_attendance.php', { cache: 'no-store' });
-                    if (!res.ok) {
-                        stopCaptureAndClose('Session ended.', { reason: 'attendance_ended' });
-                        return;
-                    }
-                    const data = await res.json();
-                    if ((data.status === 'success' && data.has_active_attendance === false) || data.status === 'error') {
-                        stopCaptureAndClose('Session ended.', { reason: 'attendance_ended' });
-                    }
-                } catch (e) {
-                    stopCaptureAndClose('Session ended.', { reason: 'attendance_ended' });
-                }
-            }, 15000);
-        }
-
-        async function requestClockOutFromCapture() {
-            try {
-                const body = new URLSearchParams();
-                body.set('csrf_token', csrfToken || '');
-                await fetch('time_out.php', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: body.toString(),
-                    keepalive: true
-                });
-            } catch (e) {
-                // best effort only
-            }
-        }
-
-        async function requestLogoutFromCapture() {
-            try {
-                await fetch('logout.php', {
-                    method: 'GET',
-                    credentials: 'same-origin',
-                    keepalive: true
-                });
-            } catch (e) {
-                // best effort only
-            }
-        }
-
-        async function stopCaptureAndClose(message, options = {}) {
-            if (isStopping) return;
-            isStopping = true;
-
-            const reason = options.reason || 'attendance_ended';
-            const shouldClockOut = !!options.clockOut;
-            const shouldLogout = !!options.logout;
-
-            stopHeartbeat();
-            stopOpenerMonitor();
-            if (attendanceCheckInterval) clearInterval(attendanceCheckInterval);
-            if (captureInterval) clearTimeout(captureInterval);
-            if (currentStream) {
-                currentStream.getTracks().forEach((t) => t.stop());
-                currentStream = null;
-            }
-            statusDiv.innerText = message || 'Stopped';
-            statusDiv.className = "error";
-            if (window.opener) {
-                window.opener.postMessage({ type: 'CAPTURE_STOPPED', reason: reason }, '*');
-            }
-            if (shouldClockOut) {
-                await requestClockOutFromCapture();
-            }
-            if (shouldLogout) {
-                await requestLogoutFromCapture();
-            }
-            setTimeout(() => {
-                window.close();
-            }, 500);
-        }
-
-        function parseForceStopPayload(rawValue) {
-            try {
-                const payload = JSON.parse(rawValue);
-                const reason = payload && payload.reason ? String(payload.reason) : 'clocked_out_elsewhere';
-                let message = 'Logged out. Screen sharing stopped.';
-                if (reason === 'attendance_paused') {
-                    message = 'Session paused. Screen sharing stopped.';
-                } else if (reason === 'attendance_inactive' || reason === 'attendance_ended') {
-                    message = 'Session ended.';
-                } else if (reason === 'idle_logout') {
-                    message = 'Logged out due to inactivity.';
-                } else if (reason === 'manual_clock_out') {
-                    message = 'Clocked out. Screen sharing stopped.';
-                }
-                return {
-                    reason: reason,
-                    message: message,
-                    clockOut: false,
-                    logout: false
-                };
-            } catch (e) {
-                return {
-                    reason: 'clocked_out_elsewhere',
-                    message: 'Logged out. Screen sharing stopped.',
-                    clockOut: false,
-                    logout: false
-                };
-            }
-        }
-
-        function scheduleNext(stream) {
-            const delay = MIN_INTERVAL + Math.random() * (MAX_INTERVAL - MIN_INTERVAL);
-            captureInterval = setTimeout(() => {
-                if (stream.active) {
-                    takeScreenshot(stream);
-                    scheduleNext(stream);
-                }
-            }, delay);
-        }
-
-        async function takeScreenshot(stream) {
-            if (isCaptureInProgress) {
-                return false;
-            }
-            isCaptureInProgress = true;
-            try {
-                const track = stream.getVideoTracks()[0];
-                const imageCapture = new ImageCapture(track);
-                const bitmap = await imageCapture.grabFrame();
-
-                const canvas = document.createElement('canvas');
-                canvas.width = bitmap.width;
-                canvas.height = bitmap.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(bitmap, 0, 0);
-
-                const dataUrl = canvas.toDataURL('image/png');
-
-                // Upload
-                const formData = new FormData();
-                formData.append('attendance_id', attendanceId);
-                formData.append('session_id', sessionId);
-                formData.append('image', dataUrl);
-                formData.append('csrf_token', csrfToken || '');
-
-                statusDiv.innerText = "Uploading...";
-
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const text = await response.text();
-                    try {
-                        const json = JSON.parse(text);
-                        if (json.status === 'success') {
-                            console.log("Screenshot uploaded");
-                            statusDiv.innerText = "Last capture: " + new Date().toLocaleTimeString();
-                            statusDiv.className = "status";
-                            return true;
-                        } else {
-                            throw new Error(json.message || "Unknown server error");
-                        }
-                    } catch (e) {
-                        // If not JSON, it might be a PHP error
-                        console.error("Server response:", text);
-                        throw new Error("Server error: " + text.substring(0, 50));
-                    }
-
-                } catch (netErr) {
-                    statusDiv.innerText = "Upload failed: " + netErr.message;
-                    statusDiv.className = "error";
-                    console.error("Upload error:", netErr);
-                    return false;
-                }
-
-            } catch (err) {
-                console.error("Capture failed:", err);
-                statusDiv.innerText = "Capture failed: " + err.message;
-                statusDiv.className = "error";
-                return false;
-            } finally {
-                isCaptureInProgress = false;
-            }
-        }
-
-        async function processIdleCaptureRequest(rawValue) {
-            if (!rawValue) return;
-            let payload = null;
-            try {
-                payload = JSON.parse(rawValue);
-            } catch (e) {
-                return;
-            }
-            if (!payload || !payload.request_id) return;
-            const requestId = String(payload.request_id);
-            if (!requestId) return;
-            if (lastHandledIdleCaptureRequestId === requestId) return;
-            lastHandledIdleCaptureRequestId = requestId;
-
-            const success = await takeScreenshot(currentStream);
-            try {
-                localStorage.setItem(CAPTURE_BEFORE_IDLE_ACK_KEY, JSON.stringify({
-                    ts: Date.now(),
-                    request_id: requestId,
-                    success: !!success
-                }));
-                setTimeout(() => {
-                    try { localStorage.removeItem(CAPTURE_BEFORE_IDLE_ACK_KEY); } catch (e) { }
-                }, 1000);
-            } catch (e) {
-                // no-op
-            }
-        }
-
-        window.addEventListener('message', async function (event) {
+          function onMessage(event) {
             if (event.origin !== window.location.origin) return;
-            if (!event.data || event.data.type !== 'CAPTURE_NOW_BEFORE_LOGOUT') return;
-            const success = await takeScreenshot(currentStream);
-            if (window.opener) {
-                window.opener.postMessage({ type: 'CAPTURE_BEFORE_LOGOUT_DONE', success: !!success }, '*');
-            }
-        });
+            if (
+              !event.data ||
+              event.data.type !== "SCREENSHOT_EXTENSION_BRIDGE_READY"
+            )
+              return;
+            extensionBridgeReady = true;
+            finish();
+          }
 
-        // Auto-start
-        window.addEventListener('storage', function (event) {
-            if (event.key === CAPTURE_BEFORE_IDLE_REQUEST_KEY && event.newValue) {
-                processIdleCaptureRequest(event.newValue);
-                return;
+          window.addEventListener("message", onMessage);
+          timeoutId = setTimeout(() => {
+            if (extensionBridgeReady || window.screenshotExtensionAvailable) {
+              finish();
+              return;
             }
-            if (event.key === 'taskflow_force_stop_capture' && event.newValue) {
-                const stopPayload = parseForceStopPayload(event.newValue);
-                stopCaptureAndClose(stopPayload.message, {
-                    reason: stopPayload.reason,
-                    clockOut: !!stopPayload.clockOut,
-                    logout: !!stopPayload.logout
-                });
-            }
+            finish(new Error("Screen capture extension is not available"));
+          }, 2500);
         });
+      }
 
-        window.addEventListener('beforeunload', function () {
-            if (isStopping) return;
-            if (currentStream && currentStream.active) {
-                requestClockOutFromCapture();
+      function requestMonitorStreamId() {
+        return new Promise((resolve, reject) => {
+          const requestId =
+            "monitor_stream_" +
+            Date.now() +
+            "_" +
+            Math.random().toString(16).slice(2);
+          let settled = false;
+          let timeoutId = null;
+
+          function cleanup() {
+            window.removeEventListener("message", onMessage);
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
             }
+          }
+
+          function finish(error, streamId) {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            if (error) {
+              reject(error);
+              return;
+            }
+            resolve(streamId);
+          }
+
+          function onMessage(event) {
+            if (event.origin !== window.location.origin) return;
+            if (!event.data || event.data.type !== "MONITOR_STREAM_RESPONSE")
+              return;
+            if (event.data.requestId !== requestId) return;
+
+            if (event.data.status === "success" && event.data.streamId) {
+              finish(null, String(event.data.streamId));
+              return;
+            }
+
+            finish(
+              new Error(event.data.message || "Unable to start screen sharing"),
+            );
+          }
+
+          window.addEventListener("message", onMessage);
+          timeoutId = setTimeout(() => {
+            finish(new Error("Screen capture extension did not respond"));
+          }, SCREEN_SHARE_REQUEST_TIMEOUT_MS);
+
+          try {
+            window.postMessage(
+              {
+                type: "REQUEST_MONITOR_STREAM",
+                requestId: requestId,
+              },
+              window.location.origin,
+            );
+          } catch (err) {
+            finish(err);
+          }
         });
+      }
 
-        if (attendanceId) {
-            startCapture();
-            try {
-                processIdleCaptureRequest(localStorage.getItem(CAPTURE_BEFORE_IDLE_REQUEST_KEY));
-            } catch (e) {
-                // no-op
-            }
-        } else {
-            statusDiv.innerText = "Missing parameters";
-            statusDiv.className = "error";
+      function getDesktopStreamFromExtension(streamId) {
+        const constraints = {
+          audio: false,
+          video: {
+            mandatory: {
+              chromeMediaSource: "desktop",
+              chromeMediaSourceId: streamId,
+            },
+          },
+        };
+
+        if (
+          navigator.mediaDevices &&
+          typeof navigator.mediaDevices.getUserMedia === "function"
+        ) {
+          return navigator.mediaDevices.getUserMedia(constraints);
         }
-    </script>
-</body>
 
+        if (typeof navigator.webkitGetUserMedia === "function") {
+          return new Promise((resolve, reject) => {
+            navigator.webkitGetUserMedia(constraints, resolve, reject);
+          });
+        }
+
+        return Promise.reject(
+          new Error("This browser does not support desktop capture"),
+        );
+      }
+
+      async function startCapture() {
+        try {
+          statusDiv.innerText = "Please select the entire screen to share...";
+          await waitForExtensionBridgeReady();
+          const streamId = await requestMonitorStreamId();
+          const stream = await getDesktopStreamFromExtension(streamId);
+          const track = stream.getVideoTracks()[0];
+          enforceEntireScreenTrack(track);
+          currentStream = stream;
+
+          statusDiv.innerText = "Monitoring active";
+
+          // Handle stream stop (user clicks 'Stop Sharing')
+          track.onended = () => {
+            stopCaptureAndClose("Screen sharing stopped.", {
+              reason: "stream_ended",
+              clockOut: true,
+            });
+          };
+
+          // Signal success to main window
+          if (window.opener) {
+            window.opener.postMessage(
+              { type: "CAPTURE_STARTED", resume_mode: resumeMode },
+              "*",
+            );
+          }
+
+          // Request minimize
+          window.postMessage({ type: "MINIMIZE_WINDOW" }, "*");
+
+          // Start loop
+          startHeartbeat(); // Start heartbeat
+          startAttendanceCheck(); // Auto-close when session is ended
+          startOpenerMonitor(); // Auto-stop when parent tab is closed
+          takeScreenshot(stream); // First one immediately
+          scheduleNext(stream);
+        } catch (err) {
+          console.error("Error:", err);
+          statusDiv.innerText = "Error: " + err.message;
+          statusDiv.className = "error";
+          stopHeartbeat(); // Stop heartbeat
+          if (window.opener) {
+            window.opener.postMessage(
+              {
+                type: "CAPTURE_ERROR",
+                message: err.message,
+                resume_mode: resumeMode,
+              },
+              "*",
+            );
+          }
+          if (!resumeMode) {
+            await requestClockOutFromCapture();
+          } else {
+            setTimeout(() => {
+              window.close();
+            }, 500);
+          }
+        }
+      }
+
+      let heartbeatInterval = null;
+
+      function publishCaptureHeartbeat() {
+        if (!attendanceId) return;
+        try {
+          localStorage.setItem(
+            CAPTURE_HEARTBEAT_STORAGE_KEY,
+            JSON.stringify({
+              ts: Date.now(),
+              attendance_id: Number(attendanceId),
+            }),
+          );
+        } catch (e) {
+          // no-op
+        }
+      }
+
+      function publishInputState(state, thresholdReached, thresholdSeconds) {
+        if (!attendanceId) return;
+        try {
+          localStorage.setItem(
+            CAPTURE_INPUT_STATE_STORAGE_KEY,
+            JSON.stringify({
+              ts: Date.now(),
+              attendance_id: Number(attendanceId),
+              state: state || "unknown",
+              threshold_seconds: Number(
+                thresholdSeconds || EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS,
+              ),
+              threshold_reached: thresholdReached ? 1 : 0,
+            }),
+          );
+        } catch (e) {
+          // no-op
+        }
+      }
+
+      function requestSystemIdleState() {
+        return new Promise((resolve) => {
+          const requestId =
+            "idle_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+          let settled = false;
+
+          function cleanup() {
+            window.removeEventListener("message", onMessage);
+          }
+
+          function finish(payload) {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            const state =
+              payload && payload.state ? String(payload.state) : "unknown";
+            const parsedThreshold =
+              payload && payload.thresholdSeconds != null
+                ? Number(payload.thresholdSeconds)
+                : NaN;
+            const thresholdSeconds =
+              isFinite(parsedThreshold) && parsedThreshold > 0
+                ? parsedThreshold
+                : EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS;
+            resolve({
+              state: state,
+              thresholdSeconds: thresholdSeconds,
+              error: payload && payload.error ? String(payload.error) : null,
+            });
+          }
+
+          function onMessage(event) {
+            if (event.origin !== window.location.origin) return;
+            if (!event.data || event.data.type !== "SYSTEM_IDLE_STATE") return;
+            if (event.data.requestId !== requestId) return;
+            finish({
+              state: event.data.state,
+              thresholdSeconds: event.data.thresholdSeconds,
+              error: event.data.error,
+            });
+          }
+
+          window.addEventListener("message", onMessage);
+          setTimeout(
+            () =>
+              finish({
+                state: "unknown",
+                thresholdSeconds: EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS,
+                error: "timeout",
+              }),
+            3500,
+          );
+
+          try {
+            window.postMessage(
+              {
+                type: "CHECK_SYSTEM_IDLE_STATE",
+                requestId: requestId,
+                thresholdSeconds: EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS,
+              },
+              window.location.origin,
+            );
+          } catch (e) {
+            finish({
+              state: "unknown",
+              thresholdSeconds: EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS,
+              error: "post_message_failed",
+            });
+          }
+        });
+      }
+
+      async function sendAttendanceHeartbeat() {
+        if (isHeartbeatRequestInFlight) {
+          return false;
+        }
+        if (!attendanceId) {
+          setHeartbeatStatus(
+            "Heartbeat: unavailable (missing attendance).",
+            "err",
+          );
+          setInputStatus(
+            "Input activity: unavailable (missing attendance).",
+            "err",
+          );
+          return false;
+        }
+
+        isHeartbeatRequestInFlight = true;
+        try {
+          const idleResult = await requestSystemIdleState();
+          const idleState = idleResult.state || "unknown";
+          const idleThresholdSeconds = Number(
+            idleResult.thresholdSeconds ||
+              EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS,
+          );
+          const idleLabel = formatInputIdleLabel(idleThresholdSeconds);
+          const isInputIdle = idleState === "idle" || idleState === "locked";
+          publishInputState(idleState, isInputIdle, idleThresholdSeconds);
+
+          if (idleState === "active") {
+            setInputStatus("Input activity: active.", "ok");
+          } else if (idleState === "idle") {
+            setInputStatus("Input activity: idle (" + idleLabel + ").", "warn");
+          } else if (idleState === "locked") {
+            setInputStatus("Input activity: locked.", "warn");
+          } else if (idleState === "unsupported") {
+            setInputStatus(
+              "Input activity: extension idle permission missing.",
+              "err",
+            );
+          } else {
+            const reason = idleResult.error
+              ? String(idleResult.error)
+              : "no extension response";
+            setInputStatus(
+              "Input activity: unavailable (" + reason + ").",
+              "err",
+            );
+          }
+
+          const body = new URLSearchParams();
+          body.set("attendance_id", String(attendanceId));
+          body.set("csrf_token", csrfToken || "");
+          body.set("input_idle_state", idleState);
+          body.set(
+            "input_idle_threshold_seconds",
+            String(idleThresholdSeconds),
+          );
+          body.set("input_idle_threshold_reached", isInputIdle ? "1" : "0");
+          const response = await fetch("attendance_heartbeat.php", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: body.toString(),
+            keepalive: true,
+          });
+          if (!response.ok) {
+            setHeartbeatStatus("Heartbeat: retrying connection...", "warn");
+            return false;
+          }
+          const data = await response.json();
+          if (data && data.status === "success") {
+            setHeartbeatStatus(
+              "Heartbeat: connected (" + new Date().toLocaleTimeString() + ")",
+              "ok",
+            );
+            return true;
+          }
+          setHeartbeatStatus("Heartbeat: retrying connection...", "warn");
+          return false;
+        } catch (e) {
+          setHeartbeatStatus("Heartbeat: retrying connection...", "warn");
+          return false;
+        } finally {
+          isHeartbeatRequestInFlight = false;
+        }
+      }
+
+      function startHeartbeat() {
+        // Update initial immediately
+        localStorage.setItem("taskflow_heartbeat", Date.now());
+        publishCaptureHeartbeat();
+        publishInputState(
+          "unknown",
+          false,
+          EFFECTIVE_INPUT_IDLE_THRESHOLD_SECONDS,
+        );
+        sendAttendanceHeartbeat();
+
+        heartbeatInterval = setInterval(() => {
+          localStorage.setItem("taskflow_heartbeat", Date.now());
+        }, 2000);
+
+        attendanceHeartbeatInterval = setInterval(() => {
+          publishCaptureHeartbeat();
+          sendAttendanceHeartbeat();
+        }, CAPTURE_HEARTBEAT_INTERVAL_MS);
+
+        // Server Session Keep-Alive (every 5 mins) to prevent timeout
+        // since screenshot interval is now 20-30 mins.
+        keepAliveInterval = setInterval(
+          () => {
+            fetch("check_attendance.php").then((r) =>
+              console.log("Keep-alive ping:", r.status),
+            );
+          },
+          5 * 60 * 1000,
+        );
+      }
+
+      function stopHeartbeat() {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        if (keepAliveInterval) clearInterval(keepAliveInterval);
+        if (attendanceHeartbeatInterval)
+          clearInterval(attendanceHeartbeatInterval);
+        localStorage.removeItem("taskflow_heartbeat");
+        localStorage.removeItem(CAPTURE_HEARTBEAT_STORAGE_KEY);
+        localStorage.removeItem(CAPTURE_INPUT_STATE_STORAGE_KEY);
+        setHeartbeatStatus("Heartbeat: stopped.", "err");
+        setInputStatus("Input activity: stopped.", "err");
+      }
+
+      function startOpenerMonitor() {
+        if (!hadOpenerAtLaunch || openerMonitorInterval) return;
+        openerMonitorInterval = setInterval(function () {
+          if (isStopping) return;
+          if (window.opener && !window.opener.closed) return;
+          stopCaptureAndClose("Main session closed. Logging out...", {
+            reason: "parent_tab_closed",
+            clockOut: true,
+            logout: true,
+          });
+        }, 2000);
+      }
+
+      function stopOpenerMonitor() {
+        if (!openerMonitorInterval) return;
+        clearInterval(openerMonitorInterval);
+        openerMonitorInterval = null;
+      }
+
+      function startAttendanceCheck() {
+        if (attendanceCheckInterval) return;
+        attendanceCheckInterval = setInterval(async () => {
+          try {
+            const res = await fetch("check_attendance.php", {
+              cache: "no-store",
+            });
+            if (!res.ok) {
+              stopCaptureAndClose("Session ended.", {
+                reason: "attendance_ended",
+              });
+              return;
+            }
+            const data = await res.json();
+            if (
+              (data.status === "success" &&
+                data.has_active_attendance === false) ||
+              data.status === "error"
+            ) {
+              stopCaptureAndClose("Session ended.", {
+                reason: "attendance_ended",
+              });
+            }
+          } catch (e) {
+            stopCaptureAndClose("Session ended.", {
+              reason: "attendance_ended",
+            });
+          }
+        }, 15000);
+      }
+
+      async function requestClockOutFromCapture() {
+        try {
+          const body = new URLSearchParams();
+          body.set("csrf_token", csrfToken || "");
+          await fetch("time_out.php", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: body.toString(),
+            keepalive: true,
+          });
+        } catch (e) {
+          // best effort only
+        }
+      }
+
+      async function requestLogoutFromCapture() {
+        try {
+          await fetch("logout.php", {
+            method: "GET",
+            credentials: "same-origin",
+            keepalive: true,
+          });
+        } catch (e) {
+          // best effort only
+        }
+      }
+
+      async function stopCaptureAndClose(message, options = {}) {
+        if (isStopping) return;
+        isStopping = true;
+
+        const reason = options.reason || "attendance_ended";
+        const shouldClockOut = !!options.clockOut;
+        const shouldLogout = !!options.logout;
+
+        stopHeartbeat();
+        stopOpenerMonitor();
+        if (attendanceCheckInterval) clearInterval(attendanceCheckInterval);
+        if (captureInterval) clearTimeout(captureInterval);
+        if (currentStream) {
+          currentStream.getTracks().forEach((t) => t.stop());
+          currentStream = null;
+        }
+        statusDiv.innerText = message || "Stopped";
+        statusDiv.className = "error";
+        if (window.opener) {
+          window.opener.postMessage(
+            { type: "CAPTURE_STOPPED", reason: reason },
+            "*",
+          );
+        }
+        if (shouldClockOut) {
+          await requestClockOutFromCapture();
+        }
+        if (shouldLogout) {
+          await requestLogoutFromCapture();
+        }
+        setTimeout(() => {
+          window.close();
+        }, 500);
+      }
+
+      function parseForceStopPayload(rawValue) {
+        try {
+          const payload = JSON.parse(rawValue);
+          const reason =
+            payload && payload.reason
+              ? String(payload.reason)
+              : "clocked_out_elsewhere";
+          let message = "Logged out. Screen sharing stopped.";
+          if (reason === "attendance_paused") {
+            message = "Session paused. Screen sharing stopped.";
+          } else if (
+            reason === "attendance_inactive" ||
+            reason === "attendance_ended"
+          ) {
+            message = "Session ended.";
+          } else if (reason === "idle_logout") {
+            message = "Logged out due to inactivity.";
+          } else if (reason === "manual_clock_out") {
+            message = "Clocked out. Screen sharing stopped.";
+          }
+          return {
+            reason: reason,
+            message: message,
+            clockOut: false,
+            logout: false,
+          };
+        } catch (e) {
+          return {
+            reason: "clocked_out_elsewhere",
+            message: "Logged out. Screen sharing stopped.",
+            clockOut: false,
+            logout: false,
+          };
+        }
+      }
+
+      function scheduleNext(stream) {
+        const delay =
+          MIN_INTERVAL + Math.random() * (MAX_INTERVAL - MIN_INTERVAL);
+        captureInterval = setTimeout(() => {
+          if (stream.active) {
+            takeScreenshot(stream);
+            scheduleNext(stream);
+          }
+        }, delay);
+      }
+
+      async function takeScreenshot(stream) {
+        if (isCaptureInProgress) {
+          return false;
+        }
+        isCaptureInProgress = true;
+        try {
+          const track = stream.getVideoTracks()[0];
+          enforceEntireScreenTrack(track);
+          const imageCapture = new ImageCapture(track);
+          const bitmap = await imageCapture.grabFrame();
+
+          const canvas = document.createElement("canvas");
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(bitmap, 0, 0);
+
+          const dataUrl = canvas.toDataURL("image/png");
+
+          // Upload
+          const formData = new FormData();
+          formData.append("attendance_id", attendanceId);
+          formData.append("session_id", sessionId);
+          formData.append("image", dataUrl);
+          formData.append("csrf_token", csrfToken || "");
+
+          statusDiv.innerText = "Uploading...";
+
+          try {
+            const response = await fetch(apiUrl, {
+              method: "POST",
+              body: formData,
+            });
+
+            const text = await response.text();
+            try {
+              const json = JSON.parse(text);
+              if (json.status === "success") {
+                console.log("Screenshot uploaded");
+                statusDiv.innerText =
+                  "Last capture: " + new Date().toLocaleTimeString();
+                statusDiv.className = "status";
+                return true;
+              } else {
+                throw new Error(json.message || "Unknown server error");
+              }
+            } catch (e) {
+              // If not JSON, it might be a PHP error
+              console.error("Server response:", text);
+              throw new Error("Server error: " + text.substring(0, 50));
+            }
+          } catch (netErr) {
+            statusDiv.innerText = "Upload failed: " + netErr.message;
+            statusDiv.className = "error";
+            console.error("Upload error:", netErr);
+            return false;
+          }
+        } catch (err) {
+          console.error("Capture failed:", err);
+          if (isEntireScreenRequirementError(err)) {
+            stopCaptureAndClose(
+              "Entire screen sharing is required. Logging out...",
+              {
+                reason: "invalid_display_surface",
+                clockOut: true,
+              },
+            );
+            return false;
+          }
+          statusDiv.innerText = "Capture failed: " + err.message;
+          statusDiv.className = "error";
+          return false;
+        } finally {
+          isCaptureInProgress = false;
+        }
+      }
+
+      async function processIdleCaptureRequest(rawValue) {
+        if (!rawValue) return;
+        let payload = null;
+        try {
+          payload = JSON.parse(rawValue);
+        } catch (e) {
+          return;
+        }
+        if (!payload || !payload.request_id) return;
+        const requestId = String(payload.request_id);
+        if (!requestId) return;
+        if (lastHandledIdleCaptureRequestId === requestId) return;
+        lastHandledIdleCaptureRequestId = requestId;
+
+        const success = await takeScreenshot(currentStream);
+        try {
+          localStorage.setItem(
+            CAPTURE_BEFORE_IDLE_ACK_KEY,
+            JSON.stringify({
+              ts: Date.now(),
+              request_id: requestId,
+              success: !!success,
+            }),
+          );
+          setTimeout(() => {
+            try {
+              localStorage.removeItem(CAPTURE_BEFORE_IDLE_ACK_KEY);
+            } catch (e) {}
+          }, 1000);
+        } catch (e) {
+          // no-op
+        }
+      }
+
+      window.addEventListener("message", async function (event) {
+        if (event.origin !== window.location.origin) return;
+        if (!event.data || event.data.type !== "CAPTURE_NOW_BEFORE_LOGOUT")
+          return;
+        const success = await takeScreenshot(currentStream);
+        if (window.opener) {
+          window.opener.postMessage(
+            { type: "CAPTURE_BEFORE_LOGOUT_DONE", success: !!success },
+            "*",
+          );
+        }
+      });
+
+      // Auto-start
+      window.addEventListener("storage", function (event) {
+        if (event.key === CAPTURE_BEFORE_IDLE_REQUEST_KEY && event.newValue) {
+          processIdleCaptureRequest(event.newValue);
+          return;
+        }
+        if (event.key === "taskflow_force_stop_capture" && event.newValue) {
+          const stopPayload = parseForceStopPayload(event.newValue);
+          stopCaptureAndClose(stopPayload.message, {
+            reason: stopPayload.reason,
+            clockOut: !!stopPayload.clockOut,
+            logout: !!stopPayload.logout,
+          });
+        }
+      });
+
+      window.addEventListener("beforeunload", function () {
+        if (isStopping) return;
+        if (currentStream && currentStream.active) {
+          requestClockOutFromCapture();
+        }
+      });
+
+      if (attendanceId) {
+        startCapture();
+        try {
+          processIdleCaptureRequest(
+            localStorage.getItem(CAPTURE_BEFORE_IDLE_REQUEST_KEY),
+          );
+        } catch (e) {
+          // no-op
+        }
+      } else {
+        statusDiv.innerText = "Missing parameters";
+        statusDiv.className = "error";
+      }
+    </script>
+  </body>
 </html>
