@@ -867,11 +867,6 @@ if ($exportType === 'dtr_pdf') {
                     <div class="dtr-sign-line"></div>
                     <div class="dtr-sign-label">Prepared By</div>
                 </div>
-                <div class="dtr-signature">
-                    <div class="dtr-sign-line"></div>
-                    <div class="dtr-sign-label">Employee Signature</div>
-                    <div class="dtr-sign-name"><?= htmlspecialchars($dtrUser['full_name'] ?? 'Employee') ?></div>
-                </div>
             </div>
         </div>
         <script>
@@ -1572,17 +1567,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                     <div class="dtr-total-value"><?= number_format($dtrTotals['net'], 2) ?></div>
                                 </div>
                             </div>
-                            <div class="sig-area">
-                                <div class="sig-block">
-                                    <div class="sig-line"></div>
-                                    <div class="sig-label">Prepared by</div>
-                                </div>
-                                <div class="sig-block">
-                                    <div class="sig-line"></div>
-                                    <div class="sig-label">Employee Signature</div>
-                                    <div class="sig-name"><?= htmlspecialchars($selectedName) ?></div>
-                                </div>
-                            </div>
+                           
                         </div>
                     </div>
                 <?php } else { ?>

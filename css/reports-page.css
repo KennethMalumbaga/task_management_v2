@@ -926,6 +926,11 @@ body.reports-page {
     transition: box-shadow 0.2s, transform 0.2s;
 }
 
+.reports-page .reports-stats-grid .metric-card > div:last-child {
+    flex: 1;
+    text-align: right;
+}
+
 .metric-card:hover {
     box-shadow: 0 4px 20px rgba(108, 62, 244, 0.08);
     transform: translateY(-1px);

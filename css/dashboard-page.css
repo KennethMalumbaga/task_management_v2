@@ -1505,7 +1505,8 @@ body.dashboard-page .clockin-guide-video {
     width: 100%;
     height: 210px;
     display: block;
-    object-fit: cover;
+    object-fit: contain;
+    background: #000;
     cursor: pointer;
 }
 

@@ -3153,6 +3153,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     function shouldAskClockInConfirmation(targetHref) {
         if (!isEmployeeUser) return false;
         if (hasActiveAttendance) return false;
+        if (isClockInSetupLocked && isClockInSetupLocked()) return false;
         if (hasSeenClockInNavWarning) return false;
         if (!targetHref) return false;
         if (targetHref.startsWith('#') || targetHref.toLowerCase().startsWith('javascript:')) return false;
@@ -3681,6 +3682,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         document.addEventListener('click', function (e) {
             const link = e.target.closest('a[href]');
             if (!link) return;
+            if (link.hasAttribute('download')) return;
             const href = link.getAttribute('href');
             if (shouldAskClockInConfirmation(href)) {
                 e.preventDefault();
