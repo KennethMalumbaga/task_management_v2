@@ -272,6 +272,9 @@
             <a href="calendar.php" class="dash-nav-item <?= isActive('calendar.php') ?>">
                 <i class="fa fa-calendar"></i> Calendar
             </a>
+            <a href="reports.php" class="dash-nav-item <?= isActive('reports.php') ?>">
+                <i class="fa fa-clock-o"></i> DTR
+            </a>
             <a href="timeline.php" class="dash-nav-item <?= isActive('timeline.php') ?>">
                 <i class="fa fa-line-chart"></i> Timeline
             </a>

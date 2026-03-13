@@ -675,6 +675,11 @@ body.reports-page {
     padding: 18px 20px 22px;
 }
 
+.dtr-print-signatures {
+    display: none;
+    margin-top: 18px;
+}
+
 .dtr-signature {
     flex: 1;
     text-align: center;
@@ -1294,6 +1299,17 @@ body.reports-page {
 table.dtr-table { min-width: 700px; width: 100%; border-collapse: collapse; }
 table.dtr-table thead th { background: #faf9fd; padding: 9px 12px; font-size: 9.5px; white-space: nowrap; }
 table.dtr-table td { padding: 9px 12px; white-space: nowrap; vertical-align: middle; }
+.dtr-print-only-row { display: none; }
+.dtr-print-month-title {
+    text-align: center;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.dtr-signature-col,
+.dtr-signature-cell {
+    display: none;
+}
 .dtr-date { color: var(--text-secondary); font-size: 13px; font-weight: 500; }
 .dtr-date .day { font-size: 10px; color: var(--text-muted); font-weight: 400; }
 .time-cell { font-variant-numeric: tabular-nums; font-size: 13px; }
@@ -1440,6 +1456,11 @@ body.print-dtr-only .dtr-form-header { display: block; }
 }
 
 @media print {
+    @page {
+        size: A4;
+        margin: 4mm;
+    }
+
     .report-actions,
     .filters-card,
     .reports-alert,
@@ -1455,9 +1476,181 @@ body.print-dtr-only .dtr-form-header { display: block; }
 
     .dtr-form-header { display: block; }
 
-    table.dtr-table th:last-child,
-    table.dtr-table td:last-child {
+    table.dtr-table thead tr.dtr-print-only-row {
+        display: table-row;
+    }
+
+    table.dtr-table thead th.dtr-col-net,
+    table.dtr-table thead th.dtr-col-adjust,
+    table.dtr-table thead th.dtr-col-reason,
+    table.dtr-table thead th.dtr-col-action,
+    table.dtr-table tbody td.dtr-col-net,
+    table.dtr-table tbody td.dtr-col-adjust,
+    table.dtr-table tbody td.dtr-col-reason,
+    table.dtr-table tbody td.dtr-col-action {
         display: none !important;
+    }
+
+    body.print-dtr-only .dtr-header {
+        display: none !important;
+    }
+
+    body.print-dtr-only .dtr-section {
+        border: none;
+        margin: 0;
+        border-radius: 0;
+        background: #fff;
+    }
+
+    body.print-dtr-only .dtr-section,
+    body.print-dtr-only .report-dtr-card {
+        width: 50%;
+        margin: 0 auto 0 0;
+    }
+
+    body.print-dtr-only .dtr-form-header {
+        display: block !important;
+        padding: 4px 6px 2px;
+        text-align: center;
+        border-bottom: 1px solid #000;
+    }
+
+    body.print-dtr-only .dtr-company-name {
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        display: block;
+        width: 100%;
+        text-align: center;
+        min-width: 0;
+    }
+
+    body.print-dtr-only .dtr-company-address {
+        font-size: 8px;
+        margin-top: 2px;
+        display: block;
+        width: 100%;
+        text-align: center;
+        min-width: 0;
+    }
+
+    body.print-dtr-only .dtr-form-title {
+        margin-top: 4px;
+        font-size: 9px;
+    }
+
+    body.print-dtr-only .dtr-meta-grid {
+        gap: 4px;
+        margin-top: 4px;
+        text-align: left;
+    }
+
+    body.print-dtr-only .dtr-meta-row,
+    body.print-dtr-only .dtr-meta-value {
+        font-size: 8px;
+    }
+
+    body.print-dtr-only .dtr-meta-row:last-child {
+        display: none;
+    }
+
+    body.print-dtr-only .dtr-editable {
+        border-bottom: none;
+        padding: 0;
+    }
+
+    body.print-dtr-only .dtr-table-wrap {
+        padding: 0;
+        width: 100%;
+        margin: 0;
+    }
+
+    body.print-dtr-only .dtr-form-header,
+    body.print-dtr-only .dtr-footer,
+    body.print-dtr-only .dtr-print-signatures,
+    body.print-dtr-only .report-dtr-table-wrap {
+        width: 100%;
+        margin: 0;
+    }
+
+    body.print-dtr-only table.dtr-table {
+        width: 100%;
+        table-layout: fixed;
+        font-family: Arial, sans-serif;
+        min-width: 0;
+    }
+
+    body.print-dtr-only table.dtr-table,
+    body.print-dtr-only table.dtr-table th,
+    body.print-dtr-only table.dtr-table td {
+        border: 1px solid #000;
+        color: #000;
+    }
+
+    body.print-dtr-only table.dtr-table thead th {
+        background: #fff;
+    }
+
+    body.print-dtr-only table.dtr-table thead th {
+        padding: 2px 3px;
+        font-size: 7px;
+        text-transform: uppercase;
+    }
+
+    body.print-dtr-only table.dtr-table td {
+        padding: 2px 3px;
+        font-size: 7.5px;
+        line-height: 1.1;
+    }
+
+    body.print-dtr-only .dtr-print-month-title {
+        text-align: left;
+        font-size: 8px;
+        letter-spacing: 0.06em;
+    }
+
+    body.print-dtr-only .dtr-date {
+        font-size: 7.5px;
+    }
+
+    body.print-dtr-only .dtr-date .day {
+        font-size: 6.5px;
+    }
+
+    body.print-dtr-only .dtr-footer {
+        padding: 6px 8px 0;
+    }
+
+    body.print-dtr-only .dtr-totals {
+        gap: 6px;
+    }
+
+    body.print-dtr-only .dtr-total-label {
+        font-size: 8px;
+    }
+
+    body.print-dtr-only .dtr-total-value {
+        font-size: 11px;
+    }
+
+    .dtr-print-signatures {
+        display: flex;
+    }
+
+    body.print-dtr-only .dtr-signature-col,
+    body.print-dtr-only .dtr-signature-cell {
+        display: table-cell;
+    }
+
+    body.print-dtr-only .dtr-signature-blocks {
+        padding: 6px 8px 8px;
+    }
+
+    body.print-dtr-only .dtr-sign-line {
+        margin: 4px auto 3px;
+    }
+
+    body.print-dtr-only .dtr-sign-label {
+        font-size: 9px;
     }
 
     .deduct-input,

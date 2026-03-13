@@ -1,6 +1,12 @@
 <?php
 session_start();
-if (!isset($_SESSION['role'], $_SESSION['id']) || $_SESSION['role'] !== 'admin') {
+if (!isset($_SESSION['role'], $_SESSION['id'])) {
+    header('Location: login.php?error=First login');
+    exit;
+}
+$isAdmin = $_SESSION['role'] === 'admin';
+$isEmployee = $_SESSION['role'] === 'employee';
+if (!$isAdmin && !$isEmployee) {
     header('Location: login.php?error=First login');
     exit;
 }
@@ -200,7 +206,11 @@ $endTs = $endDate . ' 23:59:59';
 $groupId = isset($_GET['group_id']) ? (int)$_GET['group_id'] : 0;
 $userId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
 $dtrUserId = isset($_GET['dtr_user_id']) ? (int)$_GET['dtr_user_id'] : 0;
-if ($dtrUserId <= 0) {
+if ($isEmployee) {
+    $groupId = 0;
+    $userId = (int)$_SESSION['id'];
+    $dtrUserId = $userId;
+} elseif ($dtrUserId <= 0) {
     $dtrUserId = $userId;
 }
 
@@ -210,6 +220,11 @@ if (tenant_table_exists($pdo, 'groups')) {
 }
 
 $allUsers = get_all_users($pdo, 'employee');
+if ($isEmployee) {
+    $allUsers = array_values(array_filter($allUsers, function ($user) use ($userId) {
+        return (int)($user['id'] ?? 0) === $userId;
+    }));
+}
 $groupMemberIds = [];
 if ($groupId > 0) {
     $members = get_group_members($pdo, $groupId);
@@ -563,6 +578,14 @@ if ($dtrUserId > 0 && $dtrUser) {
     $selectedMetrics = $reportRowByUserId[$dtrUserId] ?? null;
     $selectedVisual = $userVisuals[$dtrUserId] ?? null;
 }
+$dtrPrintMonthLabel = '';
+if ($monthInput) {
+    $dtrPrintMonthLabel = strtoupper(date('F Y', strtotime($monthInput . '-01')));
+} elseif ($startDate) {
+    $dtrPrintMonthLabel = strtoupper(date('F Y', strtotime($startDate)));
+} elseif ($dtrMonthLabel) {
+    $dtrPrintMonthLabel = strtoupper((string)$dtrMonthLabel);
+}
 $queryBase = [
     'start' => $startDate,
     'end' => $endDate,
@@ -604,6 +627,9 @@ if ($dtrUserId > 0 && $dtrUser) {
 }
 
 $exportType = isset($_GET['export']) ? (string)$_GET['export'] : '';
+if (!$isAdmin) {
+    $exportType = '';
+}
 if ($exportType === 'dtr_csv' && $dtrUserId > 0 && !empty($dtrRows)) {
     $filename = "dtr_" . $dtrUserId . "_" . $startDate . "_to_" . $endDate . ".csv";
     header('Content-Type: text/csv; charset=utf-8');
@@ -1009,14 +1035,17 @@ if ($exportType === 'csv') {
     exit;
 }
 
-$exportLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'csv']));
+$exportLink = null;
 $dtrExportLink = null;
-if ($dtrUserId > 0 && $dtrUser) {
-    $dtrExportLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_csv', 'dtr_user_id' => $dtrUserId]));
-}
 $dtrPdfLink = null;
-if ($dtrUserId > 0 && $dtrUser) {
-    $dtrPdfLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_pdf', 'dtr_user_id' => $dtrUserId]));
+if ($isAdmin) {
+    $exportLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'csv']));
+    if ($dtrUserId > 0 && $dtrUser) {
+        $dtrExportLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_csv', 'dtr_user_id' => $dtrUserId]));
+    }
+    if ($dtrUserId > 0 && $dtrUser) {
+        $dtrPdfLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_pdf', 'dtr_user_id' => $dtrUserId]));
+    }
 }
 $dtrCsrfToken = csrf_token('attendance_deduction_form');
 
@@ -1039,6 +1068,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
 
     <div class="dash-main">
         <div class="page-body reports-shell">
+            <?php if ($isAdmin) { ?>
             <div class="report-header reports-header">
                 <div class="report-header-left">
                     <h1>Weekly Performance &amp; Utilization</h1>
@@ -1303,20 +1333,23 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                 </div>
             </div>
 
+            <?php } ?>
             <div class="dtr-section" id="dtrSection">
                 <div class="dtr-header">
                     <div class="dtr-title-area">
                         <div class="section-title">Daily Time Record</div>
-                        <div class="section-sub">Compare all users at a glance, or drill into individual records to view and adjust.</div>
+                        <div class="section-sub">
+                            <?= $isAdmin ? 'Compare all users at a glance, or drill into individual records to view and adjust.' : 'View your daily time record for the selected range.' ?>
+                        </div>
                     </div>
                     <div class="dtr-header-actions" <?= ($dtrUserId > 0 && $dtrUser) ? '' : 'style="display:none;"' ?>>
-                        <?php if ($dtrExportLink) { ?>
+                        <?php if ($isAdmin && $dtrExportLink) { ?>
                             <a class="btn btn-outline" href="<?= htmlspecialchars($dtrExportLink, ENT_QUOTES) ?>">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                 CSV
                             </a>
                         <?php } ?>
-                        <?php if ($dtrPdfLink) { ?>
+                        <?php if ($isAdmin && $dtrPdfLink) { ?>
                             <a class="btn btn-outline" href="<?= htmlspecialchars($dtrPdfLink, ENT_QUOTES) ?>" target="_blank" rel="noopener">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                                 PDF
@@ -1329,6 +1362,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                     </div>
                 </div>
 
+                <?php if ($isAdmin) { ?>
                 <div class="user-tabs" id="userTabs">
                     <a class="user-tab <?= $dtrUserId > 0 ? '' : 'active' ?>" href="<?= htmlspecialchars($overviewLink, ENT_QUOTES) ?>" id="tab-overview">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -1352,6 +1386,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                         </a>
                     <?php } ?>
                 </div>
+                <?php } ?>
 
                 <?php if ($dtrUserId > 0 && $dtrUser) {
                     $selectedName = trim((string)($dtrUser['full_name'] ?? 'Employee'));
@@ -1413,11 +1448,11 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                         </div>
 
                         <div class="dtr-form-header">
-                            <div class="dtr-company-name dtr-editable" contenteditable="true" data-placeholder="Company Name"><?= htmlspecialchars($workspaceName) ?></div>
+                            <div class="dtr-company-name<?= $isAdmin ? ' dtr-editable' : '' ?>" contenteditable="<?= $isAdmin ? 'true' : 'false' ?>" data-placeholder="Company Name"><?= htmlspecialchars($workspaceName) ?></div>
                             <?php if ($workspaceAddress !== '') { ?>
-                                <div class="dtr-company-address dtr-editable" contenteditable="true" data-placeholder="Company Address"><?= htmlspecialchars($workspaceAddress) ?></div>
+                                <div class="dtr-company-address<?= $isAdmin ? ' dtr-editable' : '' ?>" contenteditable="<?= $isAdmin ? 'true' : 'false' ?>" data-placeholder="Company Address"><?= htmlspecialchars($workspaceAddress) ?></div>
                             <?php } else { ?>
-                                <div class="dtr-company-address dtr-editable dtr-address-empty" contenteditable="true" data-placeholder="Company Address">&nbsp;</div>
+                                <div class="dtr-company-address dtr-address-empty<?= $isAdmin ? ' dtr-editable' : '' ?>" contenteditable="<?= $isAdmin ? 'true' : 'false' ?>" data-placeholder="Company Address">&nbsp;</div>
                             <?php } ?>
                             <div class="dtr-form-title">DAILY TIME RECORD</div>
                             <div class="dtr-meta-grid">
@@ -1427,7 +1462,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                 </div>
                                 <div class="dtr-meta-row">
                                     <span>Department:</span>
-                                    <span class="dtr-editable" contenteditable="true" data-placeholder="Department">Department</span>
+                                    <span class="<?= $isAdmin ? 'dtr-editable' : 'dtr-meta-value' ?>" contenteditable="<?= $isAdmin ? 'true' : 'false' ?>" data-placeholder="Department">Department</span>
                                 </div>
                                 <div class="dtr-meta-row">
                                     <span>Month:</span>
@@ -1437,9 +1472,13 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                         </div>
 
                         <div class="dtr-table-wrap">
+                            <?php $dtrTableColspan = $dtrHasSegmented ? 10 : 6; ?>
                             <table class="dtr-table">
                                 <thead>
                                     <?php if ($dtrHasSegmented) { ?>
+                                        <tr class="dtr-print-only-row">
+                                            <th class="dtr-print-month-title" colspan="<?= $dtrTableColspan ?>"><?= htmlspecialchars($dtrPrintMonthLabel) ?></th>
+                                        </tr>
                                         <tr>
                                             <th rowspan="2">Date</th>
                                             <th colspan="2">Morning</th>
@@ -1447,10 +1486,11 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                             <th colspan="2">Overtime</th>
                                             <th rowspan="2">Daily Total</th>
                                             <th rowspan="2">Deducted</th>
-                                            <th rowspan="2">Net Total</th>
-                                            <th rowspan="2">Adj. Deduction</th>
-                                            <th rowspan="2">Reason</th>
-                                            <th rowspan="2">Action</th>
+                                            <th rowspan="2" class="dtr-col-net">Net Total</th>
+                                            <th rowspan="2" class="dtr-signature-col">Signature</th>
+                                            <th rowspan="2" class="dtr-col-adjust">Adj. Deduction</th>
+                                            <th rowspan="2" class="dtr-col-reason">Reason</th>
+                                            <th rowspan="2" class="dtr-col-action">Action</th>
                                         </tr>
                                         <tr>
                                             <th>In</th>
@@ -1461,16 +1501,20 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                             <th>Out</th>
                                         </tr>
                                     <?php } else { ?>
+                                        <tr class="dtr-print-only-row">
+                                            <th class="dtr-print-month-title" colspan="<?= $dtrTableColspan ?>"><?= htmlspecialchars($dtrPrintMonthLabel) ?></th>
+                                        </tr>
                                         <tr>
                                             <th>Date</th>
                                             <th>Time In</th>
                                             <th>Time Out</th>
                                             <th>Daily Total</th>
                                             <th>Deducted</th>
-                                            <th>Net Total</th>
-                                            <th>Adj. Deduction</th>
-                                            <th>Reason</th>
-                                            <th>Action</th>
+                                            <th class="dtr-col-net">Net Total</th>
+                                            <th class="dtr-signature-col">Signature</th>
+                                            <th class="dtr-col-adjust">Adj. Deduction</th>
+                                            <th class="dtr-col-reason">Reason</th>
+                                            <th class="dtr-col-action">Action</th>
                                         </tr>
                                     <?php } ?>
                                 </thead>
@@ -1514,38 +1558,45 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                         <?php } ?>
                                         <td class="hours-cell"><?= $rawValue ?></td>
                                         <td class="deduct-cell <?= $row['deducted'] > 0 ? '' : 'none' ?>"><?= $deductedValue ?></td>
-                                        <td class="hours-cell"><?= $netValue ?></td>
-                                        <td>
-                                            <input
-                                                class="deduct-input"
-                                                type="number"
-                                                name="deduct_hours"
-                                                step="0.25"
-                                                min="0"
-                                                max="24"
-                                                value="<?= htmlspecialchars($row['deducted']) ?>"
-                                                form="<?= $formId ?>"
-                                            >
-                                        </td>
-                                        <td>
-                                            <input
-                                                class="reason-input"
-                                                type="text"
-                                                name="reason"
-                                                placeholder="Reason..."
-                                                value="<?= htmlspecialchars($row['reason']) ?>"
-                                                form="<?= $formId ?>"
-                                            >
-                                        </td>
-                                        <td>
-                                            <form id="<?= $formId ?>" method="POST" action="app/update-attendance-deduction.php">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dtrCsrfToken, ENT_QUOTES) ?>">
-                                                <input type="hidden" name="user_id" value="<?= (int)$dtrUserId ?>">
-                                                <input type="hidden" name="att_date" value="<?= htmlspecialchars($dateKey) ?>">
-                                                <input type="hidden" name="redirect" value="<?= htmlspecialchars(basename($_SERVER['PHP_SELF']) . '?' . http_build_query(array_merge($queryBase, ['dtr_user_id' => $dtrUserId])), ENT_QUOTES) ?>">
-                                            </form>
-                                            <button type="submit" class="save-row-btn" form="<?= $formId ?>">Save</button>
-                                        </td>
+                                        <td class="hours-cell dtr-col-net"><?= $netValue ?></td>
+                                        <td class="dtr-signature-cell"></td>
+                                        <?php if ($isAdmin) { ?>
+                                            <td class="dtr-col-adjust">
+                                                <input
+                                                    class="deduct-input"
+                                                    type="number"
+                                                    name="deduct_hours"
+                                                    step="0.25"
+                                                    min="0"
+                                                    max="24"
+                                                    value="<?= htmlspecialchars($row['deducted']) ?>"
+                                                    form="<?= $formId ?>"
+                                                >
+                                            </td>
+                                            <td class="dtr-col-reason">
+                                                <input
+                                                    class="reason-input"
+                                                    type="text"
+                                                    name="reason"
+                                                    placeholder="Reason..."
+                                                    value="<?= htmlspecialchars($row['reason']) ?>"
+                                                    form="<?= $formId ?>"
+                                                >
+                                            </td>
+                                            <td class="dtr-col-action">
+                                                <form id="<?= $formId ?>" method="POST" action="app/update-attendance-deduction.php">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dtrCsrfToken, ENT_QUOTES) ?>">
+                                                    <input type="hidden" name="user_id" value="<?= (int)$dtrUserId ?>">
+                                                    <input type="hidden" name="att_date" value="<?= htmlspecialchars($dateKey) ?>">
+                                                    <input type="hidden" name="redirect" value="<?= htmlspecialchars(basename($_SERVER['PHP_SELF']) . '?' . http_build_query(array_merge($queryBase, ['dtr_user_id' => $dtrUserId])), ENT_QUOTES) ?>">
+                                                </form>
+                                                <button type="submit" class="save-row-btn" form="<?= $formId ?>">Save</button>
+                                            </td>
+                                        <?php } else { ?>
+                                            <td class="deduct-cell dtr-col-adjust <?= $row['deducted'] > 0 ? '' : 'none' ?>"><?= $deductedValue ?></td>
+                                            <td class="dtr-reason-cell dtr-col-reason"><?= $row['reason'] !== '' ? htmlspecialchars($row['reason']) : '&mdash;' ?></td>
+                                            <td class="dtr-col-action">&mdash;</td>
+                                        <?php } ?>
                                     </tr>
                                     <?php } ?>
                                 </tbody>
@@ -1568,6 +1619,17 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                 </div>
                             </div>
                            
+                        </div>
+
+                        <div class="dtr-signature-blocks dtr-print-signatures">
+                            <div class="dtr-signature">
+                                <div class="dtr-sign-line"></div>
+                                <div class="dtr-sign-label">Employee Signature</div>
+                            </div>
+                            <div class="dtr-signature">
+                                <div class="dtr-sign-line"></div>
+                                <div class="dtr-sign-label">Supervisor Signature</div>
+                            </div>
                         </div>
                     </div>
                 <?php } else { ?>
@@ -1648,6 +1710,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                 <?php } ?>
             </div>
 
+            <?php if ($isAdmin) { ?>
             <div class="alerts-grid">
                 <div class="alert-card">
                     <div class="alert-icon amber">
@@ -1669,7 +1732,9 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                         <div class="alert-count red"><?= number_format($overall['overdue']) ?></div>
                     </div>
                 </div>
-            </div></div>
+            </div>
+            <?php } ?>
+        </div></div>
     </div>
 
     <script>
