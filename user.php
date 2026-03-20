@@ -502,6 +502,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             <p style="color:#6B7280; font-size:14px; margin-bottom:25px; line-height:1.5;">
                 Are you sure you want to clock out <strong id="adminConfirmName">this user</strong>?
             </p>
+            <div style="text-align:left; margin-bottom:18px;">
+                <label for="adminConfirmRemark" style="display:block; font-size:13px; font-weight:600; color:#111827; margin-bottom:6px;">Remark</label>
+                <textarea id="adminConfirmRemark" maxlength="255" placeholder="Tell the user why you are clocking them out." style="width:100%; min-height:90px; border:1px solid #D1D5DB; border-radius:10px; padding:10px 12px; font:inherit; color:#111827; resize:vertical; box-sizing:border-box;"></textarea>
+                <div style="margin-top:6px; font-size:12px; color:#6B7280;">This remark is required and will be shared with the user.</div>
+            </div>
             <div style="display:flex; gap:10px; justify-content:center;">
                 <button type="button" onclick="adminCloseConfirm()" style="background:#F3F4F6; color:#374151; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer;">Cancel</button>
                 <button type="button" onclick="adminConfirmClockOut()" style="background:#F59E0B; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer;">Yes, Clock Out</button>
@@ -552,30 +557,60 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             var pendingBtn = null;
             var confirmModal = document.getElementById('adminConfirmModal');
             var confirmName = document.getElementById('adminConfirmName');
+            var confirmRemark = document.getElementById('adminConfirmRemark');
 
             function openConfirm(btn) {
                 pendingBtn = btn;
                 if (confirmName) {
                     confirmName.textContent = btn.getAttribute('data-user-name') || 'this user';
                 }
+                if (confirmRemark) {
+                    confirmRemark.value = '';
+                }
                 if (confirmModal) {
                     confirmModal.style.display = 'flex';
+                    if (confirmRemark) {
+                        setTimeout(function() {
+                            confirmRemark.focus();
+                        }, 0);
+                    }
                 } else {
-                    doClockOut(btn);
+                    var userName = btn.getAttribute('data-user-name') || 'this user';
+                    var fallbackRemark = window.prompt('Add a remark for clocking out ' + userName + ':', '');
+                    if (fallbackRemark !== null) {
+                        doClockOut(btn, fallbackRemark);
+                    }
                 }
             }
 
             function closeConfirm() {
+                if (confirmRemark) {
+                    confirmRemark.value = '';
+                }
                 if (confirmModal) {
                     confirmModal.style.display = 'none';
                 }
                 pendingBtn = null;
             }
 
-            function doClockOut(btn) {
+            function getConfirmRemark() {
+                return confirmRemark ? confirmRemark.value.trim() : '';
+            }
+
+            function doClockOut(btn, remark) {
                 var userId = btn.getAttribute('data-user-id');
+                var userName = btn.getAttribute('data-user-name') || 'this user';
                 if (!userId) return;
                 if (btn.disabled) return;
+
+                remark = typeof remark === 'string' ? remark.trim() : '';
+                if (!remark) {
+                    alert('Please enter a remark before clocking out ' + userName + '.');
+                    if (confirmRemark) {
+                        confirmRemark.focus();
+                    }
+                    return;
+                }
 
                 btn.disabled = true;
                 var originalText = btn.innerHTML;
@@ -583,6 +618,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
                 var body = new URLSearchParams();
                 body.append('user_id', userId);
+                body.append('remark', remark);
                 body.append('csrf_token', ADMIN_CLOCK_OUT_CSRF);
 
                 fetch('admin_clock_out.php', {
@@ -628,8 +664,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             window.adminConfirmClockOut = function() {
                 if (pendingBtn) {
                     var btn = pendingBtn;
+                    var remark = getConfirmRemark();
+                    if (!remark) {
+                        alert('Please enter a remark before clocking out this user.');
+                        if (confirmRemark) {
+                            confirmRemark.focus();
+                        }
+                        return;
+                    }
                     closeConfirm();
-                    doClockOut(btn);
+                    doClockOut(btn, remark);
                 }
             };
 

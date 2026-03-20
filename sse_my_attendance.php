@@ -49,6 +49,8 @@ while (true) {
         'is_paused' => !empty($attendance['is_paused']),
         'pause_reason' => $attendance['pause_reason'] ?? null,
         'pause_started_at' => $attendance['pause_started_at'] ?? null,
+        'admin_clock_out_remark' => $attendance['admin_clock_out_remark'] ?? null,
+        'clocked_out_by_admin' => !empty($attendance['clocked_out_by_admin']),
     ];
 
     $json = json_encode($payload);

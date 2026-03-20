@@ -106,6 +106,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
         });
         return true;
+    } else if (request.type === 'ENSURE_CAPTURE_POPUP') {
+        ensureCapturePopupWindow(sender.tab, request || {});
     } else if (request.type === 'MINIMIZE_WINDOW') {
         if (sender.tab && sender.tab.windowId) {
             chrome.windows.update(sender.tab.windowId, { state: 'minimized' });
@@ -117,6 +119,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function requestMonitorStreamId(tab) {
     if (!tab || !tab.id) {
         throw new Error('Unable to identify the monitoring tab');
+    }
+
+    function shouldAutoMinimizeShareWindow(targetTab) {
+        if (!targetTab || !targetTab.windowId) return false;
+        const url = String(targetTab.url || targetTab.pendingUrl || '');
+        return url.indexOf('capture.html') !== -1;
+    }
+
+    function autoMinimizeShareWindow(targetTab) {
+        if (!shouldAutoMinimizeShareWindow(targetTab)) return;
+        try {
+            chrome.windows.update(targetTab.windowId, { state: 'minimized' });
+        } catch (e) {
+            // best effort only
+        }
     }
 
     return new Promise((resolve, reject) => {
@@ -134,9 +151,88 @@ async function requestMonitorStreamId(tab) {
                     return;
                 }
 
+                autoMinimizeShareWindow(tab);
                 resolve(streamId);
             }
         );
+    });
+}
+
+function ensureCapturePopupWindow(tab, options) {
+    if (!tab || !tab.id || !tab.windowId) {
+        return;
+    }
+    const url = String(tab.url || tab.pendingUrl || '');
+    if (url.indexOf('capture.html') === -1) {
+        return;
+    }
+
+    chrome.windows.get(tab.windowId, function (win) {
+        if (chrome.runtime.lastError) {
+            return;
+        }
+        if (win && win.type === 'popup') {
+            return;
+        }
+
+        const width = Number(options.width);
+        const height = Number(options.height);
+        const left = Number(options.left);
+        const top = Number(options.top);
+
+        const createOptions = {
+            tabId: tab.id,
+            type: 'popup',
+            focused: true
+        };
+        if (isFinite(width) && width >= 300) {
+            createOptions.width = Math.round(width);
+        }
+        if (isFinite(height) && height >= 260) {
+            createOptions.height = Math.round(height);
+        }
+        if (isFinite(left) && left >= 0) {
+            createOptions.left = Math.round(left);
+        }
+        if (isFinite(top) && top >= 0) {
+            createOptions.top = Math.round(top);
+        }
+
+        try {
+            chrome.windows.create(createOptions, function (newWin) {
+                if (!chrome.runtime.lastError && newWin) {
+                    return;
+                }
+                const fallbackOptions = {
+                    url: url,
+                    type: 'popup',
+                    focused: true
+                };
+                if (isFinite(width) && width >= 300) {
+                    fallbackOptions.width = Math.round(width);
+                }
+                if (isFinite(height) && height >= 260) {
+                    fallbackOptions.height = Math.round(height);
+                }
+                if (isFinite(left) && left >= 0) {
+                    fallbackOptions.left = Math.round(left);
+                }
+                if (isFinite(top) && top >= 0) {
+                    fallbackOptions.top = Math.round(top);
+                }
+                chrome.windows.create(fallbackOptions, function (fallbackWin) {
+                    if (fallbackWin && fallbackWin.tabs && fallbackWin.tabs.length) {
+                        try {
+                            chrome.tabs.remove(tab.id);
+                        } catch (err) {
+                            // best effort only
+                        }
+                    }
+                });
+            });
+        } catch (err) {
+            // best effort only
+        }
     });
 }
 

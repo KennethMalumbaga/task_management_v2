@@ -55,11 +55,15 @@ if ($attendance) {
         'status' => 'success',
         'has_active_attendance' => true,
         'attendance_id' => $attendance['id'],
+        'time_in' => $durationStats['time_in'] ?? '--:--',
+        'time_out' => $durationStats['time_out'] ?? '--:--',
         'daily_duration' => $durationStats['daily_duration'] ?? null,
         'overall_duration' => $durationStats['overall_duration'] ?? null,
         'is_paused' => $activePause ? true : false,
         'pause_reason' => $activePause['pause_reason'] ?? null,
         'pause_started_at' => $activePause['paused_at'] ?? null,
+        'admin_clock_out_remark' => $durationStats['admin_clock_out_remark'] ?? null,
+        'clocked_out_by_admin' => !empty($durationStats['clocked_out_by_admin']),
         'last_heartbeat_at' => $lastHeartbeatAt,
         'heartbeat_age_seconds' => $heartbeatAgeSeconds
     ]);
@@ -68,8 +72,12 @@ if ($attendance) {
     echo json_encode([
         'status' => 'success',
         'has_active_attendance' => false,
+        'time_in' => $durationStats['time_in'] ?? '--:--',
+        'time_out' => $durationStats['time_out'] ?? '--:--',
         'daily_duration' => $durationStats['daily_duration'] ?? null,
-        'overall_duration' => $durationStats['overall_duration'] ?? null
+        'overall_duration' => $durationStats['overall_duration'] ?? null,
+        'admin_clock_out_remark' => $durationStats['admin_clock_out_remark'] ?? null,
+        'clocked_out_by_admin' => !empty($durationStats['clocked_out_by_admin'])
     ]);
 }
 

@@ -183,6 +183,7 @@ function get_todays_attendance_stats($pdo, $user_id)
     $latest_is_paused = false;
     $latest_pause_reason = null;
     $latest_pause_started_at = null;
+    $latest_admin_clock_out_remark = null;
     $today_date = date('Y-m-d');
 
     foreach ($records as $row) {
@@ -228,6 +229,8 @@ function get_todays_attendance_stats($pdo, $user_id)
         $latest_is_paused = (bool)($pauseSummaries[$attendanceId]['is_paused'] ?? false);
         $latest_pause_reason = $pauseSummaries[$attendanceId]['pause_reason'] ?? null;
         $latest_pause_started_at = $pauseSummaries[$attendanceId]['paused_at'] ?? null;
+        $remark = trim((string)($row['admin_clock_out_remark'] ?? ''));
+        $latest_admin_clock_out_remark = $remark !== '' ? $remark : null;
     }
 
     $all_h = floor($total_seconds_all / 3600);
@@ -245,6 +248,8 @@ function get_todays_attendance_stats($pdo, $user_id)
         'is_paused' => $latest_is_paused,
         'pause_reason' => $latest_pause_reason,
         'pause_started_at' => $latest_pause_started_at,
+        'admin_clock_out_remark' => $latest_admin_clock_out_remark,
+        'clocked_out_by_admin' => $latest_admin_clock_out_remark !== null && !empty($latest_out) && $latest_out != '00:00:00',
     ];
 }
 
