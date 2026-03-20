@@ -1418,11 +1418,50 @@ body.dashboard-page .admin-clockout-dialog h3 {
     color: {{darkText}} !important;
 }
 
+body.dashboard-page #confirmModal h3[style*="color:#111827"],
+body.dashboard-page #confirmModal h3[style*="color: #111827"],
+body.dashboard-page #navClockInModal h3[style*="color:#111827"],
+body.dashboard-page #navClockInModal h3[style*="color: #111827"],
+body.dashboard-page #autoClockOutModal h3[style*="color:#111827"],
+body.dashboard-page #autoClockOutModal h3[style*="color: #111827"],
+body.dashboard-page #idleCheckModal h3[style*="color:#111827"],
+body.dashboard-page #idleCheckModal h3[style*="color: #111827"],
+body.dashboard-page #adminClockOutNoticeModal h3[style*="color:#111827"],
+body.dashboard-page #adminClockOutNoticeModal h3[style*="color: #111827"],
+body.dashboard-page #adminClockOutNoticeModal #adminClockOutNoticeRemark[style*="color:#111827"],
+body.dashboard-page #adminClockOutNoticeModal #adminClockOutNoticeRemark[style*="color: #111827"] {
+    color: {{darkText}} !important;
+}
+
 body.dashboard-page .bulletin-modal label,
 body.dashboard-page .clockin-setup-modal-copy,
 body.dashboard-page .pause-session-dialog p,
 body.dashboard-page .admin-clockout-dialog p {
     color: {{darkMuted}} !important;
+}
+
+body.dashboard-page #confirmModal p[style*="color:#6B7280"],
+body.dashboard-page #confirmModal p[style*="color: #6B7280"],
+body.dashboard-page #navClockInModal p[style*="color:#6B7280"],
+body.dashboard-page #navClockInModal p[style*="color: #6B7280"],
+body.dashboard-page #autoClockOutModal p[style*="color:#6B7280"],
+body.dashboard-page #autoClockOutModal p[style*="color: #6B7280"],
+body.dashboard-page #idleCheckModal p[style*="color:#6B7280"],
+body.dashboard-page #idleCheckModal p[style*="color: #6B7280"],
+body.dashboard-page #adminClockOutNoticeModal p[style*="color:#6B7280"],
+body.dashboard-page #adminClockOutNoticeModal p[style*="color: #6B7280"],
+body.dashboard-page #adminClockOutNoticeModal div[style*="color:#6B7280"],
+body.dashboard-page #adminClockOutNoticeModal div[style*="color: #6B7280"] {
+    color: {{darkMuted}} !important;
+}
+
+body.dashboard-page #confirmModal button[style*="background:#F3F4F6"],
+body.dashboard-page #confirmModal button[style*="background: #F3F4F6"],
+body.dashboard-page #navClockInModal button[style*="background:#F3F4F6"],
+body.dashboard-page #navClockInModal button[style*="background: #F3F4F6"] {
+    background: {{darkSurface3}} !important;
+    color: {{darkSubtle}} !important;
+    border: 1px solid {{darkBorder}} !important;
 }
 
 body.dashboard-page .bulletin-modal select,
@@ -2362,13 +2401,22 @@ body.messages-page .chat-info-sidebar {
 }
 
 body.messages-page .messages-page-main .chat-search input,
-body.messages-page .messages-page-main .chat-input-wrapper {
+body.messages-page .messages-page-main .chat-input-wrapper,
+body.messages-page .messages-page-main .chat-input-wrapper input {
     background: {{darkSurface3}} !important;
     border-color: {{darkBorder}} !important;
     color: {{darkText}} !important;
 }
 
+body.messages-page .messages-page-main .chat-input-wrapper input:focus {
+    background: {{darkSurface2}} !important;
+    border-color: rgba({{primaryRgb}}, 0.28) !important;
+    color: {{darkText}} !important;
+    box-shadow: 0 0 0 3px rgba({{primaryRgb}}, 0.12) !important;
+}
+
 body.messages-page .messages-page-main .chat-search input::placeholder,
+body.messages-page .messages-page-main .chat-input-wrapper input::placeholder,
 body.messages-page .messages-page-main .chat-search-icon,
 body.messages-page .chat-group-heading-label,
 body.messages-page .messages-page-main .chat-user-role,
