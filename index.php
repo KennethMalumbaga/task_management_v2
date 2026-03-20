@@ -1225,6 +1225,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             <div class="admin-clockout-kicker">Confirm Action</div>
             <h3 id="adminClockOutTitle">Clock Out User?</h3>
             <p>Are you sure you want to clock out <strong id="adminClockOutName">this user</strong>?</p>
+            <div class="admin-clockout-field">
+                <label class="admin-clockout-label" for="adminClockOutRemark">Remark</label>
+                <textarea
+                    id="adminClockOutRemark"
+                    class="admin-clockout-textarea"
+                    maxlength="255"
+                    placeholder="Tell the user why you are clocking them out."
+                ></textarea>
+                <div class="admin-clockout-help">This remark is required and will be shared with the user.</div>
+            </div>
             <div class="admin-clockout-actions">
                 <button type="button" class="admin-btn admin-btn-ghost" id="adminClockOutCancel">Cancel</button>
                 <button type="button" class="admin-btn admin-btn-danger" id="adminClockOutConfirm">Yes, Clock Out</button>
@@ -1906,10 +1916,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             return;
         }
 
-        var width = 400;
-        var height = 300;
-        var left = screen.width - width;
-        var top = screen.height - height;
+        var maxWidth = screen.availWidth || screen.width || 1280;
+        var maxHeight = screen.availHeight || screen.height || 720;
+        var width = Math.min(1200, Math.max(720, maxWidth - 80));
+        var height = Math.min(800, Math.max(560, maxHeight - 120));
+        var left = Math.max(0, Math.round((maxWidth - width) / 2));
+        var top = Math.max(0, Math.round((maxHeight - height) / 2));
         var captureUrl = 'capture.html?attendanceId=' + encodeURIComponent(attendanceId) +
             '&userId=' + encodeURIComponent(currentUserId) +
             '&csrf_token=' + encodeURIComponent(attendanceAjaxCsrfToken);
@@ -1920,7 +1932,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         captureWindow = window.open(
             captureUrl,
             'TaskFlowCapture',
-            'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top
+            'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=yes'
         );
 
         if (!captureWindow && opts.resumeMode) {
@@ -3031,6 +3043,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             if (e.key === 'Escape' && pauseSessionModal && !pauseSessionModal.hidden) {
                 closePauseSessionModal();
             }
+            if (e.key === 'Escape') {
+                var adminNoticeModal = document.getElementById('adminClockOutNoticeModal');
+                if (adminNoticeModal && adminNoticeModal.style.display === 'flex') {
+                    closeAdminClockOutNoticeModal();
+                }
+            }
         });
 
         renderClockInGuideSlides();
@@ -3103,7 +3121,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     !isAutoClockOutInProgress &&
                     !isIdleLogoutInProgress
                 ) {
-                    if (typeof showToast === 'function') {
+                    if (payload.clocked_out_by_admin && payload.admin_clock_out_remark) {
+                        openAdminClockOutNoticeModal(payload.admin_clock_out_remark, payload.time_out || '');
+                    } else if (typeof showToast === 'function') {
                         showToast('You were clocked out by an admin.', 'warning');
                     }
                 }
@@ -3198,6 +3218,32 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         if (modal) modal.style.display = 'none';
     }
 
+    function openAdminClockOutNoticeModal(remark, timeOutLabel) {
+        var modal = document.getElementById('adminClockOutNoticeModal');
+        var message = document.getElementById('adminClockOutNoticeMessage');
+        var remarkEl = document.getElementById('adminClockOutNoticeRemark');
+        var cleanRemark = String(remark || '').trim();
+
+        if (message) {
+            message.textContent = timeOutLabel
+                ? ('You were clocked out by an admin at ' + timeOutLabel + '.')
+                : 'You were clocked out by an admin.';
+        }
+        if (remarkEl) {
+            remarkEl.textContent = cleanRemark || 'No remark was provided.';
+        }
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    }
+
+    function closeAdminClockOutNoticeModal() {
+        var modal = document.getElementById('adminClockOutNoticeModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
     function switchAdminLeaderboardTab(tabName) {
         var employeesTab = document.getElementById('adminTabEmployees');
         var groupsTab = document.getElementById('adminTabGroups');
@@ -3233,10 +3279,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         if (!list) return;
         var modal = document.getElementById('adminClockOutModal');
         var modalName = document.getElementById('adminClockOutName');
+        var modalRemark = document.getElementById('adminClockOutRemark');
         var modalConfirm = document.getElementById('adminClockOutConfirm');
         var modalCancel = document.getElementById('adminClockOutCancel');
         var modalClose = document.getElementById('adminClockOutClose');
         var pendingBtn = null;
+        var pendingUserId = '';
 
         function updateCount(overrideCount) {
             var count = typeof overrideCount === 'number' ? overrideCount : list.querySelectorAll('.admin-user-row').length;
@@ -3248,25 +3296,62 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
         function openModal(btn) {
             pendingBtn = btn;
+            pendingUserId = btn.getAttribute('data-user-id') || '';
             if (modalName) {
                 modalName.textContent = btn.getAttribute('data-user-name') || 'this user';
             }
+            if (modalRemark) {
+                modalRemark.value = '';
+            }
             if (modal) {
                 modal.style.display = 'flex';
+                if (modalRemark) {
+                    setTimeout(function () {
+                        modalRemark.focus();
+                    }, 0);
+                }
             }
         }
 
         function closeModal() {
+            if (modalRemark) {
+                modalRemark.value = '';
+            }
             if (modal) {
                 modal.style.display = 'none';
             }
             pendingBtn = null;
+            pendingUserId = '';
         }
 
-        function doClockOut(btn) {
+        function syncPendingButton() {
+            if (!pendingUserId) {
+                pendingBtn = null;
+                return null;
+            }
+
+            var refreshedBtn = list.querySelector('.admin-clockout-btn[data-user-id="' + pendingUserId + '"]');
+            pendingBtn = refreshedBtn || null;
+            return pendingBtn;
+        }
+
+        function getModalRemark() {
+            return modalRemark ? modalRemark.value.trim() : '';
+        }
+
+        function doClockOut(btn, remark) {
             var userId = btn.getAttribute('data-user-id');
             var userName = btn.getAttribute('data-user-name') || 'this user';
             if (!userId) return;
+
+            remark = typeof remark === 'string' ? remark.trim() : '';
+            if (!remark) {
+                alert('Please enter a remark before clocking out ' + userName + '.');
+                if (modalRemark) {
+                    modalRemark.focus();
+                }
+                return;
+            }
 
             var originalHtml = btn.innerHTML;
             btn.disabled = true;
@@ -3274,6 +3359,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
             var body = new URLSearchParams();
             body.append('user_id', userId);
+            body.append('remark', remark);
             body.append('csrf_token', adminClockOutCsrfToken || '');
 
             fetch('admin_clock_out.php', {
@@ -3321,8 +3407,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 openModal(btn);
             } else {
                 var userName = btn.getAttribute('data-user-name') || 'this user';
-                if (confirm('Clock out ' + userName + '?')) {
-                    doClockOut(btn);
+                var fallbackRemark = window.prompt('Add a remark for clocking out ' + userName + ':', '');
+                if (fallbackRemark !== null) {
+                    doClockOut(btn, fallbackRemark);
                 }
             }
         });
@@ -3331,8 +3418,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             modalConfirm.addEventListener('click', function () {
                 if (pendingBtn) {
                     var btn = pendingBtn;
+                    var remark = getModalRemark();
+                    if (!remark) {
+                        alert('Please enter a remark before clocking out this user.');
+                        if (modalRemark) {
+                            modalRemark.focus();
+                        }
+                        return;
+                    }
                     closeModal();
-                    doClockOut(btn);
+                    doClockOut(btn, remark);
                 }
             });
         }
@@ -3372,8 +3467,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 list.scrollTop = Math.min(prevScroll, list.scrollHeight || 0);
                 updateCount(typeof data.count === 'number' ? data.count : undefined);
 
-                if (pendingBtn && !document.body.contains(pendingBtn)) {
-                    closeModal();
+                if (pendingUserId) {
+                    var refreshedPendingBtn = syncPendingButton();
+                    if (!refreshedPendingBtn || refreshedPendingBtn.disabled) {
+                        closeModal();
+                    }
                 }
             };
             xhr.send();
@@ -3800,6 +3898,26 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         </p>
         <div style="display:flex; justify-content:center;">
             <button onclick="closeAutoClockOutModal()" style="background:var(--primary); color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Dismiss</button>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Clock Out Notice Modal -->
+<div id="adminClockOutNoticeModal" onclick="if (event.target === this) closeAdminClockOutNoticeModal()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1005; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
+    <div style="background:white; padding:30px; border-radius:14px; width:min(420px, calc(100vw - 32px)); text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+        <div style="width:50px; height:50px; background:#FEE2E2; color:#DC2626; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; margin:0 auto 15px;">
+            <i class="fa fa-user-times"></i>
+        </div>
+        <h3 style="margin:0 0 10px; color:#111827;">Clocked Out by Admin</h3>
+        <p id="adminClockOutNoticeMessage" style="color:#6B7280; font-size:14px; margin-bottom:18px; line-height:1.5;">
+            You were clocked out by an admin.
+        </p>
+        <div style="text-align:left; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:14px; margin-bottom:22px;">
+            <div style="font-size:12px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Remark</div>
+            <div id="adminClockOutNoticeRemark" style="font-size:14px; color:#111827; line-height:1.6; white-space:pre-wrap;">No remark was provided.</div>
+        </div>
+        <div style="display:flex; justify-content:center;">
+            <button onclick="closeAdminClockOutNoticeModal()" style="background:#DC2626; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">OK</button>
         </div>
     </div>
 </div>

@@ -9,6 +9,36 @@ require_once 'inc/csrf.php';
 require_once 'inc/attendance_pause.php';
 require_once 'app/model/Notification.php';
 
+if (!function_exists('admin_clock_out_remark_schema_ready')) {
+    function admin_clock_out_remark_schema_ready(PDO $pdo): bool
+    {
+        static $schemaReady = null;
+
+        if ($schemaReady !== null) {
+            return $schemaReady;
+        }
+
+        $schemaReady = tenant_column_exists($pdo, 'attendance', 'admin_clock_out_remark');
+        if ($schemaReady) {
+            return true;
+        }
+
+        try {
+            $driver = strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+            if ($driver === 'mysql') {
+                $pdo->exec("ALTER TABLE attendance ADD COLUMN admin_clock_out_remark VARCHAR(255) NULL AFTER time_out");
+            } elseif ($driver === 'pgsql') {
+                $pdo->exec("ALTER TABLE attendance ADD COLUMN admin_clock_out_remark VARCHAR(255) NULL");
+            }
+        } catch (Throwable $e) {
+            // Best effort only. If DDL is blocked, the clock-out can still complete.
+        }
+
+        $schemaReady = tenant_column_exists($pdo, 'attendance', 'admin_clock_out_remark');
+        return $schemaReady;
+    }
+}
+
 // Only allow admins
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
@@ -26,9 +56,22 @@ if (!csrf_verify('admin_clock_out_action', $_POST['csrf_token'] ?? null, false))
 }
 
 $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+$remark = trim((string)($_POST['remark'] ?? ''));
+$remark = preg_replace('/\s+/', ' ', $remark) ?: $remark;
 
 if (!$user_id) {
     echo json_encode(['status' => 'error', 'message' => 'User ID required']);
+    exit;
+}
+
+if ($remark === '') {
+    echo json_encode(['status' => 'error', 'message' => 'Remark is required']);
+    exit;
+}
+
+$remarkLength = function_exists('mb_strlen') ? mb_strlen($remark) : strlen($remark);
+if ($remarkLength > 255) {
+    echo json_encode(['status' => 'error', 'message' => 'Remark must be 255 characters or less']);
     exit;
 }
 
@@ -70,8 +113,19 @@ if ($hours < 0) {
 attendance_pause_close_active($pdo, (int)$att['id'], tenant_get_current_org_id(), $today . ' ' . $now);
 
 // Update attendance record
-$sql = "UPDATE attendance SET time_out = ?, total_hours = ? WHERE id = ?";
-$params = [$now, $hours, $att['id']];
+$setParts = [
+    'time_out = ?',
+    'total_hours = ?',
+];
+$params = [$now, $hours];
+
+if (admin_clock_out_remark_schema_ready($pdo)) {
+    $setParts[] = 'admin_clock_out_remark = ?';
+    $params[] = $remark;
+}
+
+$sql = "UPDATE attendance SET " . implode(', ', $setParts) . " WHERE id = ?";
+$params[] = $att['id'];
 $scope = tenant_get_scope($pdo, 'attendance');
 $sql .= $scope['sql'];
 $params = array_merge($params, $scope['params']);
@@ -84,7 +138,7 @@ try {
         $adminName = 'Admin';
     }
     $timeLabel = date('h:i A', strtotime($now));
-    $message = "You were clocked out by {$adminName} at {$timeLabel}.";
+    $message = "You were clocked out by {$adminName} at {$timeLabel}. Remark: {$remark}";
     insert_notification($pdo, [$message, $user_id, 'Clock Out']);
 } catch (Throwable $e) {
     // Ignore notification failures

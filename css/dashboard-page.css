@@ -617,6 +617,43 @@ body.dashboard-page.role-admin .admin-clockout-dialog p {
     color: var(--admin-muted);
 }
 
+body.dashboard-page.role-admin .admin-clockout-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+body.dashboard-page.role-admin .admin-clockout-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--admin-text);
+}
+
+body.dashboard-page.role-admin .admin-clockout-textarea {
+    width: 100%;
+    min-height: 92px;
+    resize: vertical;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 11px 12px;
+    font: inherit;
+    color: var(--admin-text);
+    background: #f9fafb;
+}
+
+body.dashboard-page.role-admin .admin-clockout-textarea:focus {
+    outline: none;
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+    background: #fff;
+}
+
+body.dashboard-page.role-admin .admin-clockout-help {
+    font-size: 12px;
+    color: var(--admin-muted);
+}
+
 body.dashboard-page.role-admin .admin-clockout-kicker {
     font-size: 11px;
     font-weight: 700;
@@ -2545,6 +2582,7 @@ body.dashboard-page .bulletin-modal-overlay {
 body.dashboard-page #confirmModal,
 body.dashboard-page #navClockInModal,
 body.dashboard-page #autoClockOutModal,
+body.dashboard-page #adminClockOutNoticeModal,
 body.dashboard-page #idleCheckModal {
     z-index: 1500 !important;
     backdrop-filter: blur(4px);

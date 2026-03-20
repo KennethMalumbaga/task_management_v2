@@ -327,6 +327,11 @@
 
       async function startCapture() {
         try {
+          try {
+            window.focus();
+          } catch (e) {
+            // no-op
+          }
           statusDiv.innerText = "Please select the entire screen to share...";
           await waitForExtensionBridgeReady();
           const streamId = await requestMonitorStreamId();
