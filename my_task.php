@@ -293,8 +293,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
 
         .leader-box-preview {
-            background: #F5F3FF;
-            border: 1px solid #E0E7FF;
+            background: var(--primary-soft-2);
+            border: 1px solid var(--primary-soft-4);
             border-radius: 8px;
             padding: 12px;
             display: flex;
@@ -396,8 +396,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
 
         .leader-box {
-            background: #F5F3FF; 
-            border: 1px solid #E0E7FF;
+            background: var(--primary-soft-2); 
+            border: 1px solid var(--primary-soft-4);
             border-radius: 8px;
             padding: 12px;
             display: flex;
@@ -429,8 +429,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
 
         /* Subtask & Form Styles */
-        .btn-indigo-light { background: #EEF2FF; color: #6C3CE1; border: 1px solid #C7D2FE; }
-        .btn-indigo-light:hover { background: #E0E7FF; }
+        .btn-indigo-light { background: var(--primary-soft-3); color: var(--primary); border: 1px solid var(--primary-muted-3); }
+        .btn-indigo-light:hover { background: var(--primary-soft-4); }
         
         .subtask-card {
             background: white;
@@ -641,7 +641,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div class="leader-box-preview">
                         <img src="<?= $leaderImg ?>" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
                         <div>
-                            <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
+                            <div style="font-size: 10px; font-weight: 700; color: var(--primary-dark); letter-spacing: 0.5px; text-transform: uppercase;">
                                 <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
                             </div>
                             <div style="font-weight: 600; color: #1F2937; font-size: 13px;">
@@ -759,7 +759,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div class="leader-box">
                         <img src="<?= $leaderImg ?>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">
                         <div>
-                            <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
+                            <div style="font-size: 10px; font-weight: 700; color: var(--primary-dark); letter-spacing: 0.5px; text-transform: uppercase;">
                                 <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
                             </div>
                             <div style="font-weight: 600; color: #1F2937; font-size: 14px;">
@@ -769,7 +769,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                 <?php $lStats = get_user_rating_stats($pdo, $leader['user_id']); ?>
                                 <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $lStats['avg'] ?>/5</span>
                                 <?php $lCollab = get_collaborative_scores_by_user($pdo, $leader['user_id']); ?>
-                                <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $lCollab['avg'] ?>/5</span>
+                                <span style="color: var(--primary-dark);"><i class="fa fa-users"></i> Collab: <?= $lCollab['avg'] ?>/5</span>
                             </div>
                         </div>
                     </div>
@@ -857,7 +857,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <?php $mStats = get_user_rating_stats($pdo, $member['user_id']); ?>
                                     <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $mStats['avg'] ?>/5</span>
                                     <?php $mCollab = get_collaborative_scores_by_user($pdo, $member['user_id']); ?>
-                                    <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $mCollab['avg'] ?>/5</span>
+                                    <span style="color: var(--primary-dark);"><i class="fa fa-users"></i> Collab: <?= $mCollab['avg'] ?>/5</span>
                                 </div>
                             </div>
                         </div>
@@ -889,7 +889,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                         <i class="fa fa-user"></i> Assigned to: <?= htmlspecialchars($sub['member_name']) ?>
                                     </div>
                                     <?php if (!empty($sub['timeline_phase_name'])) { ?>
-                                        <div style="font-size: 12px; color: #6C3CE1;">
+                                        <div style="font-size: 12px; color: var(--primary);">
                                             <i class="fa fa-flag"></i> Phase: <?= htmlspecialchars((string)$sub['timeline_phase_name']) ?>
                                         </div>
                                     <?php } ?>
@@ -915,7 +915,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <?php } ?>
                                     <div style="margin-top: 4px;">
                                         <?php if($sub['submission_file']) { ?>
-                                            <a href="<?=$sub['submission_file']?>" target="_blank" style="color: #6C3CE1; font-size: 13px;"><i class="fa fa-paperclip"></i> View File</a>
+                                            <a href="<?=$sub['submission_file']?>" target="_blank" style="color: var(--primary); font-size: 13px;"><i class="fa fa-paperclip"></i> View File</a>
                                         <?php } else { ?>
                                             <span style="font-size: 13px; color: #6B7280;">Submitted (No file)</span>
                                         <?php } ?>

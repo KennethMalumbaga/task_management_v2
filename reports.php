@@ -781,12 +781,6 @@ if ($exportType === 'dtr_pdf') {
             .report-dtr-header, .report-dtr-actions { display: none !important; }
             .dtr-editable { border-bottom: 1px solid #111827; }
             @page { size: A4; margin: 12mm; }
-            @media print {
-                .report-dtr-table th:last-child,
-                .report-dtr-table td:last-child {
-                    display: table-cell !important;
-                }
-            }
         </style>
     </head>
     <body class="reports-page print-dtr-only">
@@ -825,9 +819,9 @@ if ($exportType === 'dtr_pdf') {
                                 <th colspan="2">Overtime</th>
                                 <th rowspan="2">Daily Total</th>
                                 <th rowspan="2">Deducted</th>
-                                <th rowspan="2">Net Total</th>
-                                <th rowspan="2">Signature</th>
-                                <th rowspan="2">Reason</th>
+                                <th rowspan="2" class="dtr-col-net">Net Total</th>
+                                <th rowspan="2" class="dtr-signature-col">Signature</th>
+                                <th rowspan="2" class="dtr-col-reason">Reason</th>
                             </tr>
                             <tr>
                                 <th>In</th>
@@ -844,9 +838,9 @@ if ($exportType === 'dtr_pdf') {
                                 <th>Time Out</th>
                                 <th>Daily Total</th>
                                 <th>Deducted</th>
-                                <th>Net Total</th>
-                                <th>Signature</th>
-                                <th>Reason</th>
+                                <th class="dtr-col-net">Net Total</th>
+                                <th class="dtr-signature-col">Signature</th>
+                                <th class="dtr-col-reason">Reason</th>
                             </tr>
                         <?php } ?>
                     </thead>
@@ -871,27 +865,38 @@ if ($exportType === 'dtr_pdf') {
                             <?php } ?>
                             <td><?= $rawValue ?></td>
                             <td><?= $deductedValue ?></td>
-                            <td><?= $netValue ?></td>
-                            <td class="dtr-sign-cell"></td>
-                            <td class="dtr-reason-cell"><?= htmlspecialchars($row['reason']) ?></td>
+                            <td class="dtr-col-net"><?= $netValue ?></td>
+                            <td class="dtr-signature-cell"></td>
+                            <td class="dtr-reason-cell dtr-col-reason"><?= htmlspecialchars($row['reason']) ?></td>
                         </tr>
                         <?php } ?>
                     </tbody>
-                    <tfoot>
-                        <tr>
-                            <th colspan="<?= $dtrHasSegmented ? 7 : 3 ?>">Totals</th>
-                            <th><?= number_format($dtrTotals['raw'], 2) ?></th>
-                            <th><?= number_format($dtrTotals['deducted'], 2) ?></th>
-                            <th><?= number_format($dtrTotals['net'], 2) ?></th>
-                            <th colspan="2"></th>
-                        </tr>
-                    </tfoot>
                 </table>
             </div>
-            <div class="dtr-signature-blocks">
+            <div class="dtr-footer">
+                <div class="dtr-totals">
+                    <div class="dtr-total-item">
+                        <div class="dtr-total-label">Gross Total</div>
+                        <div class="dtr-total-value"><?= number_format($dtrTotals['raw'], 2) ?></div>
+                    </div>
+                    <div class="dtr-total-item">
+                        <div class="dtr-total-label">Deducted</div>
+                        <div class="dtr-total-value"><?= number_format($dtrTotals['deducted'], 2) ?></div>
+                    </div>
+                    <div class="dtr-total-item">
+                        <div class="dtr-total-label">Net Total</div>
+                        <div class="dtr-total-value"><?= number_format($dtrTotals['net'], 2) ?></div>
+                    </div>
+                </div>
+            </div>
+            <div class="dtr-signature-blocks dtr-print-signatures">
                 <div class="dtr-signature">
                     <div class="dtr-sign-line"></div>
-                    <div class="dtr-sign-label">Prepared By</div>
+                    <div class="dtr-sign-label">Employee Signature</div>
+                </div>
+                <div class="dtr-signature">
+                    <div class="dtr-sign-line"></div>
+                    <div class="dtr-sign-label">Supervisor Signature</div>
                 </div>
             </div>
         </div>

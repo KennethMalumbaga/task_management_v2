@@ -29,7 +29,7 @@ if (isset($_SESSION['id']) && isset($_POST['group_id'])) {
         if (!empty($member['profile_image']) && $member['profile_image'] != 'default.png' && file_exists('../../uploads/' . $member['profile_image'])) {
             $avatarHtml = '<img src="uploads/'.$member['profile_image'].'" alt="Profile">';
         } else {
-            $avatarHtml = '<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#8B5CF6; font-weight:700;">' . strtoupper(substr($member['full_name'], 0, 1)) . '</div>';
+            $avatarHtml = '<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--primary-dark); font-weight:700;">' . strtoupper(substr($member['full_name'], 0, 1)) . '</div>';
         }
 
         ?>

@@ -122,6 +122,8 @@
     if ($topbarTitle === '') {
         $topbarTitle = 'Dashboard';
     }
+
+    include_once __DIR__ . "/workspace_theme_style.php";
 ?>
 
 <!-- Mobile Navbar (Fixed Top) -->
@@ -614,7 +616,7 @@
             Confirm within <span id="sharedIdleCountdown">10</span> seconds or you will be logged out.
         </p>
         <div style="display:flex; justify-content:center;">
-            <button type="button" id="sharedIdleStayBtn" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>
+            <button type="button" id="sharedIdleStayBtn" style="background:var(--primary); color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>
         </div>
     </div>
 </div>

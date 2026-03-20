@@ -261,8 +261,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         }
 
         .leader-box-preview {
-            background: #F5F3FF;
-            border: 1px solid #E0E7FF;
+            background: var(--primary-soft-2);
+            border: 1px solid var(--primary-soft-4);
             border-radius: 8px;
             padding: 12px;
             display: flex;
@@ -328,8 +328,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             align-items: center;
             gap: 16px;
             padding: 16px;
-            background: #F5F3FF;
-            border: 1px solid #E0E7FF;
+            background: var(--primary-soft-2);
+            border: 1px solid var(--primary-soft-4);
             border-radius: 12px;
             margin-bottom: 24px;
         }
@@ -791,15 +791,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             <div class="leader-box">
                     <img src="<?= $leaderImg ?>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">
                     <div style="flex: 1;">
-                    <div style="font-size: 10px; font-weight: 700; color: #8B5CF6; letter-spacing: 0.5px; text-transform: uppercase;">
+                    <div style="font-size: 10px; font-weight: 700; color: var(--primary-dark); letter-spacing: 0.5px; text-transform: uppercase;">
                         <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
                     </div>
-                    <div style="font-weight: 600; color: #1F2937; font-size: 14px; margin-top: 4px; border-bottom: 1px solid #E0E7FF; padding-bottom: 4px; margin-bottom: 4px;">
+                    <div style="font-weight: 600; color: #1F2937; font-size: 14px; margin-top: 4px; border-bottom: 1px solid var(--primary-soft-4); padding-bottom: 4px; margin-bottom: 4px;">
                         <?= htmlspecialchars($leader['full_name']) ?>
                     </div>
                     <div style="font-size: 11px; color: #6B7280; display: flex; gap: 10px;">
                         <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $leaderTaskRate !== null ? number_format($leaderTaskRate, 1) : '--' ?>/5</span>
-                        <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $leaderTaskCollabRate !== null ? number_format($leaderTaskCollabRate, 1) : '--' ?>/5</span>
+                        <span style="color: var(--primary-dark);"><i class="fa fa-users"></i> Collab: <?= $leaderTaskCollabRate !== null ? number_format($leaderTaskCollabRate, 1) : '--' ?>/5</span>
                     </div>
                     </div>
             </div>
@@ -832,7 +832,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                                     }
                                 ?>
                                 <span><i class="fa fa-star" style="color:#F59E0B"></i> <?= $memberTaskRate !== null ? number_format($memberTaskRate, 1) : '--' ?>/5</span>
-                                <span style="color: #8B5CF6;"><i class="fa fa-users"></i> Collab: <?= $memberTaskCollabRate !== null ? number_format($memberTaskCollabRate, 1) : '--' ?>/5</span>
+                                <span style="color: var(--primary-dark);"><i class="fa fa-users"></i> Collab: <?= $memberTaskCollabRate !== null ? number_format($memberTaskCollabRate, 1) : '--' ?>/5</span>
                             </div>
                             </div>
                     </div>
@@ -925,7 +925,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         </div>
                         <?php if(!empty($sub['submission_file'])) { ?>
                             <div style="font-size: 12px; margin-top: 5px;">
-                                <a href="<?=$sub['submission_file']?>" target="_blank" style="color: #6C3CE1;">View File</a>
+                                <a href="<?=$sub['submission_file']?>" target="_blank" style="color: var(--primary);">View File</a>
                             </div>
                         <?php } ?>
                     </div>

@@ -173,7 +173,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
 
         .capture-folder-card:focus {
-            outline: 2px solid #C4B5FD;
+            outline: 2px solid var(--primary-muted-2);
             outline-offset: 2px;
         }
 
@@ -181,7 +181,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             width: 42px;
             height: 42px;
             border-radius: 10px;
-            background: #EEF2FF;
+            background: var(--primary-soft-3);
             color: var(--primary);
             display: flex;
             align-items: center;

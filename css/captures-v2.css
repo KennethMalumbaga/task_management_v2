@@ -1,11 +1,11 @@
-﻿.captures-v2-page {
-    --p7: #5b28d6;
-    --p6: #6d35e8;
-    --p5: #7c3aed;
-    --p4: #9b6ff5;
-    --p2: #ddd6fe;
-    --p1: #ede9fe;
-    --p0: #f5f3ff;
+.captures-v2-page {
+    --p7: var(--primary-deep);
+    --p6: var(--primary);
+    --p5: var(--primary-strong);
+    --p4: var(--primary-muted);
+    --p2: var(--primary-border);
+    --p1: var(--primary-soft);
+    --p0: var(--primary-soft-2);
     --green: #16a34a;
     --green-bg: #f0fdf4;
     --blue: #2563eb;
@@ -19,9 +19,9 @@
     --tm: #a09bba;
     --r: 14px;
     --rsm: 9px;
-    --sh1: 0 1px 3px rgba(90, 40, 200, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --sh2: 0 4px 16px rgba(90, 40, 200, 0.11), 0 2px 6px rgba(0, 0, 0, 0.05);
-    --sh3: 0 14px 44px rgba(90, 40, 200, 0.15), 0 4px 14px rgba(0, 0, 0, 0.07);
+    --sh1: 0 1px 3px rgba(var(--primary-rgb), 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --sh2: 0 4px 16px rgba(var(--primary-rgb), 0.11), 0 2px 6px rgba(0, 0, 0, 0.05);
+    --sh3: 0 14px 44px rgba(var(--primary-rgb), 0.15), 0 4px 14px rgba(0, 0, 0, 0.07);
 }
 
 .captures-v2-page .captures-v2-shell {
@@ -51,7 +51,7 @@
 }
 
 .dash-content-topbar-title .captures-topbar-crumb {
-    color: #6d35e8;
+    color: var(--primary);
     font-size: 22px;
     font-weight: 700;
     line-height: 1.2;
@@ -242,7 +242,7 @@
 .captures-v2-page .sel-w select:focus,
 .captures-v2-page .date-w input[type="date"]:focus {
     border-color: var(--p4);
-    box-shadow: 0 0 0 3px rgba(109, 53, 232, 0.09);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.09);
 }
 
 .captures-v2-page .vdiv {
@@ -276,11 +276,11 @@
 .captures-v2-page .btn-p {
     background: linear-gradient(135deg, var(--p7), var(--p6));
     color: #fff;
-    box-shadow: 0 2px 8px rgba(109, 53, 232, .28);
+    box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.28);
 }
 
 .captures-v2-page .btn-p:hover {
-    box-shadow: 0 4px 14px rgba(109, 53, 232, .42);
+    box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.42);
     transform: translateY(-1px);
 }
 
@@ -541,7 +541,7 @@
     border-radius: 50%;
     flex-shrink: 0;
     overflow: hidden;
-    background: #8b5cf6;
+    background: var(--primary-dark);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -551,7 +551,7 @@
 }
 
 .captures-v2-page .capture-folder-avatar.has-image {
-    background: #ede9fe;
+    background: var(--primary-soft);
     color: transparent;
 }
 
@@ -595,9 +595,9 @@
     gap: 8px;
     padding: 9px 16px;
     border-radius: 12px;
-    border: 1px solid #cfcae4;
-    background: #f6f4ff;
-    color: #6d35e8;
+    border: 1px solid var(--primary-border);
+    background: var(--primary-soft-6);
+    color: var(--primary-deep);
     font-size: 13px;
     font-weight: 800;
     white-space: nowrap;
@@ -728,9 +728,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #b7adc9;
+    color: var(--primary-muted);
     font-size: 30px;
-    background: linear-gradient(135deg, #f7f3ff, #efeafd);
+    background: linear-gradient(135deg, var(--primary-soft-2), var(--primary-soft-5));
 }
 
 .captures-v2-page .capture-card-meta {
@@ -818,7 +818,7 @@
     color: var(--p5);
     background: var(--p0);
     border: 1.5px solid var(--p2);
-    box-shadow: 0 6px 18px rgba(109, 53, 232, .11);
+    box-shadow: 0 6px 18px rgba(var(--primary-rgb), 0.11);
     font-size: 24px;
     margin-bottom: 14px;
 }
@@ -1050,3 +1050,5 @@
         font-size: 13px;
     }
 }
+
+

@@ -153,8 +153,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
         .welcome-role-badge {
             display: inline-block;
-            background: #EEF2FF;
-            color: #6C3CE1;
+            background: var(--primary-soft-3);
+            color: var(--primary);
             font-size: 12px;
             font-weight: 600;
             padding: 3px 9px;
@@ -208,7 +208,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid #EEF2FF;
+            border-bottom: 1px solid var(--primary-soft-3);
             padding-bottom: 8px;
         }
         .employee-leaderboard-card .leaderboard-item {
@@ -456,7 +456,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                 <?php if (!empty($top_users)) { ?>
                                     <div class="leaderboard-list">
                                         <?php foreach (array_slice($top_users, 0, 6) as $idx => $u) {
-                                            $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#9CA3AF' : ($idx === 2 ? '#CD7C2F' : '#7C3AED'));
+                                            $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#9CA3AF' : ($idx === 2 ? '#CD7C2F' : 'var(--primary-strong)'));
                                             $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
                                             $ratedCount = (int)$u['rated_task_count'];
                                         ?>
@@ -483,7 +483,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                 <?php if (!empty($top_groups)) { ?>
                                     <div class="leaderboard-list">
                                         <?php foreach (array_slice($top_groups, 0, 6) as $idx => $g) {
-                                            $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#9CA3AF' : ($idx === 2 ? '#CD7C2F' : '#7C3AED'));
+                                            $rankColor = $idx === 0 ? '#F59E0B' : ($idx === 1 ? '#9CA3AF' : ($idx === 2 ? '#CD7C2F' : 'var(--primary-strong)'));
                                             $memberCount = (int)$g['member_count'];
                                             $ratedTaskCount = (int)$g['rated_task_count'];
                                         ?>
@@ -525,7 +525,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <div class="admin-tasks-list">
                             <?php if (!empty($recent_tasks) && count($recent_tasks) > 0) { 
                                 $taskIconStyles = [
-                                    'linear-gradient(135deg,#7c3aed,#a855f7)',
+                                    'linear-gradient(135deg,var(--primary-strong),var(--primary-muted))',
                                     'linear-gradient(135deg,#10b981,#34d399)',
                                     'linear-gradient(135deg,#f59e0b,#fbbf24)',
                                     'linear-gradient(135deg,#ec4899,#f472b6)',
@@ -715,7 +715,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <?php if (!empty($top_users)) { ?>
                             <div class="leaderboard-list">
                                 <?php foreach (array_slice($top_users, 0, 6) as $idx => $u) {
-                                    $rankColor = $idx === 0 ? '#6C3CE1' : ($idx === 1 ? '#8B5CF6' : '#7C3AED');
+                                    $rankColor = $idx === 0 ? 'var(--primary)' : ($idx === 1 ? 'var(--primary-dark)' : 'var(--primary-strong)');
                                     $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
                                 ?>
                                 <div class="leaderboard-item">
@@ -746,7 +746,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <?php if (!empty($top_groups)) { ?>
                             <div class="leaderboard-list">
                                 <?php foreach (array_slice($top_groups, 0, 6) as $idx => $g) {
-                                    $rankColor = $idx === 0 ? '#6C3CE1' : ($idx === 1 ? '#8B5CF6' : '#7C3AED');
+                                    $rankColor = $idx === 0 ? 'var(--primary)' : ($idx === 1 ? 'var(--primary-dark)' : 'var(--primary-strong)');
                                 ?>
                                 <div class="leaderboard-item">
                                     <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
@@ -957,7 +957,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <?php if (!empty($top_users)) { ?>
                             <div class="leaderboard-list">
                                 <?php foreach (array_slice($top_users, 0, 4) as $idx => $u) {
-                                    $rankColor = $idx === 0 ? '#6C3CE1' : ($idx === 1 ? '#8B5CF6' : '#7C3AED');
+                                    $rankColor = $idx === 0 ? 'var(--primary)' : ($idx === 1 ? 'var(--primary-dark)' : 'var(--primary-strong)');
                                     $avatar = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : 'img/user.png';
                                 ?>
                                 <div class="leaderboard-item">
@@ -988,7 +988,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <?php if (!empty($top_groups)) { ?>
                             <div class="leaderboard-list">
                                 <?php foreach (array_slice($top_groups, 0, 4) as $idx => $g) {
-                                    $rankColor = $idx === 0 ? '#6C3CE1' : ($idx === 1 ? '#8B5CF6' : '#7C3AED');
+                                    $rankColor = $idx === 0 ? 'var(--primary)' : ($idx === 1 ? 'var(--primary-dark)' : 'var(--primary-strong)');
                                 ?>
                                 <div class="leaderboard-item">
                                     <div class="rank-badge" style="background: <?= $rankColor ?>;">#<?= $idx + 1 ?></div>
@@ -3723,7 +3723,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 <!-- Bulletin Post Modal -->
 <div id="bulletinPostModal" class="bulletin-modal-overlay">
     <div class="bulletin-modal">
-        <h3><i class="fa fa-thumb-tack" style="color:#6C3CE1; margin-right:6px;"></i> New Bulletin Post</h3>
+        <h3><i class="fa fa-thumb-tack" style="color:var(--primary); margin-right:6px;"></i> New Bulletin Post</h3>
         <label for="bulletinType">Type</label>
         <select id="bulletinType">
             <option value="ann">Announcement</option>
@@ -3783,7 +3783,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         </p>
         <div style="display:flex; justify-content:center; gap:10px;">
             <button onclick="closeNavClockInModal()" style="background:#F3F4F6; color:#374151; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Dismiss</button>
-            <button onclick="continueNavAfterClockInWarning()" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Continue</button>
+            <button onclick="continueNavAfterClockInWarning()" style="background:var(--primary); color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Continue</button>
         </div>
     </div>
 </div>
@@ -3799,7 +3799,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             You were clocked out because screen sharing was canceled or stopped.
         </p>
         <div style="display:flex; justify-content:center;">
-            <button onclick="closeAutoClockOutModal()" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Dismiss</button>
+            <button onclick="closeAutoClockOutModal()" style="background:var(--primary); color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">Dismiss</button>
         </div>
     </div>
 </div>
@@ -3816,7 +3816,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             Confirm within <span id="idleCheckCountdown">10</span> seconds or you will be logged out.
         </p>
         <div style="display:flex; justify-content:center;">
-            <button onclick="closeIdleCheckModal()" style="background:#6C3CE1; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>
+            <button onclick="closeIdleCheckModal()" style="background:var(--primary); color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">I'm still here</button>
         </div>
     </div>
 </div>

@@ -120,7 +120,7 @@ if (isset($_SESSION['id'])) {
                if ($groupLastTimestamp === false) $groupLastTimestamp = 0;
        ?>
        <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>" data-last-ts="<?=$groupLastTimestamp?>">
-            <div class="avatar-md" style="background:#EEF2FF; color:#6C3CE1;">
+            <div class="avatar-md" style="background:var(--primary-soft-3); color:var(--primary);">
                 <i class="fa fa-users"></i>
             </div>
             <div class="chat-item-content">

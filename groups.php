@@ -34,7 +34,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         .page-wrap { padding: 30px; }
         .page-header { margin-bottom: 30px; }
         .page-title { font-size: 24px; font-weight: 700; color: var(--text-dark); margin: 0; display: flex; align-items: center; gap: 10px; }
-        .page-title i { background: #E0E7FF; color: var(--primary); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .page-title i { background: var(--primary-soft-4); color: var(--primary); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
         .page-subtitle { font-size: 14px; color: var(--text-gray); margin-top: 4px; margin-left: 42px; }
 
         .grid-layout { display: grid; grid-template-columns: 400px 1fr; gap: 30px; align-items: start; }
@@ -50,7 +50,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             font-size: 14px; outline: none; transition: all 0.15s; color: #111827; background: #fff;
             box-sizing: border-box;
         }
-        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(108, 60, 225, 0.1); }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1); }
         .form-control::placeholder { color: #9CA3AF; }
         
         /* Select Leader Mockup */
@@ -235,11 +235,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
         .user-item:hover { background: #F3F4F6; }
         .user-item:last-child { border-bottom: none; }
-        .user-item.selected { background: #EEF2FF; }
+        .user-item.selected { background: var(--primary-soft-3); }
         .user-item.disabled { opacity: 0.5; pointer-events: none; }
         
         .chip { 
-            display: inline-flex; align-items: center; gap: 6px; background: #EEF2FF; color: #6C3CE1; 
+            display: inline-flex; align-items: center; gap: 6px; background: var(--primary-soft-3); color: var(--primary); 
             padding: 4px 10px; border-radius: 100px; font-size: 12px; font-weight: 500; margin-top: 8px; margin-right: 6px;
         }
         .chip span.close { cursor: pointer; font-size: 14px; opacity: 0.6; }
@@ -283,7 +283,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
         .custom-modal-actions button {
             border: none;
-            background: #8B5CF6;
+            background: var(--primary-dark);
             color: #fff;
             border-radius: 8px;
             padding: 9px 14px;
@@ -344,7 +344,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             }
             .view-list .member-chip:not(.more) { z-index: 5; }
             .view-list .member-chip.more { 
-                z-index: 1; background: #EEF2FF !important; 
+                z-index: 1; background: var(--primary-soft-3) !important; 
                 border: 2px solid white;
             }
             .view-list .member-chip .member-avatar-xs {
@@ -357,7 +357,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 display: flex;
             }
             .view-list .action-icon { font-size: 18px !important; }
-            .view-list .action-icon.chat-btn { color: #8B5CF6 !important; }
+            .view-list .action-icon.chat-btn { color: var(--primary-dark) !important; }
             .view-list .action-icon.delete { color: #EF4444 !important; }
         }
     </style>
@@ -385,7 +385,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             <!-- Left Column: Create Group -->
             <div class="card">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
-                    <div style="width: 36px; height: 36px; background: #EEF2FF; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+                    <div style="width: 36px; height: 36px; background: var(--primary-soft-3); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
                         <i class="fa fa-user-plus"></i>
                     </div>
                     <h3 style="margin:0; font-size: 16px; font-weight: 700; color: var(--text-dark);">Create New Group</h3>
@@ -500,7 +500,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <div class="groups-container view-grid" id="groupsContainer">
                     <?php if (!empty($groups)) { 
                         // Color array for group icons
-                        $colors = ['#8B5CF6', '#3B82F6', '#EC4899', '#10B981', '#F59E0B'];
+                        $colors = ['var(--primary-dark)', '#3B82F6', '#EC4899', '#10B981', '#F59E0B'];
                         $ci = 0;
                         
                         foreach ($groups as $group) { 

@@ -238,8 +238,8 @@
 }
 
 .form-input-v2:focus {
-    border-color: #8B5CF6;
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
+    border-color: var(--primary-dark);
+    box-shadow: 0 0 0 2px rgba(var(--primary-dark-rgb), 0.1);
 }
 
 /* Buttons */
@@ -262,13 +262,13 @@
 }
 
 .btn-indigo {
-    background: #6C3CE1;
+    background: var(--primary);
     color: white;
 }
 
 .btn-indigo-light {
     background: #EFF6FF;
-    color: #6C3CE1;
+    color: var(--primary);
 }
 
 .btn-green {
@@ -322,8 +322,8 @@
 }
 
 .badge-v2.submitted {
-    background: #F3E8FF;
-    color: #7E22CE;
+    background: var(--primary-soft-5);
+    color: var(--primary-deep);
 }
 
 .badge-v2.revision_needed,
@@ -415,9 +415,9 @@
 }
 
 .awaiting-review-section {
-    background: #FAF5FF;
+    background: var(--primary-soft-6);
     /* Purple-50 */
-    border: 1px solid #E9D5FF;
+    border: 1px solid var(--primary-border);
     /* Purple-200 */
     border-radius: 8px;
     padding: 16px;
@@ -425,7 +425,7 @@
 }
 
 .awaiting-review-title {
-    color: #6B21A8;
+    color: var(--primary-ink);
     /* Purple-800 */
     font-weight: 600;
     display: flex;
@@ -436,7 +436,7 @@
 
 .leader-notes-box {
     background: #fff;
-    border: 1px solid #F3E8FF;
+    border: 1px solid var(--primary-soft-5);
     border-radius: 6px;
     padding: 12px;
     font-size: 14px;
@@ -515,8 +515,8 @@
 }
 
 .leader-box-preview {
-    background: #F5F3FF;
-    border: 1px solid #E0E7FF;
+    background: var(--primary-soft-2);
+    border: 1px solid var(--primary-soft-4);
     border-radius: 8px;
     padding: 12px;
     display: flex;
@@ -559,3 +559,5 @@
         font-size: 14px;
     }
 }
+
+

@@ -1,6 +1,6 @@
 body.tasks-page {
     background:
-        radial-gradient(860px 500px at 102% -120px, rgba(108, 60, 225, 0.2), transparent 68%),
+        radial-gradient(860px 500px at 102% -120px, rgba(var(--primary-rgb), 0.2), transparent 68%),
         radial-gradient(640px 420px at -4% -70px, rgba(59, 130, 246, 0.11), transparent 70%),
         #f6f7fd;
 }
@@ -31,9 +31,9 @@ body.tasks-page .dash-main {
     border-radius: 24px;
     padding: 20px 22px;
     color: #fff;
-    background: linear-gradient(135deg, #6C3CE1 0%, #8B5CF6 56%, #4f7cff 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 56%, var(--accent-mid) 100%);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 22px 50px rgba(76, 34, 168, 0.28);
+    box-shadow: 0 22px 50px rgba(var(--primary-ink-2-rgb), 0.28);
 }
 
 .tasks-hero::before,
@@ -264,8 +264,8 @@ body.tasks-page .dash-main {
     padding: 7px 12px;
     font-size: 12px;
     font-weight: 700;
-    color: #6d28d9;
-    background: #ede9fe;
+    color: var(--primary-deep);
+    background: var(--primary-soft);
 }
 
 .tasks-board-create-btn {
@@ -278,16 +278,16 @@ body.tasks-page .dash-main {
     font-weight: 700;
     padding: 8px 12px;
     color: #fff;
-    background: linear-gradient(135deg, #6c3ce1 0%, #8b5cf6 100%);
-    border: 1px solid rgba(108, 60, 225, 0.22);
-    box-shadow: 0 8px 16px rgba(108, 60, 225, 0.22);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border: 1px solid rgba(var(--primary-rgb), 0.22);
+    box-shadow: 0 8px 16px rgba(var(--primary-rgb), 0.22);
     transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 
 .tasks-board-create-btn:hover {
     transform: translateY(-1px);
     filter: brightness(0.98);
-    box-shadow: 0 11px 20px rgba(108, 60, 225, 0.28);
+    box-shadow: 0 11px 20px rgba(var(--primary-rgb), 0.28);
 }
 
 body.tasks-page .tasks-grid {
@@ -389,7 +389,7 @@ body.tasks-page .badge-v2 {
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: #7c3aed;
+    color: var(--primary-strong);
 }
 
 .task-leader-name {
@@ -483,7 +483,7 @@ body.tasks-page .task-footer {
 .tasks-empty-state i {
     font-size: 46px;
     margin-bottom: 14px;
-    color: #8b5cf6;
+    color: var(--primary-dark);
 }
 
 .tasks-empty-state h3 {
@@ -755,3 +755,5 @@ body.tasks-page .task-footer {
         grid-column: 1 / -1;
     }
 }
+
+

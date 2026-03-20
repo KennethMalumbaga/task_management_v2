@@ -110,7 +110,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <h2 class="profile-name-text"><?= htmlspecialchars($user['full_name']) ?></h2>
                     <span class="profile-role-text"><?= ucfirst($user['role']) ?></span>
                     <div class="profile-actions" style="margin-left: auto;">
-                        <a href="messages.php?id=<?=$user['id']?>" class="btn-primary" style="background: #6C3CE1;">
+                        <a href="messages.php?id=<?=$user['id']?>" class="btn-primary" style="background: var(--primary);">
                             <i class="fa fa-comment"></i> Message
                         </a>
                     </div>
@@ -144,8 +144,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     </div>
 
                     <!-- Collaborative Score -->
-                    <div style="background: #F5F3FF; padding: 12px; border-radius: 8px; text-align: center;">
-                        <i class="fa fa-users" style="font-size: 20px; color: #8B5CF6; margin-bottom: 6px;"></i>
+                    <div style="background: var(--primary-soft-2); padding: 12px; border-radius: 8px; text-align: center;">
+                        <i class="fa fa-users" style="font-size: 20px; color: var(--primary-dark); margin-bottom: 6px;"></i>
                         <h3 style="font-size: 20px; margin: 0; color: #6B21A8;"><?= $collab_scores['avg'] ?></h3>
                         <span style="font-size: 11px; color: #6B21A8; font-weight: 500;">Collab</span>
                     </div>
@@ -266,7 +266,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 
                 <!-- Collaborative Score Breakdown -->
                 <h3 style="margin-bottom: 20px; font-size: 18px; color: var(--text-dark);">
-                    <i class="fa fa-users" style="color: #8B5CF6;"></i> Collaborative Score by Project
+                    <i class="fa fa-users" style="color: var(--primary-dark);"></i> Collaborative Score by Project
                 </h3>
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">

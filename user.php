@@ -46,9 +46,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     <link rel="stylesheet" href="css/dashboard.css">
     <style>
         .filter-active {
-            background: #6C3CE1 !important;
+            background: var(--primary) !important;
             color: white !important;
-            border-color: #6C3CE1 !important;
+            border-color: var(--primary) !important;
         }
         
         /* User Card Grid - 4 Columns on Desktop, 2 Columns on Mobile */
@@ -164,8 +164,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             right: 12px;
             width: 26px;
             height: 26px;
-            background: #F3E8FF;
-            color: #8B5CF6;
+            background: var(--primary-soft-5);
+            color: var(--primary-dark);
             border: none;
             border-radius: 50%;
             display: flex;
@@ -177,7 +177,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
         
         .btn-edit-absolute:hover {
-            background: #8B5CF6;
+            background: var(--primary-dark);
             color: white;
         }
 
@@ -185,8 +185,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             width: 56px;
             height: 56px;
             margin: 0 auto 10px;
-            background: #E0E7FF;
-            color: #6C3CE1;
+            background: var(--primary-soft-4);
+            color: var(--primary);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -258,11 +258,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
 
         .btn-msg {
-            background: #6C3CE1;
+            background: var(--primary);
             color: white;
-            border-color: #6C3CE1;
+            border-color: var(--primary);
         }
-        .btn-msg:hover { background: #8B5CF6; border-color: #8B5CF6; }
+        .btn-msg:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
 
         .btn-profile {
             background: white;
@@ -339,7 +339,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             margin-bottom: 20px;
         }
         .modal-header i {
-            color: #8B5CF6;
+            color: var(--primary-dark);
             font-size: 20px;
         }
         .modal-header h3 {
@@ -373,7 +373,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
         .btn-update-role {
             padding: 8px 16px;
-            background: #8B5CF6;
+            background: var(--primary-dark);
             color: white;
             border: none;
             border-radius: 6px;
@@ -458,7 +458,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                         <i class="fa fa-star"></i> <?= $rating_stats['avg'] ?>
                     </div>
                     <div style="width: 1px; background: #E5E7EB;"></div>
-                    <div style="color: #8B5CF6;" title="Collaborative Score">
+                    <div style="color: var(--primary-dark);" title="Collaborative Score">
                         <i class="fa fa-users"></i> <?= $collab_scores['avg'] ?>
                     </div>
                     <div style="width: 1px; background: #E5E7EB;"></div>

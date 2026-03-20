@@ -1,6 +1,6 @@
 .timeline-page .dash-main {
     background:
-        radial-gradient(860px 420px at 105% -120px, rgba(108, 60, 225, 0.16), transparent 72%),
+        radial-gradient(860px 420px at 105% -120px, rgba(var(--primary-rgb), 0.16), transparent 72%),
         radial-gradient(760px 420px at -8% -130px, rgba(79, 124, 255, 0.1), transparent 74%),
         #f6f7fd;
     overflow-x: hidden;
@@ -129,7 +129,7 @@
 }
 
 .tlp-filter-btn.active {
-    background: linear-gradient(135deg, #6c3ce1 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: #ffffff;
 }
 
@@ -162,8 +162,8 @@
 }
 
 .tlp-search-input:focus {
-    border-color: #8b5cf6;
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+    border-color: var(--primary-dark);
+    box-shadow: 0 0 0 3px rgba(var(--primary-dark-rgb), 0.15);
 }
 
 .tlp-tile-grid {
@@ -210,8 +210,8 @@
 
 .tlp-tile:hover {
     transform: translateY(-3px);
-    box-shadow: 0 14px 32px rgba(108, 60, 225, 0.16);
-    border-color: var(--tlp-accent, #8b5cf6);
+    box-shadow: 0 14px 32px rgba(var(--primary-rgb), 0.16);
+    border-color: var(--tlp-accent, var(--primary-dark));
 }
 
 .tlp-tile-top {
@@ -370,8 +370,8 @@
 .tlp-back-btn {
     border: 0;
     border-radius: 10px;
-    background: #ede9fe;
-    color: #5b21b6;
+    background: var(--primary-soft);
+    color: var(--primary-ink);
     padding: 8px 14px;
     font-size: 13px;
     font-weight: 700;
@@ -735,7 +735,7 @@
 }
 
 .tlp-icon-btn.edit {
-    background: #e0e7ff;
+    background: var(--primary-soft-4);
     color: #4338ca;
 }
 
@@ -749,7 +749,7 @@
     width: var(--tlp-label-width, 220px);
     text-align: left;
     background: transparent;
-    color: #5b21b6;
+    color: var(--primary-ink);
     cursor: pointer;
     font-size: 12px;
     font-weight: 700;
@@ -758,7 +758,7 @@
 }
 
 .tlp-add-phase:hover {
-    background: #ede9fe;
+    background: var(--primary-soft);
 }
 
 .tlp-actions-row {
@@ -768,10 +768,10 @@
 
 .tlp-add-task-btn {
     width: 100%;
-    border: 2px dashed #c4b5fd;
+    border: 2px dashed var(--primary-muted-2);
     border-radius: 12px;
     background: transparent;
-    color: #5b21b6;
+    color: var(--primary-ink);
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
@@ -779,8 +779,8 @@
 }
 
 .tlp-add-task-btn:hover {
-    background: #ede9fe;
-    border-color: #8b5cf6;
+    background: var(--primary-soft);
+    border-color: var(--primary-dark);
 }
 
 .tlp-progress-strip {
@@ -930,9 +930,9 @@
 }
 
 .tlp-project-pill.active {
-    border-color: #8b5cf6;
-    color: #4c1d95;
-    background: #ede9fe;
+    border-color: var(--primary-dark);
+    color: var(--primary-ink-2);
+    background: var(--primary-soft);
 }
 
 .tlp-modal-wrap {
@@ -998,7 +998,7 @@
 .tlp-input:focus,
 .tlp-select:focus,
 .tlp-textarea:focus {
-    border-color: #8b5cf6;
+    border-color: var(--primary-dark);
 }
 
 .tlp-textarea {
@@ -1071,7 +1071,7 @@
 .tlp-phase-guide-chip-days {
     font-size: 11px;
     font-weight: 700;
-    color: #6c3ce1;
+    color: var(--primary);
 }
 
 .tlp-phase-guide-empty {
@@ -1093,9 +1093,9 @@
 }
 
 .tlp-phase-guide-tip.info {
-    border-color: #ddd6fe;
-    background: #f5f3ff;
-    color: #5b21b6;
+    border-color: var(--primary-border);
+    background: var(--primary-soft-2);
+    color: var(--primary-ink);
 }
 
 .tlp-phase-guide-tip.ok {
@@ -1131,9 +1131,9 @@
 }
 
 .tlp-icon-choice.active {
-    border-color: #8b5cf6;
-    background: #ede9fe;
-    color: #5b21b6;
+    border-color: var(--primary-dark);
+    background: var(--primary-soft);
+    color: var(--primary-ink);
 }
 
 .tlp-color-grid {
@@ -1187,7 +1187,7 @@
 }
 
 .tlp-btn.primary {
-    background: linear-gradient(135deg, #6c3ce1 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: #ffffff;
     flex: 2;
 }
@@ -1233,7 +1233,7 @@
 
 .tlp-tooltip-days {
     margin-top: 4px;
-    color: #ddd6fe;
+    color: var(--primary-border);
     font-size: 11px;
 }
 
@@ -1268,3 +1268,5 @@
         flex-direction: column;
     }
 }
+
+

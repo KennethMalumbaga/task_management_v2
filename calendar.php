@@ -114,7 +114,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             margin-bottom: 6px;
         }
         .cal-nav-btn {
-            background: linear-gradient(135deg, #6c3ce1 0%, #7c4dff 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: #fff;
             border: none;
             border-radius: 6px;
@@ -126,11 +126,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             align-items: center;
             gap: 6px;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
-            box-shadow: 0 6px 12px rgba(108, 60, 225, 0.2);
+            box-shadow: 0 6px 12px rgba(var(--primary-rgb), 0.2);
         }
         .cal-nav-btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 10px 18px rgba(108, 60, 225, 0.28);
+            box-shadow: 0 10px 18px rgba(var(--primary-rgb), 0.28);
         }
         .cal-month-title {
             margin: 0 8px;
@@ -154,7 +154,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             font-weight: 700;
         }
         .cal-today-indicator i {
-            color: #6c3ce1;
+            color: var(--primary);
         }
 
         .cal-board {
@@ -176,7 +176,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             font-size: 11px;
             font-weight: 800;
             color: #fff;
-            background: linear-gradient(135deg, #6c3ce1 0%, #7c4dff 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             border-right: 1px solid rgba(255, 255, 255, 0.2);
             letter-spacing: 0.04em;
         }
@@ -206,19 +206,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             cursor: pointer;
         }
         .cal-day.is-outside:hover {
-            background: #eef2ff;
+            background: var(--primary-soft-3);
             color: #64748b;
         }
         .cal-day:not(.is-outside):hover {
-            background: #f7f3ff;
+            background: var(--primary-soft-2);
         }
         .cal-day.active {
-            background: #f2ecff;
-            outline: 2px solid #6c3ce1;
+            background: var(--primary-soft-5);
+            outline: 2px solid var(--primary);
             outline-offset: -2px;
         }
         .cal-day.today {
-            box-shadow: inset 0 0 0 2px #a78bfa;
+            box-shadow: inset 0 0 0 2px var(--primary-muted);
         }
         .cal-day-num {
             font-size: 13px;
@@ -226,11 +226,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             line-height: 1;
         }
         .cal-day.today .cal-day-num {
-            color: #6c3ce1;
+            color: var(--primary);
             font-weight: 800;
         }
         .cal-day.active .cal-day-num {
-            color: #4f46e5;
+            color: var(--primary-deep);
             font-weight: 800;
         }
         .cal-day-chips {
@@ -263,8 +263,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             color: #166534;
         }
         .cal-chip.other {
-            background: #ede9fe;
-            color: #5b21b6;
+            background: var(--primary-soft);
+            color: var(--primary-ink);
         }
         .cal-chip.more {
             background: #e5e7eb;
@@ -285,7 +285,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
         .cal-tasks-head {
             padding: 14px 16px;
-            background: linear-gradient(135deg, #6c3ce1 0%, #7c4dff 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: #fff;
             display: flex;
             align-items: center;
@@ -331,7 +331,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             border-color: #bfdbfe;
         }
         .cal-task-item.tone-review {
-            background: #f3e8ff;
+            background: var(--primary-soft-5);
             border-color: #e9d5ff;
         }
         .cal-task-item.tone-neutral {

@@ -71,9 +71,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 					$rowStyle = "border-bottom: 1px solid #E5E7EB; transition: background 0.2s;";
                     $rowStyle .= " cursor: pointer;";
                     if ($isUnread) {
-                        $rowStyle .= " background: #EEF2FF;";
+                        $rowStyle .= " background: var(--primary-soft-3);";
                     }
-                    $rowDefaultBg = $isUnread ? '#EEF2FF' : '#FFFFFF';
+                    $rowDefaultBg = $isUnread ? 'var(--primary-soft-3)' : '#FFFFFF';
 				?>
 				<tr style="<?=$rowStyle?>" 
                     onclick="handleNotificationClick('<?= htmlspecialchars($notificationLink, ENT_QUOTES) ?>')"
@@ -83,10 +83,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 					<td style="padding: 16px 24px; font-size: 14px; color: #6B7280;"><?=++$i?></td>
 					<td style="padding: 16px 24px; font-size: 14px; color: #111827;">
                         <?=$notification['message']?>
-                        <i class="fa fa-chevron-right" style="color: #8B5CF6; margin-left: 8px; font-size: 12px;"></i>
+                        <i class="fa fa-chevron-right" style="color: var(--primary-dark); margin-left: 8px; font-size: 12px;"></i>
                     </td>
 					<td style="padding: 16px 24px; font-size: 14px; color: #4B5563;">
-                        <span style="background: #EEF2FF; color: #6C3CE1; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;">
+                        <span style="background: var(--primary-soft-3); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;">
                             <?=$notification['type']?>
                         </span>
                     </td>
