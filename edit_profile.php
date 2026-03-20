@@ -20,7 +20,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
 </head>
-<body>
+<body class="edit-profile-page">
     
     <!-- Sidebar -->
     <?php include "inc/new_sidebar.php"; ?>

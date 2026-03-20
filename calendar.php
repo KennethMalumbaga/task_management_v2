@@ -507,7 +507,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
     </style>
 </head>
-<body>
+<body class="calendar-page">
     
     <!-- Sidebar -->
     <?php include "inc/new_sidebar.php"; ?>

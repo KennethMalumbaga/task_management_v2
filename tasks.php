@@ -552,7 +552,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         <div class="task-leader-box">
                             <img src="<?= $leaderImg ?>" class="task-leader-avatar" alt="Leader">
                             <div>
-                                <div class="task-leader-label"><i class="fa fa-crown"></i> Leader</div>
+                                <div class="task-leader-label"><i class="fa fa-crown"></i> Project Leader</div>
                                 <div class="task-leader-name"><?= htmlspecialchars($leader['full_name']) ?></div>
                             </div>
                         </div>

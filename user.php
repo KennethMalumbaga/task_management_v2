@@ -385,7 +385,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
     </style>
 </head>
-<body>
+<body class="users-page">
     
     <!-- Sidebar -->
     <?php include "inc/new_sidebar.php"; ?>

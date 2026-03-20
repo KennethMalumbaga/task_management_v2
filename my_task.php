@@ -638,15 +638,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <?php if ($leader) { 
                         $leaderImg = !empty($leader['profile_image']) ? 'uploads/' . $leader['profile_image'] : 'img/user.png';
                     ?>
-                    <div class="leader-box-preview">
-                        <img src="<?= $leaderImg ?>" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                    <div class="task-leader-box">
+                        <img src="<?= $leaderImg ?>" class="task-leader-avatar" alt="Leader">
                         <div>
-                            <div style="font-size: 10px; font-weight: 700; color: var(--primary-dark); letter-spacing: 0.5px; text-transform: uppercase;">
-                                <i class="fa fa-crown" style="margin-right: 4px;"></i> Project Leader
-                            </div>
-                            <div style="font-weight: 600; color: #1F2937; font-size: 13px;">
-                                <?= htmlspecialchars($leader['full_name']) ?>
-                            </div>
+                            <div class="task-leader-label"><i class="fa fa-crown"></i> Project Leader</div>
+                            <div class="task-leader-name"><?= htmlspecialchars($leader['full_name']) ?></div>
                         </div>
                     </div>
                     <?php } ?>

@@ -362,7 +362,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         }
     </style>
 </head>
-<body>
+<body class="groups-page">
     <?php include "inc/new_sidebar.php"; ?>
 
     <div class="dash-main page-wrap">
@@ -610,7 +610,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                             -->
                         </div>
                     <?php } } else { ?>
-                        <div style="text-align: center; color: #9CA3AF; padding: 40px; background: white; border-radius: 12px; border: 1px dashed #E5E7EB;">
+                        <div class="groups-empty-state" style="text-align: center; color: #9CA3AF; padding: 40px; background: white; border-radius: 12px; border: 1px dashed #E5E7EB;">
                             No groups found.
                         </div>
                     <?php } ?>

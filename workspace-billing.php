@@ -156,9 +156,11 @@ if (!$tenantEnabled) {
 
 $themeDefaults = workspace_theme_default_palette();
 $themeReady = $tenantEnabled && workspace_theme_schema_ready($pdo);
+$themeModeReady = $tenantEnabled && workspace_theme_mode_schema_ready($pdo);
 $themePrimary = $themeDefaults['primary'];
 $themeSecondary = $themeDefaults['secondary'];
 $themeAccent = $themeDefaults['accent'];
+$themeMode = workspace_theme_default_mode();
 $themeHasCustom = false;
 
 if ($themeReady && $orgId) {
@@ -176,50 +178,18 @@ if ($themeReady && $orgId) {
             $themeAccent = $themeValues['accent'];
             $themeHasCustom = true;
         }
+        if (($themeValues['mode'] ?? workspace_theme_default_mode()) !== workspace_theme_default_mode()) {
+            $themeMode = workspace_theme_resolve_mode($themeValues['mode'] ?? workspace_theme_default_mode());
+            $themeHasCustom = true;
+        }
     }
 }
 
 $themeAccentLight = workspace_theme_mix_hex($themeAccent, '#ffffff', 0.86) ?: $themeDefaults['accent'];
 $canManageTheme = $canManageSeats;
+$canManageThemeMode = $canManageTheme && $themeModeReady;
 
-$themePalettes = [
-    [
-        'name' => 'Classic Purple',
-        'primary' => '#6c3ce1',
-        'secondary' => '#8b5cf6',
-        'accent' => '#6c3ef4',
-    ],
-    [
-        'name' => 'Ocean Blue',
-        'primary' => '#2563eb',
-        'secondary' => '#3b82f6',
-        'accent' => '#0ea5e9',
-    ],
-    [
-        'name' => 'Emerald',
-        'primary' => '#059669',
-        'secondary' => '#10b981',
-        'accent' => '#14b8a6',
-    ],
-    [
-        'name' => 'Sunset',
-        'primary' => '#ea580c',
-        'secondary' => '#f97316',
-        'accent' => '#f59e0b',
-    ],
-    [
-        'name' => 'Rose',
-        'primary' => '#e11d48',
-        'secondary' => '#f43f5e',
-        'accent' => '#fb7185',
-    ],
-    [
-        'name' => 'Slate',
-        'primary' => '#334155',
-        'secondary' => '#64748b',
-        'accent' => '#475569',
-    ],
-];
+$themePalettes = workspace_theme_preset_palettes();
 
 $workspaceDisplayName = (string)($org['name'] ?? ($_SESSION['organization_name'] ?? 'Workspace'));
 $workspacePlanCode = (string)($org['plan_code'] ?? 'N/A');
@@ -666,7 +636,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                 <div class="workspace-panel-head billing-v2-panel-head">
                     <div>
                         <h3 class="workspace-panel-title">Workspace Theme</h3>
-                        <p class="workspace-panel-sub">Customize your workspace UI palette for dashboards, reports, and buttons.</p>
+                        <p class="workspace-panel-sub">Customize your workspace UI palette and switch between light and dark workspace modes.</p>
                     </div>
                     <?php if (!$canManageTheme) { ?>
                         <span class="billing-v2-readonly-pill">Read-only</span>
@@ -689,12 +659,20 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                         <span class="workspace-theme-note">Applies immediately across this workspace.</span>
                     </div>
 
+                    <?php if (!$themeModeReady) { ?>
+                        <div class="workspace-alert info">
+                            <i class="fa fa-moon-o"></i>
+                            <div>Dark mode needs the <span class="workspace-inline-code">theme_mode</span> column. Run <span class="workspace-inline-code">sql_add_workspace_theme_mode.sql</span> if your workspace already has the original theme columns.</div>
+                        </div>
+                    <?php } ?>
+
                     <div class="workspace-theme-palette-grid" id="workspaceThemePaletteGrid">
                         <?php foreach ($themePalettes as $palette) {
                             $pName = (string)($palette['name'] ?? 'Palette');
                             $pPrimary = (string)($palette['primary'] ?? '');
                             $pSecondary = (string)($palette['secondary'] ?? '');
                             $pAccent = (string)($palette['accent'] ?? '');
+                            $pMode = workspace_theme_resolve_mode($palette['mode'] ?? workspace_theme_default_mode());
                         ?>
                             <button
                                 type="button"
@@ -702,6 +680,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                                 data-primary="<?= htmlspecialchars($pPrimary, ENT_QUOTES) ?>"
                                 data-secondary="<?= htmlspecialchars($pSecondary, ENT_QUOTES) ?>"
                                 data-accent="<?= htmlspecialchars($pAccent, ENT_QUOTES) ?>"
+                                data-mode="<?= htmlspecialchars($pMode, ENT_QUOTES) ?>"
                                 <?= $canManageTheme ? '' : 'disabled' ?>
                             >
                                 <span class="workspace-theme-palette-name"><?= htmlspecialchars($pName) ?></span>
@@ -754,11 +733,24 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                         </div>
 
                         <div class="workspace-field">
-                            <label>Accent Preview</label>
-                            <div class="workspace-input" id="themePreviewAccentSoft" style="background: <?= htmlspecialchars($themeAccentLight, ENT_QUOTES) ?>; border-color: #e5e7eb; height: 42px; padding: 0;"></div>
+                            <label for="theme_mode">Workspace Mode</label>
+                            <select
+                                id="theme_mode"
+                                name="theme_mode"
+                                class="workspace-input"
+                                <?= $canManageThemeMode ? '' : 'disabled' ?>
+                            >
+                                <option value="light" <?= $themeMode === 'light' ? 'selected' : '' ?>>Light</option>
+                                <option value="dark" <?= $themeMode === 'dark' ? 'selected' : '' ?>>Dark</option>
+                            </select>
                         </div>
 
-                        <div class="workspace-action-row">
+                        <div class="workspace-field">
+                            <label>Accent Preview</label>
+                            <div class="workspace-input" id="themePreviewAccentSoft" style="background: <?= htmlspecialchars($themeAccentLight, ENT_QUOTES) ?>; border-color: <?= htmlspecialchars($themeMode === 'dark' ? '#334155' : '#e5e7eb', ENT_QUOTES) ?>; height: 42px; padding: 0;"></div>
+                        </div>
+
+                        <div class="workspace-action-row" style="grid-column: 1 / -1;">
                             <button class="workspace-btn primary" type="submit" name="theme_action" value="save" <?= $canManageTheme ? '' : 'disabled' ?>>
                                 <i class="fa fa-paint-brush"></i>
                                 Save Theme
@@ -774,6 +766,11 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                             <i class="fa fa-lock"></i>
                             <div>You currently have read-only access and cannot update the workspace theme.</div>
                         </div>
+                    <?php } elseif (!$themeModeReady) { ?>
+                        <div class="workspace-alert info">
+                            <i class="fa fa-database"></i>
+                            <div>Color palettes are ready. Run <span class="workspace-inline-code">sql_add_workspace_theme_mode.sql</span> once to save dark mode selections too.</div>
+                        </div>
                     <?php } ?>
                 <?php } ?>
             </section>
@@ -784,6 +781,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
         var primaryInput = document.getElementById('theme_primary');
         var secondaryInput = document.getElementById('theme_secondary');
         var accentInput = document.getElementById('theme_accent');
+        var modeInput = document.getElementById('theme_mode');
         var previewPrimary = document.getElementById('themePreviewPrimary');
         var previewSecondary = document.getElementById('themePreviewSecondary');
         var previewAccent = document.getElementById('themePreviewAccent');
@@ -801,6 +799,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
             var primary = primaryInput.value || '';
             var secondary = secondaryInput.value || '';
             var accent = accentInput.value || '';
+            var mode = modeInput ? String(modeInput.value || 'light').toLowerCase() : 'light';
 
             if (previewPrimary) previewPrimary.style.background = primary;
             if (previewSecondary) previewSecondary.style.background = secondary;
@@ -811,6 +810,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
 
             if (previewAccentSoft) {
                 previewAccentSoft.style.background = accent ? accent + '22' : '';
+                previewAccentSoft.style.borderColor = mode === 'dark' ? '#334155' : '#e5e7eb';
             }
         }
 
@@ -828,14 +828,16 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
             var current = {
                 primary: toLowerHex(primaryInput.value),
                 secondary: toLowerHex(secondaryInput.value),
-                accent: toLowerHex(accentInput.value)
+                accent: toLowerHex(accentInput.value),
+                mode: modeInput ? String(modeInput.value || 'light').toLowerCase() : 'light'
             };
 
             var matched = false;
             paletteButtons.forEach(function (btn) {
                 var matches = toLowerHex(btn.getAttribute('data-primary')) === current.primary
                     && toLowerHex(btn.getAttribute('data-secondary')) === current.secondary
-                    && toLowerHex(btn.getAttribute('data-accent')) === current.accent;
+                    && toLowerHex(btn.getAttribute('data-accent')) === current.accent
+                    && (!modeInput || modeInput.disabled || String(btn.getAttribute('data-mode') || 'light').toLowerCase() === current.mode);
                 if (matches && !matched) {
                     setActivePalette(btn);
                     matched = true;
@@ -853,15 +855,20 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                 var nextPrimary = btn.getAttribute('data-primary') || '';
                 var nextSecondary = btn.getAttribute('data-secondary') || '';
                 var nextAccent = btn.getAttribute('data-accent') || '';
+                var nextMode = btn.getAttribute('data-mode') || 'light';
                 primaryInput.value = nextPrimary;
                 secondaryInput.value = nextSecondary;
                 accentInput.value = nextAccent;
+                if (modeInput && !modeInput.disabled) {
+                    modeInput.value = nextMode;
+                }
                 setActivePalette(btn);
                 updatePreview();
             });
         });
 
-        [primaryInput, secondaryInput, accentInput].forEach(function (input) {
+        [primaryInput, secondaryInput, accentInput, modeInput].forEach(function (input) {
+            if (!input) return;
             input.addEventListener('input', function () {
                 updatePreview();
                 syncActivePalette();

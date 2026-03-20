@@ -36,14 +36,24 @@ if (!workspace_theme_schema_ready($pdo)) {
     exit;
 }
 
+$modeReady = workspace_theme_mode_schema_ready($pdo);
 $action = strtolower(trim((string)($_POST['theme_action'] ?? 'save')));
 if ($action === 'reset') {
-    $stmt = $pdo->prepare(
-        "UPDATE organizations
-         SET theme_primary = NULL, theme_secondary = NULL, theme_accent = NULL
-         WHERE id = ?"
-    );
-    $stmt->execute([(int)$orgId]);
+    if ($modeReady) {
+        $stmt = $pdo->prepare(
+            "UPDATE organizations
+             SET theme_primary = NULL, theme_secondary = NULL, theme_accent = NULL, theme_mode = ?
+             WHERE id = ?"
+        );
+        $stmt->execute([workspace_theme_default_mode(), (int)$orgId]);
+    } else {
+        $stmt = $pdo->prepare(
+            "UPDATE organizations
+             SET theme_primary = NULL, theme_secondary = NULL, theme_accent = NULL
+             WHERE id = ?"
+        );
+        $stmt->execute([(int)$orgId]);
+    }
     header("Location: ../workspace-billing.php?success=" . urlencode("Workspace theme reset to default."));
     exit;
 }
@@ -51,10 +61,12 @@ if ($action === 'reset') {
 $rawPrimary = trim((string)($_POST['theme_primary'] ?? ''));
 $rawSecondary = trim((string)($_POST['theme_secondary'] ?? ''));
 $rawAccent = trim((string)($_POST['theme_accent'] ?? ''));
+$rawMode = trim((string)($_POST['theme_mode'] ?? workspace_theme_default_mode()));
 
 $primary = workspace_theme_normalize_hex($rawPrimary);
 $secondary = workspace_theme_normalize_hex($rawSecondary);
 $accent = workspace_theme_normalize_hex($rawAccent);
+$mode = workspace_theme_resolve_mode($rawMode);
 
 if ($rawPrimary !== '' && $primary === null) {
     header("Location: ../workspace-billing.php?error=" . urlencode("Primary color must be a valid hex value."));
@@ -69,17 +81,37 @@ if ($rawAccent !== '' && $accent === null) {
     exit;
 }
 
-$stmt = $pdo->prepare(
-    "UPDATE organizations
-     SET theme_primary = ?, theme_secondary = ?, theme_accent = ?
-     WHERE id = ?"
-);
-$stmt->execute([
-    $primary ?: null,
-    $secondary ?: null,
-    $accent ?: null,
-    (int)$orgId
-]);
+if ($mode === 'dark' && !$modeReady) {
+    header("Location: ../workspace-billing.php?error=" . urlencode("Dark mode needs the theme_mode column. Run sql_add_workspace_theme_mode.sql first."));
+    exit;
+}
+
+if ($modeReady) {
+    $stmt = $pdo->prepare(
+        "UPDATE organizations
+         SET theme_primary = ?, theme_secondary = ?, theme_accent = ?, theme_mode = ?
+         WHERE id = ?"
+    );
+    $stmt->execute([
+        $primary ?: null,
+        $secondary ?: null,
+        $accent ?: null,
+        $mode,
+        (int)$orgId
+    ]);
+} else {
+    $stmt = $pdo->prepare(
+        "UPDATE organizations
+         SET theme_primary = ?, theme_secondary = ?, theme_accent = ?
+         WHERE id = ?"
+    );
+    $stmt->execute([
+        $primary ?: null,
+        $secondary ?: null,
+        $accent ?: null,
+        (int)$orgId
+    ]);
+}
 
 header("Location: ../workspace-billing.php?success=" . urlencode("Workspace theme updated."));
 exit;

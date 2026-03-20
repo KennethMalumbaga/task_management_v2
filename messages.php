@@ -72,7 +72,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <!-- jQuery for AJAX -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 </head>
-<body style="overflow: hidden;">
+<body class="messages-page" style="overflow: hidden;">
     
     <!-- Sidebar -->
     <?php include "inc/new_sidebar.php"; ?>
