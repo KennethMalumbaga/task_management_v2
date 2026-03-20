@@ -121,6 +121,41 @@
         return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
     }
 
+    function normalizeAvatarUrl(avatarUrl) {
+        return String(avatarUrl || '').trim();
+    }
+
+    function hasAvatar(avatarUrl) {
+        return normalizeAvatarUrl(avatarUrl) !== '';
+    }
+
+    function avatarClassName(baseClass, avatarUrl) {
+        return baseClass + (hasAvatar(avatarUrl) ? ' has-image' : '');
+    }
+
+    function buildAvatarInner(avatarUrl, label, fallbackText) {
+        var safeAvatarUrl = normalizeAvatarUrl(avatarUrl);
+        if (safeAvatarUrl !== '') {
+            return '<img src="' + escapeHtml(safeAvatarUrl) + '" alt="' + escapeHtml(label || '') + '" loading="lazy">';
+        }
+        return escapeHtml(fallbackText || 'U');
+    }
+
+    function setAvatarElement(node, avatarUrl, label, fallbackText) {
+        if (!node) {
+            return;
+        }
+
+        var safeAvatarUrl = normalizeAvatarUrl(avatarUrl);
+        node.classList.toggle('has-image', safeAvatarUrl !== '');
+        if (safeAvatarUrl !== '') {
+            node.innerHTML = '<img src="' + escapeHtml(safeAvatarUrl) + '" alt="' + escapeHtml(label || '') + '" loading="lazy">';
+            return;
+        }
+
+        node.textContent = fallbackText || 'U';
+    }
+
     function colorIndexForProject(project) {
         var pid = Number(project && project.id ? project.id : 0);
         var lid = Number(project && project.leader && project.leader.id ? project.leader.id : 0);
@@ -544,9 +579,10 @@
         var html = [];
         visible.forEach(function (member, index) {
             var color = COLORS[(colorIdx + index + 1) % COLORS.length];
+            var avatarUrl = normalizeAvatarUrl(member.avatar_url);
             html.push(
-                '<div class="tlp-member-bubble" style="background:' + color + ';z-index:' + (30 - index) + '">' +
-                    escapeHtml(toInitials(member.name)) +
+                '<div class="' + avatarClassName('tlp-member-bubble', avatarUrl) + '" style="background:' + color + ';z-index:' + (30 - index) + '">' +
+                    buildAvatarInner(avatarUrl, member.name || 'Member', toInitials(member.name)) +
                 '</div>'
             );
         });
@@ -567,6 +603,8 @@
             var accent = COLORS[colorIdx];
             var light = LIGHTS[colorIdx];
             var totalDays = clampNumber(project.total_days, 1, 365, 20);
+            var leaderName = project.leader && project.leader.name ? project.leader.name : project.name;
+            var leaderAvatarUrl = normalizeAvatarUrl(project.leader && project.leader.avatar_url ? project.leader.avatar_url : '');
 
             var tile = document.createElement('div');
             tile.className = 'tlp-tile';
@@ -575,8 +613,8 @@
 
             tile.innerHTML = '' +
                 '<div class="tlp-tile-top">' +
-                    '<div class="tlp-avatar" style="background:' + light + ';color:' + accent + '">' +
-                        escapeHtml(toInitials(project.leader && project.leader.name ? project.leader.name : project.name)) +
+                    '<div class="' + avatarClassName('tlp-avatar', leaderAvatarUrl) + '" style="background:' + light + ';color:' + accent + '">' +
+                        buildAvatarInner(leaderAvatarUrl, leaderName || 'Project', toInitials(leaderName || project.name)) +
                     '</div>' +
                     '<span class="tlp-status" style="background:' + statusMeta.bg + ';color:' + statusMeta.color + '">' +
                         '<span class="tlp-status-dot" style="background:' + statusMeta.dot + '"></span>' + escapeHtml(statusMeta.label) +
@@ -615,9 +653,10 @@
         var html = [];
         (project.members || []).forEach(function (member, index) {
             var color = COLORS[(colorIdx + index + 1) % COLORS.length];
+            var avatarUrl = normalizeAvatarUrl(member.avatar_url);
             html.push(
-                '<div class="tlp-member-bubble" style="background:' + color + ';z-index:' + (30 - index) + '">' +
-                    escapeHtml(toInitials(member.name)) +
+                '<div class="' + avatarClassName('tlp-member-bubble', avatarUrl) + '" style="background:' + color + ';z-index:' + (30 - index) + '">' +
+                    buildAvatarInner(avatarUrl, member.name || 'Member', toInitials(member.name)) +
                 '</div>'
             );
         });
@@ -875,10 +914,11 @@
         var canEdit = !!(project.permissions && project.permissions.can_edit);
         var projectName = project.name || 'Untitled Project';
         var leaderName = project.leader && project.leader.name ? project.leader.name : 'N/A';
+        var leaderAvatarUrl = normalizeAvatarUrl(project.leader && project.leader.avatar_url ? project.leader.avatar_url : '');
 
         el.detailAvatar.style.background = light;
         el.detailAvatar.style.color = accent;
-        el.detailAvatar.textContent = toInitials(leaderName || projectName);
+        setAvatarElement(el.detailAvatar, leaderAvatarUrl, leaderName || projectName, toInitials(leaderName || projectName));
         el.detailName.textContent = projectName;
         el.detailSub.textContent = 'Group: ' + (project.group || 'Project Team') + ' | Leader: ' + leaderName + ' | ' + clampNumber(project.total_days, 1, 365, 20) + ' days';
         el.detailStatus.innerHTML = '<span class="tlp-status-dot" style="background:' + statusMeta.dot + '"></span>' + escapeHtml(statusMeta.label);
@@ -944,13 +984,14 @@
             var bubbleColor = COLORS[(colorIdx + index + 1) % COLORS.length];
             var isMe = Number(member.id) === Number(state.userId);
             var memberRole = String(member.role || 'member').toLowerCase();
+            var avatarUrl = normalizeAvatarUrl(member.avatar_url);
             var roleTagStyle = memberRole === 'leader'
                 ? 'background:#EDE9FE;color:#5B21B6'
                 : 'background:#F3F4F6;color:#6B7280';
 
             return '' +
                 '<div class="tlp-member-card"' + (isMe ? ' style="border-color:' + accent + '"' : '') + '>' +
-                    '<span class="tlp-member-avatar" style="background:' + bubbleColor + '">' + escapeHtml(toInitials(member.name)) + '</span>' +
+                    '<span class="' + avatarClassName('tlp-member-avatar', avatarUrl) + '" style="background:' + bubbleColor + '">' + buildAvatarInner(avatarUrl, member.name || 'User', toInitials(member.name)) + '</span>' +
                     '<div>' +
                         '<div class="tlp-member-name">' + escapeHtml(member.name || 'User') + (isMe ? ' (you)' : '') + '</div>' +
                         '<span class="tlp-member-role" style="' + roleTagStyle + '">' + (memberRole === 'leader' ? 'Leader' : 'Member') + '</span>' +
@@ -960,14 +1001,15 @@
 
         var roleSubtitle = userRole === 'leader' ? 'Leader View' : 'Member View';
         var headerAvatar = toInitials(project.leader && project.leader.name ? project.leader.name : project.name);
+        var headerAvatarUrl = normalizeAvatarUrl(project.leader && project.leader.avatar_url ? project.leader.avatar_url : '');
 
         el.employeeMount.innerHTML = '' +
             '<div class="tlp-role-banner" style="' + roleStyle + '">' +
                 '<i class="fa ' + roleIcon + '"></i>' +
                 '<div><strong>' + roleTitle + '</strong> ' + roleText + '</div>' +
-            '</div>' +
+                '</div>' +
             '<div class="tlp-project-card">' +
-                '<div class="tlp-avatar" style="background:' + light + ';color:' + accent + '">' + escapeHtml(headerAvatar) + '</div>' +
+                '<div class="' + avatarClassName('tlp-avatar', headerAvatarUrl) + '" style="background:' + light + ';color:' + accent + '">' + buildAvatarInner(headerAvatarUrl, project.leader && project.leader.name ? project.leader.name : project.name, headerAvatar) + '</div>' +
                 '<div class="tlp-project-main">' +
                     '<div class="tlp-project-name">' + escapeHtml(project.name || 'Untitled Project') + '</div>' +
                     '<div class="tlp-project-sub">Group: ' + escapeHtml(project.group || 'Project Team') + ' | Leader: ' + escapeHtml(project.leader && project.leader.name ? project.leader.name : 'N/A') + ' | ' + roleSubtitle + '</div>' +

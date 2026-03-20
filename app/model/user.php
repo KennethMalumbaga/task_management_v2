@@ -25,6 +25,29 @@ function get_all_users($pdo, $role = 'all')
     return $users ?: [];
 }
 
+if (!function_exists('user_profile_image_url')) {
+    function user_profile_image_url($profileImage)
+    {
+        $profileImage = trim((string)$profileImage);
+        if ($profileImage === '' || strtolower($profileImage) === 'default.png') {
+            return '';
+        }
+
+        $safeName = basename($profileImage);
+        if ($safeName === '') {
+            return '';
+        }
+
+        $absolutePath = __DIR__ . '/../../uploads/' . $safeName;
+        if (!is_file($absolutePath)) {
+            return '';
+        }
+
+        $mtime = @filemtime($absolutePath);
+        return 'uploads/' . rawurlencode($safeName) . '?t=' . ($mtime ? $mtime : time());
+    }
+}
+
 function insert_user($pdo, $data)
 {
     $orgId = tenant_get_current_org_id();

@@ -1153,6 +1153,22 @@ body.reports-page {
     font-weight: 700;
     color: #ffffff;
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+.tab-avatar img,
+.dtr-avatar img,
+.user-sum-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.tab-avatar.has-image,
+.dtr-avatar.has-image,
+.user-sum-avatar.has-image {
+    color: transparent;
 }
 
 .dtr-user-bar {
@@ -1184,6 +1200,7 @@ body.reports-page {
     font-size: 14px;
     color: #ffffff;
     border: 2px solid #ffffff40;
+    overflow: hidden;
 }
 
 .dtr-user-name { font-weight: 700; font-size: 15px; }
@@ -1259,7 +1276,7 @@ body.reports-page {
 
 .user-summary-card:hover { box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.1); transform: translateY(-1px); border-color: var(--accent); }
 .user-summary-top { display: flex; align-items: center; gap: 12px; padding: 14px 16px 10px; }
-.user-sum-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #ffffff; flex-shrink: 0; }
+.user-sum-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #ffffff; flex-shrink: 0; overflow: hidden; }
 .user-sum-name { font-weight: 600; font-size: 13.5px; }
 .user-sum-email { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
 .user-summary-stats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); }

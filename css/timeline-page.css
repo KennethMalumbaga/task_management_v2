@@ -230,6 +230,23 @@
     justify-content: center;
     font-size: 13px;
     font-weight: 800;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.tlp-avatar img,
+.tlp-member-bubble img,
+.tlp-member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.tlp-avatar.has-image,
+.tlp-member-bubble.has-image,
+.tlp-member-avatar.has-image {
+    color: transparent;
 }
 
 .tlp-status {
@@ -336,6 +353,7 @@
     color: #ffffff;
     font-size: 9px;
     font-weight: 800;
+    overflow: hidden;
 }
 
 .tlp-member-bubble:first-child {
@@ -895,6 +913,8 @@
     color: #ffffff;
     font-size: 9px;
     font-weight: 800;
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
 .tlp-member-name {

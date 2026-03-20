@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../inc/tenant.php';
+require_once __DIR__ . '/user.php';
 
 if (!function_exists('timeline_column_exists')) {
     function timeline_column_exists($pdo, $table, $column)
@@ -419,7 +420,7 @@ if (!function_exists('timeline_get_project_deadline_days')) {
 if (!function_exists('timeline_fetch_project_members')) {
     function timeline_fetch_project_members($pdo, $projectId)
     {
-        $sql = "SELECT ta.user_id, ta.role, u.full_name
+        $sql = "SELECT ta.user_id, ta.role, u.full_name, u.profile_image
                 FROM task_assignees ta
                 JOIN users u ON u.id = ta.user_id
                 WHERE ta.task_id = ?";
@@ -748,19 +749,23 @@ if (!function_exists('timeline_build_project_payload')) {
         $members = [];
         $leaderId = 0;
         $leaderName = '';
+        $leaderAvatarUrl = '';
 
         foreach ($membersRaw as $memberRow) {
             $memberRole = (string)($memberRow['role'] ?? 'member');
             $memberId = (int)($memberRow['user_id'] ?? 0);
             $memberName = (string)($memberRow['full_name'] ?? 'User');
+            $memberAvatarUrl = user_profile_image_url($memberRow['profile_image'] ?? '');
             if ($memberRole === 'leader' && $leaderId <= 0) {
                 $leaderId = $memberId;
                 $leaderName = $memberName;
+                $leaderAvatarUrl = $memberAvatarUrl;
             }
             $members[] = [
                 'id' => $memberId,
                 'name' => $memberName,
                 'role' => $memberRole,
+                'avatar_url' => $memberAvatarUrl,
             ];
         }
 
@@ -788,6 +793,7 @@ if (!function_exists('timeline_build_project_payload')) {
             'leader' => [
                 'id' => $leaderId,
                 'name' => $leaderName !== '' ? $leaderName : 'Unassigned Leader',
+                'avatar_url' => $leaderAvatarUrl,
             ],
             'members' => $members,
             'tasks' => $timelineTasks,

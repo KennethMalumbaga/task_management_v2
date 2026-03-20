@@ -142,6 +142,15 @@ function report_get_color_for_index($index)
     return $palette[$idx];
 }
 
+function report_render_avatar_inner($avatarUrl, $altText, $fallbackText)
+{
+    $avatarUrl = trim((string)$avatarUrl);
+    if ($avatarUrl !== '') {
+        return '<img src="' . htmlspecialchars($avatarUrl, ENT_QUOTES) . '" alt="' . htmlspecialchars((string)$altText, ENT_QUOTES) . '">';
+    }
+    return htmlspecialchars((string)$fallbackText, ENT_QUOTES);
+}
+
 $monthParam = trim((string)($_GET['month'] ?? ''));
 $monthInput = null;
 if (preg_match('/^\d{4}-\d{2}$/', $monthParam)) {
@@ -387,6 +396,7 @@ foreach ($filteredUsers as $user) {
     $userVisuals[$uid] = [
         'initials' => report_get_initials($name),
         'color' => report_get_color_for_index($userIndex),
+        'avatar_url' => user_profile_image_url($user['profile_image'] ?? ''),
     ];
     $userIndex++;
 }
@@ -1383,10 +1393,11 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                             $tabName = 'User #' . $tabUid;
                         }
                         $tabVisual = $userVisuals[$tabUid] ?? ['initials' => report_get_initials($tabName), 'color' => report_get_color_for_index($tabIndex)];
+                        $tabAvatarUrl = trim((string)($tabVisual['avatar_url'] ?? ''));
                         $tabLink = 'reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $tabUid])) . '#dtrSection';
                     ?>
                         <a class="user-tab <?= $tabUid === $dtrUserId ? 'active' : '' ?>" href="<?= htmlspecialchars($tabLink, ENT_QUOTES) ?>" id="tab-<?= $tabUid ?>">
-                            <div class="tab-avatar" style="background:<?= htmlspecialchars($tabVisual['color'], ENT_QUOTES) ?>"><?= htmlspecialchars($tabVisual['initials']) ?></div>
+                            <div class="tab-avatar<?= $tabAvatarUrl !== '' ? ' has-image' : '' ?>" style="background:<?= htmlspecialchars($tabVisual['color'], ENT_QUOTES) ?>"><?= report_render_avatar_inner($tabAvatarUrl, $tabName, $tabVisual['initials']) ?></div>
                             <?= htmlspecialchars($tabName) ?>
                         </a>
                     <?php } ?>
@@ -1401,12 +1412,13 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                     $selectedEmail = trim((string)($dtrUser['username'] ?? ''));
                     $selectedInitials = $selectedVisual['initials'] ?? report_get_initials($selectedName);
                     $selectedColor = $selectedVisual['color'] ?? report_get_color_for_index(0);
+                    $selectedAvatarUrl = trim((string)($selectedVisual['avatar_url'] ?? ''));
                     $selectedDays = $selectedMetrics ? (int)$selectedMetrics['days'] : 0;
                 ?>
                     <div id="dtrContent">
                         <div class="dtr-user-bar">
                             <div class="dtr-user-info">
-                                <div class="dtr-avatar" style="background:<?= htmlspecialchars($selectedColor, ENT_QUOTES) ?>"><?= htmlspecialchars($selectedInitials) ?></div>
+                                <div class="dtr-avatar<?= $selectedAvatarUrl !== '' ? ' has-image' : '' ?>" style="background:<?= htmlspecialchars($selectedColor, ENT_QUOTES) ?>"><?= report_render_avatar_inner($selectedAvatarUrl, $selectedName, $selectedInitials) ?></div>
                                 <div>
                                     <div class="dtr-user-name"><?= htmlspecialchars($selectedName) ?></div>
                                     <div class="dtr-user-dept"><?= htmlspecialchars($selectedEmail !== '' ? $selectedEmail : 'Company Name - Company Address') ?></div>
@@ -1662,12 +1674,13 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                         }
                                         $email = trim((string)($user['username'] ?? ''));
                                         $visual = $userVisuals[$uid] ?? ['initials' => report_get_initials($name), 'color' => report_get_color_for_index(0)];
+                                        $cardAvatarUrl = trim((string)($visual['avatar_url'] ?? ''));
                                         $cardLink = 'reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $uid])) . '#dtrSection';
                                         $deductedClass = $row['deducted'] > 0 ? 'red' : '';
                                     ?>
                                         <a class="user-summary-card" href="<?= htmlspecialchars($cardLink, ENT_QUOTES) ?>">
                                             <div class="user-summary-top">
-                                                <div class="user-sum-avatar" style="background:<?= htmlspecialchars($visual['color'], ENT_QUOTES) ?>"><?= htmlspecialchars($visual['initials']) ?></div>
+                                                <div class="user-sum-avatar<?= $cardAvatarUrl !== '' ? ' has-image' : '' ?>" style="background:<?= htmlspecialchars($visual['color'], ENT_QUOTES) ?>"><?= report_render_avatar_inner($cardAvatarUrl, $name, $visual['initials']) ?></div>
                                                 <div>
                                                     <div class="user-sum-name"><?= htmlspecialchars($name) ?></div>
                                                     <div class="user-sum-email"><?= htmlspecialchars($email) ?></div>
