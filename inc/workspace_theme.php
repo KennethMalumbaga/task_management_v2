@@ -2316,6 +2316,40 @@ body.timeline-page .tlp-role-banner {
     box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18) !important;
 }
 
+body.timeline-page .tlp-phase-guide-list {
+    background: {{darkSurface2}} !important;
+    border-color: {{darkBorder}} !important;
+}
+
+body.timeline-page .tlp-phase-guide-chip {
+    background: {{darkSurface3}} !important;
+    border-color: {{darkBorderSoft}} !important;
+}
+
+body.timeline-page .tlp-phase-guide-count,
+body.timeline-page .tlp-phase-guide-limit,
+body.timeline-page .tlp-phase-guide-empty {
+    color: {{darkMuted}} !important;
+}
+
+body.timeline-page .tlp-icon-choice {
+    background: {{darkSurface2}} !important;
+    border-color: {{darkBorder}} !important;
+    color: {{darkMuted}} !important;
+}
+
+body.timeline-page .tlp-icon-choice:hover {
+    background: {{darkSurface3}} !important;
+    border-color: {{primaryBorder}} !important;
+    color: {{darkText}} !important;
+}
+
+body.timeline-page .tlp-icon-choice.active {
+    background: rgba({{primaryRgb}}, 0.16) !important;
+    border-color: rgba({{primaryRgb}}, 0.34) !important;
+    color: {{darkText}} !important;
+}
+
 body.timeline-page .tlp-modal h3 {
     color: {{darkText}} !important;
 }
@@ -2380,11 +2414,14 @@ body.timeline-page .tlp-phase-row {
     color: {{darkText}} !important;
 }
 
-body.timeline-page .tlp-day,
-body.timeline-page .tlp-grid-line {
+body.timeline-page .tlp-day {
     border-color: {{darkBorderSoft}} !important;
     background: transparent !important;
     color: {{darkSubtle}} !important;
+}
+
+body.timeline-page .tlp-grid-line {
+    background: {{darkBorderSoft}} !important;
 }
 
 body.timeline-page .tlp-day.today {
@@ -2688,6 +2725,10 @@ if (!function_exists('workspace_theme_build_css')) {
             '--primary-deep-rgb' => $primaryDeepRgb ?: '109, 40, 217',
             '--primary-ink-rgb' => $primaryInkRgb ?: '91, 33, 182',
             '--primary-ink-2-rgb' => $primaryInk2Rgb ?: '76, 29, 149',
+            '--scrollbar-track' => $primarySoft6,
+            '--scrollbar-thumb' => $primaryMuted2,
+            '--scrollbar-thumb-hover' => $primaryStrong,
+            '--scrollbar-corner' => $primarySoft6,
         ];
 
         if ($mode === 'dark') {
@@ -2724,6 +2765,10 @@ if (!function_exists('workspace_theme_build_css')) {
             $vars['--text-primary'] = '#e5e7eb';
             $vars['--text-secondary'] = '#94a3b8';
             $vars['--text-muted'] = '#cbd5e1';
+            $vars['--scrollbar-track'] = $darkSurface2;
+            $vars['--scrollbar-thumb'] = workspace_theme_mix_hex($primary, '#94a3b8', 0.76) ?: $darkBorder;
+            $vars['--scrollbar-thumb-hover'] = workspace_theme_mix_hex($primary, '#cbd5e1', 0.62) ?: $primaryMuted;
+            $vars['--scrollbar-corner'] = $darkSurface2;
         }
 
         $css = ":root {\n";
@@ -2736,6 +2781,34 @@ if (!function_exists('workspace_theme_build_css')) {
         $css .= "    --admin-purple-mid: {$secondary};\n";
         $css .= "    --admin-purple-dark: {$adminDark};\n";
         $css .= "    --admin-purple-light: {$adminLight};\n";
+        $css .= "}\n";
+        $css .= "html, body, body * {\n";
+        $css .= "    scrollbar-width: thin;\n";
+        $css .= "    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);\n";
+        $css .= "}\n";
+        $css .= "body::-webkit-scrollbar,\n";
+        $css .= "body *::-webkit-scrollbar {\n";
+        $css .= "    width: 10px;\n";
+        $css .= "    height: 10px;\n";
+        $css .= "}\n";
+        $css .= "body::-webkit-scrollbar-track,\n";
+        $css .= "body *::-webkit-scrollbar-track {\n";
+        $css .= "    background: var(--scrollbar-track);\n";
+        $css .= "    border-radius: 999px;\n";
+        $css .= "}\n";
+        $css .= "body::-webkit-scrollbar-thumb,\n";
+        $css .= "body *::-webkit-scrollbar-thumb {\n";
+        $css .= "    background: var(--scrollbar-thumb);\n";
+        $css .= "    border: 2px solid var(--scrollbar-track);\n";
+        $css .= "    border-radius: 999px;\n";
+        $css .= "}\n";
+        $css .= "body::-webkit-scrollbar-thumb:hover,\n";
+        $css .= "body *::-webkit-scrollbar-thumb:hover {\n";
+        $css .= "    background: var(--scrollbar-thumb-hover);\n";
+        $css .= "}\n";
+        $css .= "body::-webkit-scrollbar-corner,\n";
+        $css .= "body *::-webkit-scrollbar-corner {\n";
+        $css .= "    background: var(--scrollbar-corner);\n";
         $css .= "}\n";
 
         if ($mode === 'dark') {

@@ -2591,6 +2591,8 @@ body.dashboard-page #idleCheckModal {
 
 body.dashboard-page .bulletin-modal {
     width: min(420px, calc(100vw - 32px));
+    box-sizing: border-box;
+    overflow-x: hidden;
     background: #fff;
     border-radius: 14px;
     padding: 24px;
@@ -2616,13 +2618,17 @@ body.dashboard-page .bulletin-modal label {
 body.dashboard-page .bulletin-modal select,
 body.dashboard-page .bulletin-modal input,
 body.dashboard-page .bulletin-modal textarea {
+    display: block;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border: 1px solid var(--primary-border);
     background: #f6f4ff;
     border-radius: 10px;
     padding: 9px 11px;
     margin-bottom: 12px;
     font-size: 13px;
+    line-height: 1.4;
     color: #1f2937;
     font-family: "Inter", sans-serif;
 }
@@ -2630,6 +2636,7 @@ body.dashboard-page .bulletin-modal textarea {
 body.dashboard-page .bulletin-modal textarea {
     min-height: 90px;
     resize: vertical;
+    line-height: 1.5;
 }
 
 body.dashboard-page .bulletin-modal-actions {

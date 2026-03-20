@@ -466,6 +466,7 @@
 .tlp-label-col {
     width: var(--tlp-label-width, 220px);
     flex-shrink: 0;
+    box-sizing: border-box;
     background: #f9fafb;
     border-right: 2px solid #f3f4f6;
     padding: 10px 14px;
@@ -513,6 +514,7 @@
 .tlp-task-label {
     width: var(--tlp-label-width, 220px);
     flex-shrink: 0;
+    box-sizing: border-box;
     border-right: 2px solid #f3f4f6;
     padding: 11px 14px;
     display: flex;
@@ -657,7 +659,7 @@
     align-items: center;
     gap: 8px;
     border-right: 2px solid #f3f4f6;
-    padding: 7px 10px 7px 20px;
+    padding: 9px 14px;
     box-sizing: border-box;
 }
 
@@ -765,13 +767,14 @@
 .tlp-add-phase {
     border: 0;
     width: var(--tlp-label-width, 220px);
+    box-sizing: border-box;
     text-align: left;
     background: transparent;
     color: var(--primary-ink);
     cursor: pointer;
     font-size: 12px;
     font-weight: 700;
-    padding: 9px 20px;
+    padding: 9px 14px;
     border-right: 2px solid #f3f4f6;
 }
 
@@ -974,6 +977,7 @@
     width: min(96vw, 520px);
     max-height: 90vh;
     overflow: auto;
+    overflow-x: hidden;
     border-radius: 14px;
     background: #ffffff;
     box-shadow: 0 24px 64px rgba(15, 23, 42, 0.3);
@@ -1005,6 +1009,8 @@
 .tlp-select,
 .tlp-textarea {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border: 2px solid #e5e7eb;
     border-radius: 10px;
     background: #ffffff;
@@ -1033,6 +1039,7 @@
 
 .tlp-form-row .tlp-form-group {
     flex: 1;
+    min-width: 0;
 }
 
 .tlp-phase-guide {
