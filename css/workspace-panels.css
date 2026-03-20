@@ -1932,6 +1932,134 @@ body.billing-page {
     background: #991b1b;
 }
 
+body.workspace-modal-open {
+    overflow: hidden;
+}
+
+.invites-page .workspace-confirm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+.invites-page .workspace-confirm-modal.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.invites-page .workspace-confirm-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.58);
+    backdrop-filter: blur(4px);
+}
+
+.invites-page .workspace-confirm-dialog {
+    position: relative;
+    width: min(100%, 370px);
+    border-radius: 16px;
+    border: 1px solid var(--border, rgba(148, 163, 184, 0.25));
+    background: var(--surface, #ffffff);
+    color: var(--text-primary, #0f172a);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.22);
+    padding: 28px 24px 22px;
+    text-align: center;
+}
+
+.invites-page .workspace-confirm-close {
+    display: none;
+}
+
+.invites-page .workspace-confirm-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px;
+    font-size: 20px;
+}
+
+.invites-page .workspace-confirm-icon.danger {
+    background: #fff1f2;
+    color: #dc2626;
+}
+
+.invites-page .workspace-confirm-eyebrow {
+    display: none;
+}
+
+.invites-page .workspace-confirm-dialog h3 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    line-height: 1.25;
+    color: var(--text-primary, #0f172a);
+}
+
+.invites-page .workspace-confirm-dialog p {
+    margin: 0;
+    color: var(--text-secondary, #64748b);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.invites-page .workspace-confirm-target {
+    display: none;
+}
+
+.invites-page .workspace-confirm-actions {
+    margin-top: 24px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.invites-page .workspace-confirm-btn {
+    flex: 0 0 130px;
+    min-height: 44px;
+    border-radius: 10px;
+    border: 1px solid var(--primary-border);
+    background: var(--primary-soft-6);
+    color: var(--text-primary, #0f172a);
+    font-size: 14px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.invites-page .workspace-confirm-btn:hover {
+    transform: translateY(-1px);
+}
+
+.invites-page .workspace-confirm-btn.cancel:hover {
+    background: var(--primary-soft-2);
+    border-color: var(--primary-muted-2);
+}
+
+.invites-page .workspace-confirm-btn.danger {
+    border-color: rgba(248, 113, 113, 0.3);
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(220, 38, 38, 0.22);
+}
+
+.invites-page .workspace-confirm-btn.danger:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+    box-shadow: 0 12px 28px rgba(220, 38, 38, 0.28);
+}
+
 @keyframes workspaceFadeUp {
     from {
         opacity: 0;
@@ -2352,6 +2480,25 @@ body.billing-page {
         height: 28px;
         border-radius: 8px;
         font-size: 11px;
+    }
+
+    .invites-page .workspace-confirm-dialog {
+        width: min(100%, 350px);
+        padding: 24px 16px 18px;
+        border-radius: 14px;
+    }
+
+    .invites-page .workspace-confirm-dialog h3 {
+        font-size: 19px;
+    }
+
+    .invites-page .workspace-confirm-actions {
+        flex-direction: column;
+    }
+
+    .invites-page .workspace-confirm-btn {
+        flex: 1 1 auto;
+        width: 100%;
     }
 
     /* Billing mobile: compact sizing across hero, stats, and panels */

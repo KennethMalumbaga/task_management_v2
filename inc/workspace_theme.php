@@ -2316,6 +2316,45 @@ body.timeline-page .tlp-role-banner {
     box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18) !important;
 }
 
+body.timeline-page .tlp-modal h3 {
+    color: {{darkText}} !important;
+}
+
+body.timeline-page #tlpConfirmTitle,
+body.timeline-page #tlpConfirmTitle i {
+    color: #f87171 !important;
+}
+
+body.timeline-page .tlp-confirm-message {
+    color: {{darkMuted}} !important;
+}
+
+body.timeline-page .tlp-btn.cancel,
+body.timeline-page #tlpConfirmCancelBtn {
+    background: {{darkSurface3}} !important;
+    border: 1px solid {{darkBorder}} !important;
+    color: {{darkSubtle}} !important;
+}
+
+body.timeline-page .tlp-btn.cancel:hover,
+body.timeline-page #tlpConfirmCancelBtn:hover {
+    background: {{darkSurface2}} !important;
+    color: {{darkText}} !important;
+}
+
+body.timeline-page .tlp-btn.danger,
+body.timeline-page #tlpConfirmBtn {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+    border: 1px solid rgba(248, 113, 113, 0.28) !important;
+    color: #ffffff !important;
+}
+
+body.timeline-page .tlp-btn.danger:hover,
+body.timeline-page #tlpConfirmBtn:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%) !important;
+    color: #ffffff !important;
+}
+
 body.timeline-page .tlp-label-col,
 body.timeline-page .tlp-task-label,
 body.timeline-page .tlp-phase-row-main,

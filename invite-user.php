@@ -586,10 +586,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                                             <i class="fa fa-copy"></i> Copy
                                         </button>
                                         <?php if ($status === 'pending') { ?>
-                                            <form action="app/cancel-invite.php" method="POST" class="invite-inline-form">
+                                            <form
+                                                action="app/cancel-invite.php"
+                                                method="POST"
+                                                class="invite-inline-form js-revoke-invite-form"
+                                                data-invite-label="<?= htmlspecialchars($displayName, ENT_QUOTES) ?>"
+                                                data-invite-kind="<?= $isOpenLink ? 'open-link' : 'user-invite' ?>"
+                                            >
                                                 <?= csrf_field('revoke_invite_form') ?>
                                                 <input type="hidden" name="invite_id" value="<?= (int)$invite['id'] ?>">
-                                                <button type="submit" class="invite-action-btn revoke" onclick="return confirm('Revoke this invite?')">
+                                                <button type="submit" class="invite-action-btn revoke">
                                                     <i class="fa fa-times-circle-o"></i> Revoke
                                                 </button>
                                             </form>
@@ -611,8 +617,31 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
 </div>
 
 <div id="inviteToast" class="workspace-toast" role="status" aria-live="polite"></div>
+<div id="inviteRevokeModal" class="workspace-confirm-modal" aria-hidden="true">
+    <div class="workspace-confirm-backdrop" data-revoke-close></div>
+    <div class="workspace-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="inviteRevokeTitle" aria-describedby="inviteRevokeMessage">
+        <button type="button" class="workspace-confirm-close" id="inviteRevokeCloseBtn" aria-label="Close revoke confirmation">
+            <i class="fa fa-times"></i>
+        </button>
+        <div class="workspace-confirm-icon danger">
+            <i class="fa fa-ban"></i>
+        </div>
+        <p class="workspace-confirm-eyebrow">Revoke Invite</p>
+        <h3 id="inviteRevokeTitle">Revoke this invite?</h3>
+        <p id="inviteRevokeMessage">This will immediately disable the join link. This action cannot be undone.</p>
+        <p id="inviteRevokeTarget" class="workspace-confirm-target" hidden></p>
+        <div class="workspace-confirm-actions">
+            <button type="button" class="workspace-confirm-btn cancel" id="inviteRevokeCancelBtn">Cancel</button>
+            <button type="button" class="workspace-confirm-btn danger" id="inviteRevokeConfirmBtn">
+                <i class="fa fa-times-circle-o"></i> Revoke
+            </button>
+        </div>
+    </div>
+</div>
 <script>
     var inviteToastTimer = null;
+    var pendingRevokeForm = null;
+    var previousRevokeTrigger = null;
 
     function showInviteToast(message, type) {
         var toast = document.getElementById('inviteToast');
@@ -641,6 +670,115 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             showInviteToast('Failed to copy invite link.', 'error');
         });
     }
+
+    var inviteRevokeModal = document.getElementById('inviteRevokeModal');
+    var inviteRevokeTitle = document.getElementById('inviteRevokeTitle');
+    var inviteRevokeMessage = document.getElementById('inviteRevokeMessage');
+    var inviteRevokeTarget = document.getElementById('inviteRevokeTarget');
+    var inviteRevokeConfirmBtn = document.getElementById('inviteRevokeConfirmBtn');
+    var inviteRevokeCancelBtn = document.getElementById('inviteRevokeCancelBtn');
+    var inviteRevokeCloseBtn = document.getElementById('inviteRevokeCloseBtn');
+    var inviteRevokeForms = Array.prototype.slice.call(document.querySelectorAll('.js-revoke-invite-form'));
+    var inviteRevokeCloseTriggers = Array.prototype.slice.call(document.querySelectorAll('[data-revoke-close]'));
+
+    function openInviteRevokeModal(form, trigger) {
+        if (!inviteRevokeModal || !form) return;
+
+        pendingRevokeForm = form;
+        previousRevokeTrigger = trigger || document.activeElement || null;
+
+        var inviteLabel = (form.getAttribute('data-invite-label') || '').trim();
+        var inviteKind = (form.getAttribute('data-invite-kind') || '').trim();
+
+        if (inviteRevokeTitle) {
+            inviteRevokeTitle.textContent = inviteKind === 'open-link' ? 'Revoke this join link?' : 'Revoke this invite?';
+        }
+
+        if (inviteRevokeMessage) {
+            if (inviteKind === 'open-link') {
+                inviteRevokeMessage.textContent = 'This will immediately disable this one-time join link. This action cannot be undone.';
+            } else if (inviteLabel !== '' && inviteLabel !== '-') {
+                inviteRevokeMessage.textContent = 'This will immediately disable the invite for ' + inviteLabel + '. This action cannot be undone.';
+            } else {
+                inviteRevokeMessage.textContent = 'This will immediately disable the invite link. This action cannot be undone.';
+            }
+        }
+
+        if (inviteRevokeTarget) {
+            inviteRevokeTarget.textContent = '';
+            inviteRevokeTarget.hidden = true;
+        }
+
+        inviteRevokeModal.classList.add('is-visible');
+        inviteRevokeModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('workspace-modal-open');
+
+        window.setTimeout(function () {
+            if (inviteRevokeConfirmBtn) inviteRevokeConfirmBtn.focus();
+        }, 10);
+    }
+
+    function closeInviteRevokeModal() {
+        if (!inviteRevokeModal) return;
+
+        inviteRevokeModal.classList.remove('is-visible');
+        inviteRevokeModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('workspace-modal-open');
+        pendingRevokeForm = null;
+
+        if (previousRevokeTrigger && typeof previousRevokeTrigger.focus === 'function') {
+            previousRevokeTrigger.focus();
+        }
+        previousRevokeTrigger = null;
+    }
+
+    if (inviteRevokeForms.length) {
+        inviteRevokeForms.forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                if (form.getAttribute('data-confirmed') === '1') {
+                    form.removeAttribute('data-confirmed');
+                    return;
+                }
+
+                e.preventDefault();
+                openInviteRevokeModal(form, form.querySelector('.invite-action-btn.revoke'));
+            });
+        });
+    }
+
+    if (inviteRevokeConfirmBtn) {
+        inviteRevokeConfirmBtn.addEventListener('click', function () {
+            if (!pendingRevokeForm) {
+                closeInviteRevokeModal();
+                return;
+            }
+
+            pendingRevokeForm.setAttribute('data-confirmed', '1');
+            var formToSubmit = pendingRevokeForm;
+            closeInviteRevokeModal();
+            formToSubmit.submit();
+        });
+    }
+
+    if (inviteRevokeCancelBtn) {
+        inviteRevokeCancelBtn.addEventListener('click', closeInviteRevokeModal);
+    }
+
+    if (inviteRevokeCloseBtn) {
+        inviteRevokeCloseBtn.addEventListener('click', closeInviteRevokeModal);
+    }
+
+    if (inviteRevokeCloseTriggers.length) {
+        inviteRevokeCloseTriggers.forEach(function (element) {
+            element.addEventListener('click', closeInviteRevokeModal);
+        });
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && inviteRevokeModal && inviteRevokeModal.classList.contains('is-visible')) {
+            closeInviteRevokeModal();
+        }
+    });
 
     var sendInviteForm = document.getElementById('sendInviteForm');
     var sendInviteFullName = document.getElementById('sendInviteFullName');
