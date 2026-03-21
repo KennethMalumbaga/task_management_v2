@@ -12,28 +12,39 @@ require_once __DIR__ . "/../inc/tenant.php";
 require_once __DIR__ . "/../inc/csrf.php";
 require_once __DIR__ . "/../inc/workspace_theme.php";
 
-if (!csrf_verify('workspace_theme_form', $_POST['csrf_token'] ?? null, true)) {
-    header("Location: ../workspace-billing.php?error=" . urlencode("Invalid or expired form token."));
+function workspace_theme_redirect_target()
+{
+    $allowed = ['workspace-billing.php', 'workspace-settings.php'];
+    $requested = basename((string)($_POST['redirect_to'] ?? 'workspace-billing.php'));
+    return in_array($requested, $allowed, true) ? $requested : 'workspace-billing.php';
+}
+
+function workspace_theme_redirect($type, $message)
+{
+    $type = strtolower(trim((string)$type)) === 'success' ? 'success' : 'error';
+    $target = workspace_theme_redirect_target();
+    header("Location: ../" . $target . "?" . $type . "=" . urlencode((string)$message));
     exit;
+}
+
+if (!csrf_verify('workspace_theme_form', $_POST['csrf_token'] ?? null, true)) {
+    workspace_theme_redirect('error', "Invalid or expired form token.");
 }
 
 $orgId = tenant_get_current_org_id();
 if (!$orgId) {
-    header("Location: ../workspace-billing.php?error=" . urlencode("Workspace context is missing."));
-    exit;
+    workspace_theme_redirect('error', "Workspace context is missing.");
 }
 
 $isSuperAdmin = is_super_admin((int)$_SESSION['id'], $pdo);
 $organizationRole = strtolower(trim((string)($_SESSION['organization_role'] ?? '')));
 $canManageTheme = !$isSuperAdmin && ($organizationRole === '' || in_array($organizationRole, ['owner', 'admin'], true));
 if (!$canManageTheme) {
-    header("Location: ../workspace-billing.php?error=" . urlencode("You do not have permission to update the workspace theme."));
-    exit;
+    workspace_theme_redirect('error', "You do not have permission to update the workspace theme.");
 }
 
 if (!workspace_theme_schema_ready($pdo)) {
-    header("Location: ../workspace-billing.php?error=" . urlencode("Workspace theme columns are missing. Run sql_add_workspace_theme.sql."));
-    exit;
+    workspace_theme_redirect('error', "Workspace theme columns are missing. Run sql_add_workspace_theme.sql.");
 }
 
 $modeReady = workspace_theme_mode_schema_ready($pdo);
@@ -54,8 +65,7 @@ if ($action === 'reset') {
         );
         $stmt->execute([(int)$orgId]);
     }
-    header("Location: ../workspace-billing.php?success=" . urlencode("Workspace theme reset to default."));
-    exit;
+    workspace_theme_redirect('success', "Workspace theme reset to default.");
 }
 
 $rawPrimary = trim((string)($_POST['theme_primary'] ?? ''));
@@ -69,21 +79,17 @@ $accent = workspace_theme_normalize_hex($rawAccent);
 $mode = workspace_theme_resolve_mode($rawMode);
 
 if ($rawPrimary !== '' && $primary === null) {
-    header("Location: ../workspace-billing.php?error=" . urlencode("Primary color must be a valid hex value."));
-    exit;
+    workspace_theme_redirect('error', "Primary color must be a valid hex value.");
 }
 if ($rawSecondary !== '' && $secondary === null) {
-    header("Location: ../workspace-billing.php?error=" . urlencode("Secondary color must be a valid hex value."));
-    exit;
+    workspace_theme_redirect('error', "Secondary color must be a valid hex value.");
 }
 if ($rawAccent !== '' && $accent === null) {
-    header("Location: ../workspace-billing.php?error=" . urlencode("Accent color must be a valid hex value."));
-    exit;
+    workspace_theme_redirect('error', "Accent color must be a valid hex value.");
 }
 
 if ($mode === 'dark' && !$modeReady) {
-    header("Location: ../workspace-billing.php?error=" . urlencode("Dark mode needs the theme_mode column. Run sql_add_workspace_theme_mode.sql first."));
-    exit;
+    workspace_theme_redirect('error', "Dark mode needs the theme_mode column. Run sql_add_workspace_theme_mode.sql first.");
 }
 
 if ($modeReady) {
@@ -113,5 +119,4 @@ if ($modeReady) {
     ]);
 }
 
-header("Location: ../workspace-billing.php?success=" . urlencode("Workspace theme updated."));
-exit;
+workspace_theme_redirect('success', "Workspace theme updated.");

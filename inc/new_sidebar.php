@@ -110,6 +110,7 @@
         'user.php' => 'Users',
         'invite-user.php' => 'Invites',
         'workspace-billing.php' => 'Billing',
+        'workspace-settings.php' => 'Settings',
         'groups.php' => 'Groups',
         'screenshots.php' => 'Captures',
         'reports.php' => 'Reports',
@@ -213,6 +214,11 @@
     <a href="profile.php" class="dash-top-profile-link">
         <i class="fa fa-user-o"></i> My Profile
     </a>
+    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') { ?>
+        <a href="workspace-settings.php" class="dash-top-profile-link">
+            <i class="fa fa-cog"></i> Settings
+        </a>
+    <?php } ?>
     <a href="logout.php" class="dash-top-profile-link danger js-logout-link">
         <i class="fa fa-sign-out"></i> Logout
     </a>
@@ -403,6 +409,11 @@
             <a href="profile.php" class="dash-top-profile-link">
                 <i class="fa fa-user-o"></i> My Profile
             </a>
+            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') { ?>
+                <a href="workspace-settings.php" class="dash-top-profile-link">
+                    <i class="fa fa-cog"></i> Settings
+                </a>
+            <?php } ?>
             <a href="logout.php" class="dash-top-profile-link danger js-logout-link">
                 <i class="fa fa-sign-out"></i> Logout
             </a>
