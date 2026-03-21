@@ -9,6 +9,34 @@ function group_message_scope($pdo, $sql, $params, $table, $alias = '', $joinWord
     return [$sql . $scope['sql'], array_merge($params, $scope['params'])];
 }
 
+function group_message_apply_not_deleted_filter($pdo, $sql, $alias = '')
+{
+    if (!tenant_column_exists($pdo, 'group_messages', 'deleted_at')) {
+        return $sql;
+    }
+
+    $qualified = $alias !== '' ? ($alias . '.deleted_at') : 'deleted_at';
+    return $sql . " AND {$qualified} IS NULL";
+}
+
+function group_message_delete_ensure_schema($pdo)
+{
+    if (tenant_column_exists($pdo, 'group_messages', 'deleted_at')) {
+        return true;
+    }
+
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $columnType = $driver === 'pgsql' ? 'TIMESTAMP NULL' : 'DATETIME NULL';
+
+    try {
+        $pdo->exec("ALTER TABLE group_messages ADD COLUMN deleted_at {$columnType}");
+    } catch (Throwable $e) {
+        // Ignore duplicate-column or unsupported-schema errors and verify below.
+    }
+
+    return tenant_column_exists($pdo, 'group_messages', 'deleted_at');
+}
+
 function insert_group_message($pdo, $group_id, $sender_id, $message)
 {
     $orgId = tenant_get_current_org_id();
@@ -30,6 +58,7 @@ function get_group_messages($pdo, $group_id)
             FROM group_messages gm
             JOIN users u ON u.id = gm.sender_id
             WHERE gm.group_id = ?";
+    $sql = group_message_apply_not_deleted_filter($pdo, $sql, 'gm');
     [$sql, $params] = group_message_scope($pdo, $sql, [$group_id], 'group_messages', 'gm');
     $sql .= " ORDER BY gm.id ASC";
 
@@ -44,6 +73,7 @@ function get_last_group_message($pdo, $group_id)
             FROM group_messages gm
             JOIN users u ON u.id = gm.sender_id
             WHERE gm.group_id = ?";
+    $sql = group_message_apply_not_deleted_filter($pdo, $sql, 'gm');
     [$sql, $params] = group_message_scope($pdo, $sql, [$group_id], 'group_messages', 'gm');
     $sql .= " ORDER BY gm.id DESC LIMIT 1";
 
@@ -61,6 +91,7 @@ function get_group_unread_count($pdo, $group_id, $user_id)
     $last_read_id = $stmt->fetchColumn() ?: 0;
 
     $sql = "SELECT COUNT(*) FROM group_messages WHERE group_id = ? AND id > ?";
+    $sql = group_message_apply_not_deleted_filter($pdo, $sql);
     [$sql, $params] = group_message_scope($pdo, $sql, [$group_id, $last_read_id], 'group_messages');
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -92,6 +123,7 @@ function count_all_group_unread($pdo, $user_id)
 function mark_group_as_read($pdo, $group_id, $user_id)
 {
     $sql = "SELECT MAX(id) FROM group_messages WHERE group_id = ?";
+    $sql = group_message_apply_not_deleted_filter($pdo, $sql);
     [$sql, $params] = group_message_scope($pdo, $sql, [$group_id], 'group_messages');
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -124,6 +156,27 @@ function mark_group_as_read($pdo, $group_id, $user_id)
             }
         }
     }
+}
+
+function delete_group_message_for_sender($pdo, $messageId, $senderId)
+{
+    $messageId = (int)$messageId;
+    $senderId = (int)$senderId;
+
+    if ($messageId <= 0 || $senderId <= 0 || !group_message_delete_ensure_schema($pdo)) {
+        return false;
+    }
+
+    $deletedAt = date('Y-m-d H:i:s');
+    $sql = "UPDATE group_messages
+            SET deleted_at = ?
+            WHERE id = ? AND sender_id = ?";
+    $sql = group_message_apply_not_deleted_filter($pdo, $sql);
+    [$sql, $params] = group_message_scope($pdo, $sql, [$deletedAt, $messageId, $senderId], 'group_messages');
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->rowCount() > 0;
 }
 
 function insert_group_attachment($pdo, $message_id, $attachment_name)

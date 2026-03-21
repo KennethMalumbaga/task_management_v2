@@ -771,6 +771,206 @@
     color: #6B7280;
 }
 
+.chat-info-section {
+    margin-bottom: 26px;
+}
+
+.chat-info-section:last-child {
+    margin-bottom: 0;
+}
+
+.chat-info-section-label {
+    margin: 0 0 14px;
+    font-size: 12px;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+}
+
+.chat-info-user-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+    border: 1px solid #E8EDF5;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.chat-info-user-avatar .avatar-md {
+    width: 52px;
+    height: 52px;
+    font-size: 18px;
+}
+
+.chat-info-user-copy {
+    min-width: 0;
+    flex: 1;
+}
+
+.chat-info-user-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.25;
+    margin-bottom: 6px;
+}
+
+.chat-info-user-presence .chat-user-presence {
+    font-size: 12px;
+}
+
+.chat-assets-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.chat-assets-tabs {
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid #E8EDF5;
+    padding-bottom: 2px;
+}
+
+.chat-assets-tab {
+    border: 0;
+    background: transparent;
+    color: #6B7280;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 2px 12px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.chat-assets-tab:hover {
+    color: #1F2937;
+}
+
+.chat-assets-tab.active {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.chat-assets-panel {
+    display: none;
+}
+
+.chat-assets-panel.active {
+    display: block;
+}
+
+.chat-assets-empty {
+    padding: 18px 14px;
+    border: 1px dashed #D8DFEA;
+    border-radius: 16px;
+    color: #9CA3AF;
+    font-size: 13px;
+    text-align: center;
+    background: rgba(248, 250, 252, 0.9);
+}
+
+.chat-assets-month-block {
+    margin-bottom: 18px;
+}
+
+.chat-assets-month-block:last-child {
+    margin-bottom: 0;
+}
+
+.chat-assets-month-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 10px;
+}
+
+.chat-assets-media-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.chat-assets-media-item {
+    display: block;
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #E9EEF7;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.chat-assets-media-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.chat-assets-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-assets-file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 16px;
+    background: #F8FAFC;
+    border: 1px solid #E8EDF5;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-assets-file-item:hover {
+    border-color: #D6DDEA;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+}
+
+.chat-assets-file-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #E9EEF7;
+    color: var(--primary);
+    flex-shrink: 0;
+    font-size: 18px;
+}
+
+.chat-assets-file-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chat-assets-file-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.chat-assets-file-subtext {
+    font-size: 12px;
+    color: #6B7280;
+}
+
 /* Desktop: Hide back button by default */
 .btn-back-chat {
     display: none;
@@ -1524,13 +1724,17 @@
 
 .messages-page-main .chat-item {
     margin: 0 0 6px;
-    padding: 10px 12px;
+    padding: 10px 46px 10px 12px;
     border-radius: 12px;
     border: 0;
 }
 
 .messages-page-main .chat-item:hover {
     background: #f0f3f8;
+}
+
+.messages-page-main .chat-item.show-delete-action {
+    background: #eef2f7;
 }
 
 .messages-page-main .chat-item.active {
@@ -1572,6 +1776,43 @@
     box-shadow: none;
 }
 
+.messages-page-main .chat-item-delete-btn {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%) scale(0.92);
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+    z-index: 2;
+}
+
+.messages-page-main .chat-item:hover .chat-item-delete-btn,
+.messages-page-main .chat-item:focus-within .chat-item-delete-btn,
+.messages-page-main .chat-item.show-delete-action .chat-item-delete-btn {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) scale(1);
+}
+
+.messages-page-main .chat-item-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.18);
+}
+
+.messages-page-main .chat-item.active .chat-item-delete-btn {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+}
+
 .messages-page-main .chat-user-name {
     font-size: 15px;
     font-weight: 700;
@@ -1603,6 +1844,88 @@
     border-radius: 14px;
     overflow: hidden;
     background: #ffffff;
+}
+
+.chat-delete-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(4px);
+    z-index: 1200;
+    padding: 20px;
+}
+
+.chat-delete-modal-card {
+    width: min(100%, 360px);
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 22px 22px 18px;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.24);
+}
+
+.chat-delete-modal-card h4 {
+    margin: 0 0 10px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #111827;
+}
+
+.chat-delete-modal-card p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #6B7280;
+}
+
+.chat-delete-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.chat-delete-btn-secondary,
+.chat-delete-btn-danger {
+    border: 0;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.chat-delete-btn-secondary {
+    background: #EEF2F7;
+    color: #4B5563;
+}
+
+.chat-delete-btn-danger {
+    background: #DC2626;
+    color: #ffffff;
+}
+
+.chat-delete-btn-secondary:hover,
+.chat-delete-btn-danger:hover {
+    transform: translateY(-1px);
+}
+
+.chat-delete-btn-secondary:disabled,
+.chat-delete-btn-danger:disabled {
+    opacity: 0.6;
+    cursor: default;
+    transform: none;
+}
+
+@media (max-width: 900px) {
+    .messages-page-main .chat-item-delete-btn {
+        width: 32px;
+        height: 32px;
+        right: 10px;
+    }
 }
 
 .messages-page-main .chat-header {
@@ -1867,6 +2190,41 @@
 .messages-page-main .message-outgoing {
     align-self: flex-end;
     max-width: 70%;
+    position: relative;
+    padding-left: 36px;
+    box-sizing: border-box;
+}
+
+.messages-page-main .message-delete-btn {
+    position: absolute;
+    top: 2px;
+    left: 0;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.92);
+    transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+    z-index: 2;
+}
+
+.messages-page-main .message-outgoing:hover .message-delete-btn,
+.messages-page-main .message-outgoing:focus-within .message-delete-btn,
+.messages-page-main .message-outgoing.show-delete-action .message-delete-btn {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+}
+
+.messages-page-main .message-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.18);
 }
 
 .messages-page-main .message-bubble-outgoing {
@@ -2068,6 +2426,15 @@
     .messages-page-main .chat-main {
         border-radius: 0;
         border: 0;
+    }
+
+    .messages-page-main .message-outgoing {
+        padding-left: 34px;
+    }
+
+    .messages-page-main .message-delete-btn {
+        width: 30px;
+        height: 30px;
     }
 }
 

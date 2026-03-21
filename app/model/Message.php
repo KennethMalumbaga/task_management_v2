@@ -8,11 +8,40 @@ function message_scope($pdo, $sql, $params, $joinWord = 'AND', $alias = '')
     return [$sql . $scope['sql'], array_merge($params, $scope['params'])];
 }
 
+function message_apply_not_deleted_filter($pdo, $sql, $alias = '')
+{
+    if (!tenant_column_exists($pdo, 'chats', 'deleted_at')) {
+        return $sql;
+    }
+
+    $qualified = $alias !== '' ? ($alias . '.deleted_at') : 'deleted_at';
+    return $sql . " AND {$qualified} IS NULL";
+}
+
+function message_delete_ensure_schema($pdo)
+{
+    if (tenant_column_exists($pdo, 'chats', 'deleted_at')) {
+        return true;
+    }
+
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $columnType = $driver === 'pgsql' ? 'TIMESTAMP NULL' : 'DATETIME NULL';
+
+    try {
+        $pdo->exec("ALTER TABLE chats ADD COLUMN deleted_at {$columnType}");
+    } catch (Throwable $e) {
+        // Ignore duplicate-column or unsupported-schema errors and verify below.
+    }
+
+    return tenant_column_exists($pdo, 'chats', 'deleted_at');
+}
+
 function getChats($sender_id, $receiver_id, $conn)
 {
     $sql = "SELECT * FROM chats
             WHERE ((sender_id = ? AND receiver_id = ?)
                OR (receiver_id = ? AND sender_id = ?))";
+    $sql = message_apply_not_deleted_filter($conn, $sql);
     [$sql, $params] = message_scope($conn, $sql, [$sender_id, $receiver_id, $sender_id, $receiver_id], 'AND');
     $sql .= " ORDER BY chat_id ASC";
 
@@ -88,6 +117,7 @@ function lastChat($id_1, $id_2, $conn)
     $sql = "SELECT * FROM chats
             WHERE ((sender_id = ? AND receiver_id = ?)
                OR (receiver_id = ? AND sender_id = ?))";
+    $sql = message_apply_not_deleted_filter($conn, $sql);
     [$sql, $params] = message_scope($conn, $sql, [$id_1, $id_2, $id_1, $id_2], 'AND');
     $sql .= " ORDER BY chat_id DESC LIMIT 1";
 
@@ -104,6 +134,7 @@ function countUnreadChat($sender_id, $receiver_id, $conn)
 {
     $sql = "SELECT COUNT(*) FROM chats
             WHERE sender_id = ? AND receiver_id = ? AND opened = false";
+    $sql = message_apply_not_deleted_filter($conn, $sql);
     [$sql, $params] = message_scope($conn, $sql, [$sender_id, $receiver_id], 'AND');
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
@@ -114,10 +145,31 @@ function countAllUnread($receiver_id, $conn)
 {
     $sql = "SELECT COUNT(*) FROM chats
             WHERE receiver_id = ? AND opened = false";
+    $sql = message_apply_not_deleted_filter($conn, $sql);
     [$sql, $params] = message_scope($conn, $sql, [$receiver_id], 'AND');
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
     return (int)$stmt->fetchColumn();
+}
+
+function mark_chat_conversation_as_read($viewer_id, $other_user_id, $conn)
+{
+    $viewer_id = (int)$viewer_id;
+    $other_user_id = (int)$other_user_id;
+    if ($viewer_id <= 0 || $other_user_id <= 0) {
+        return false;
+    }
+
+    $driver = $conn->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $openedValue = ($driver === 'pgsql') ? true : 1;
+
+    $sql = "UPDATE chats
+            SET opened = ?
+            WHERE sender_id = ? AND receiver_id = ? AND opened = false";
+    $sql = message_apply_not_deleted_filter($conn, $sql);
+    [$sql, $params] = message_scope($conn, $sql, [$openedValue, $other_user_id, $viewer_id], 'AND');
+    $stmt = $conn->prepare($sql);
+    return $stmt->execute($params);
 }
 
 function opend($id_1, $conn, $chats)
@@ -129,11 +181,33 @@ function opend($id_1, $conn, $chats)
             $chat_id = $chat['chat_id'];
 
             $sql = "UPDATE chats SET opened = ? WHERE chat_id = ?";
+            $sql = message_apply_not_deleted_filter($conn, $sql);
             [$sql, $params] = message_scope($conn, $sql, [$openedValue, $chat_id], 'AND');
             $stmt = $conn->prepare($sql);
             $stmt->execute($params);
         }
     }
+}
+
+function delete_chat_message_for_sender($chatId, $senderId, $conn)
+{
+    $chatId = (int)$chatId;
+    $senderId = (int)$senderId;
+
+    if ($chatId <= 0 || $senderId <= 0 || !message_delete_ensure_schema($conn)) {
+        return false;
+    }
+
+    $deletedAt = date('Y-m-d H:i:s');
+    $sql = "UPDATE chats
+            SET deleted_at = ?
+            WHERE chat_id = ? AND sender_id = ?";
+    $sql = message_apply_not_deleted_filter($conn, $sql);
+    [$sql, $params] = message_scope($conn, $sql, [$deletedAt, $chatId, $senderId], 'AND');
+
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->rowCount() > 0;
 }
 
 if (!function_exists('chat_message_is_opened')) {

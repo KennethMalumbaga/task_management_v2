@@ -2572,6 +2572,48 @@ body.messages-page .group-member-name span[style*="color: #9CA3AF"] {
     color: {{darkMuted}} !important;
 }
 
+body.messages-page .chat-info-user-card,
+body.messages-page .chat-assets-file-item {
+    background: {{darkSurface}} !important;
+    border-color: {{darkBorder}} !important;
+}
+
+body.messages-page .chat-info-section-label,
+body.messages-page .chat-assets-empty,
+body.messages-page .chat-assets-file-subtext,
+body.messages-page .chat-assets-tab {
+    color: {{darkMuted}} !important;
+}
+
+body.messages-page .chat-info-user-name,
+body.messages-page .chat-assets-month-label,
+body.messages-page .chat-assets-file-name {
+    color: {{darkText}} !important;
+}
+
+body.messages-page .chat-assets-tabs {
+    border-color: {{darkBorder}} !important;
+}
+
+body.messages-page .chat-assets-tab.active {
+    color: {{primary}} !important;
+    border-color: {{primary}} !important;
+}
+
+body.messages-page .chat-assets-empty {
+    background: {{darkSurface}} !important;
+    border-color: {{darkBorderSoft}} !important;
+}
+
+body.messages-page .chat-assets-media-item,
+body.messages-page .chat-assets-file-icon {
+    background: {{darkSurface3}} !important;
+}
+
+body.messages-page .chat-assets-file-icon {
+    color: {{primary}} !important;
+}
+
 body.messages-page .messages-page-main .chat-filter-tab {
     background: {{darkSurface3}} !important;
     color: {{darkMuted}} !important;
@@ -2579,6 +2621,47 @@ body.messages-page .messages-page-main .chat-filter-tab {
 
 body.messages-page .messages-page-main .chat-filter-tab.active {
     background: linear-gradient(135deg, {{primary}} 0%, {{secondary}} 100%) !important;
+    color: #ffffff !important;
+}
+
+body.messages-page .messages-page-main .chat-item.show-delete-action {
+    background: rgba({{primaryRgb}}, 0.12) !important;
+}
+
+body.messages-page .messages-page-main .chat-item-delete-btn {
+    background: rgba(248, 113, 113, 0.18) !important;
+    color: #FCA5A5 !important;
+}
+
+body.messages-page .messages-page-main .message-delete-btn {
+    background: rgba(248, 113, 113, 0.18) !important;
+    color: #FCA5A5 !important;
+}
+
+body.messages-page .messages-page-main .chat-item.active .chat-item-delete-btn {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+}
+
+body.messages-page .chat-delete-modal-card {
+    background: {{darkSurface}} !important;
+}
+
+body.messages-page .chat-delete-modal-card h4 {
+    color: {{darkText}} !important;
+}
+
+body.messages-page .chat-delete-modal-card p,
+body.messages-page .chat-delete-btn-secondary {
+    color: {{darkMuted}} !important;
+}
+
+body.messages-page .chat-delete-btn-secondary {
+    background: {{darkSurface3}} !important;
+}
+
+body.messages-page .chat-delete-btn-danger {
+    background: #DC2626 !important;
     color: #ffffff !important;
 }
 

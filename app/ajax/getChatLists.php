@@ -7,6 +7,7 @@ if (isset($_SESSION['id'])) {
     include "../model/Message.php";
     include "../model/Group.php";
     include "../model/GroupMessage.php";
+    include "../model/ChatVisibility.php";
 
     // --- Users List ---
     $all_users = get_all_users($pdo);
@@ -19,6 +20,11 @@ if (isset($_SESSION['id'])) {
         $user['last_message_data'] = $lastMessage;
         $users[] = $user;
     }
+    $hiddenThreadsMap = get_hidden_threads_map($pdo, (int)$_SESSION['id']);
+    $users = array_values(array_filter($users, function ($user) use ($hiddenThreadsMap) {
+        $userId = (int)($user['id'] ?? 0);
+        return !chat_thread_should_be_hidden($hiddenThreadsMap['users'][$userId] ?? null, (string)($user['last_msg_time'] ?? ''));
+    }));
 
     // Sort users by last message time desc
     usort($users, function($a, $b) {
@@ -56,6 +62,9 @@ if (isset($_SESSION['id'])) {
             } else {
                 $group['last_msg_time'] = null;
             }
+            if (chat_thread_should_be_hidden($hiddenThreadsMap['groups'][(int)$group['id']] ?? null, (string)($group['last_msg_time'] ?? ''))) {
+                continue;
+            }
             $groups[] = $group;
         }
         usort($groups, function($a, $b) {
@@ -92,6 +101,16 @@ if (isset($_SESSION['id'])) {
                      <div class="chat-time"><?=formatChatTime($group['last_msg_time'])?></div>
                 <?php } ?>
             </div>
+            <button
+                type="button"
+                class="chat-item-delete-btn"
+                aria-label="Delete chat <?= htmlspecialchars($group['name']) ?>"
+                title="Delete chat"
+                data-delete-type="group"
+                data-delete-id="<?=$group['id']?>"
+                data-delete-name="<?=htmlspecialchars($group['name'])?>">
+                <i class="fa fa-trash-o"></i>
+            </button>
         </div>
     <?php 
         } 

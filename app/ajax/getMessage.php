@@ -41,8 +41,23 @@ if (isset($_SESSION['id'])) {
 
         $attachments = getAttachments($chat['chat_id'], $pdo);
         if ($chat['sender_id'] == $id_1) { // My message (Outgoing)
+            $deletePreview = trim(strip_tags((string)($chat['message'] ?? '')));
+            $deletePreview = preg_replace('/\s+/', ' ', $deletePreview ?? '');
+            if ($deletePreview === '' && !empty($attachments)) {
+                $deletePreview = count($attachments) > 1 ? 'Attachments' : 'Attachment';
+            }
     ?>
-        <div class="message-outgoing">
+        <div class="message-outgoing" data-delete-message-type="user" data-delete-message-id="<?= (int)$chat['chat_id'] ?>">
+             <button
+                type="button"
+                class="message-delete-btn"
+                aria-label="Delete message"
+                title="Delete message"
+                data-delete-message-type="user"
+                data-delete-message-id="<?= (int)$chat['chat_id'] ?>"
+                data-delete-message-preview="<?= htmlspecialchars($deletePreview, ENT_QUOTES, 'UTF-8') ?>">
+                <i class="fa fa-trash-o"></i>
+             </button>
              <div class="message-bubble-outgoing">
                 <?=$chat['message']?>
                 <?php 

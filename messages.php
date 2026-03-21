@@ -7,6 +7,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "app/model/Message.php";
     include "app/model/Group.php";
     include "app/model/GroupMessage.php";
+    include "app/model/ChatVisibility.php";
     $chatAjaxCsrfToken = csrf_token('chat_ajax_actions');
     
     // Fetch users for the chat list
@@ -21,6 +22,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $user['last_message_data'] = $lastMessage; // Cache it to avoid re-querying
         $users[] = $user;
     }
+    $hiddenThreadsMap = get_hidden_threads_map($pdo, (int)$_SESSION['id']);
+    $users = array_values(array_filter($users, function ($user) use ($hiddenThreadsMap) {
+        $userId = (int)($user['id'] ?? 0);
+        $lastMsgTime = (string)($user['last_msg_time'] ?? '');
+        return !chat_thread_should_be_hidden($hiddenThreadsMap['users'][$userId] ?? null, $lastMsgTime);
+    }));
 
     // Sort users by last message time desc
     usort($users, function($a, $b) {
@@ -44,6 +51,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 $group['last_msg_time'] = $group['created_at'];
             } else {
                 $group['last_msg_time'] = null;
+            }
+            if (chat_thread_should_be_hidden($hiddenThreadsMap['groups'][(int)$group['id']] ?? null, (string)($group['last_msg_time'] ?? ''))) {
+                continue;
             }
             $groups[] = $group;
         }
@@ -146,6 +156,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                      <div class="chat-time"><?=formatChatTime($group['last_msg_time'])?></div>
                                 <?php } ?>
                             </div>
+                            <button
+                                type="button"
+                                class="chat-item-delete-btn"
+                                aria-label="Delete chat <?= htmlspecialchars($group['name']) ?>"
+                                title="Delete chat"
+                                data-delete-type="group"
+                                data-delete-id="<?=$group['id']?>"
+                                data-delete-name="<?=htmlspecialchars($group['name'])?>">
+                                <i class="fa fa-trash-o"></i>
+                            </button>
                         </div>
                     <?php } } else { ?>
                         <div style="padding: 12px; color:#9CA3AF; font-size:13px;">No groups yet.</div>
@@ -214,11 +234,33 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             <div class="chat-info-overlay" id="chatInfoOverlay"></div>
             <div class="chat-info-sidebar" id="rightSidebar">
                 <div class="chat-info-header">
-                    <span>Group Info</span>
+                    <span id="chatInfoTitle">Chat Info</span>
                     <button class="btn-close-info" id="closeInfoSidebar"><i class="fa fa-times"></i></button>
                 </div>
                 <div class="chat-info-content" id="rightSidebarContent">
                     <!-- Loaded via AJAX -->
+                </div>
+            </div>
+
+            <div class="chat-delete-modal-backdrop" id="chatDeleteModal" style="display:none;">
+                <div class="chat-delete-modal-card" role="dialog" aria-modal="true" aria-labelledby="chatDeleteModalTitle">
+                    <h4 id="chatDeleteModalTitle">Delete chat?</h4>
+                    <p id="chatDeleteModalText">This will remove the chat from your list.</p>
+                    <div class="chat-delete-modal-actions">
+                        <button type="button" class="chat-delete-btn-secondary" id="chatDeleteCancel">Cancel</button>
+                        <button type="button" class="chat-delete-btn-danger" id="chatDeleteConfirm">Delete</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-delete-modal-backdrop" id="messageDeleteModal" style="display:none;">
+                <div class="chat-delete-modal-card" role="dialog" aria-modal="true" aria-labelledby="messageDeleteModalTitle">
+                    <h4 id="messageDeleteModalTitle">Delete message?</h4>
+                    <p id="messageDeleteModalText">This message will be removed from the chat.</p>
+                    <div class="chat-delete-modal-actions">
+                        <button type="button" class="chat-delete-btn-secondary" id="messageDeleteCancel">Cancel</button>
+                        <button type="button" class="chat-delete-btn-danger" id="messageDeleteConfirm">Delete</button>
+                    </div>
                 </div>
             </div>
 
@@ -243,6 +285,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             var lastTypingStateKey = "";
             var lastTypingSentAt = 0;
             var typingStatusRequestInFlight = false;
+            var chatInfoRequestSerial = 0;
+            var pendingChatDeleteTarget = null;
+            var pendingMessageDeleteTarget = null;
+            var chatDeleteLongPressTimer = null;
+            var messageDeleteLongPressTimer = null;
+            var suppressChatClickUntil = 0;
 
             // Search Filter
              $("#searchText").on("input", function(){
@@ -299,6 +347,264 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     $("#chatUserMeta").text("Group Chat");
                     $("#headerAvatar").html('<i class="fa fa-users"></i>');
                 }
+            }
+
+            function updateChatInfoTitle() {
+                var title = currentChatType === "group" ? "Group Info" : "Chat Info";
+                $("#chatInfoTitle").text(title);
+            }
+
+            function clearChatItemDeleteActions() {
+                $(".chat-item").removeClass("show-delete-action");
+            }
+
+            function clearMessageDeleteActions() {
+                $(".message-outgoing").removeClass("show-delete-action");
+            }
+
+            function getDeleteTargetFromButton(button) {
+                if (!button || button.length === 0) return null;
+
+                var deleteType = $.trim(button.attr("data-delete-type") || "");
+                var deleteId = parseInt(button.attr("data-delete-id") || "0", 10) || 0;
+                var deleteName = $.trim(button.attr("data-delete-name") || "") || "this chat";
+
+                if (!deleteType || deleteId <= 0) {
+                    return null;
+                }
+
+                return {
+                    type: deleteType,
+                    id: deleteId,
+                    name: deleteName
+                };
+            }
+
+            function getMessageDeleteTargetFromButton(button) {
+                if (!button || button.length === 0) return null;
+
+                var messageType = $.trim(button.attr("data-delete-message-type") || "");
+                var messageId = parseInt(button.attr("data-delete-message-id") || "0", 10) || 0;
+                var messagePreview = $.trim(button.attr("data-delete-message-preview") || "");
+
+                if (!messageType || messageId <= 0) {
+                    return null;
+                }
+
+                return {
+                    type: messageType,
+                    id: messageId,
+                    preview: messagePreview
+                };
+            }
+
+            function closeChatDeleteModal() {
+                pendingChatDeleteTarget = null;
+                $("#chatDeleteModal").hide();
+                $("#chatDeleteConfirm").prop("disabled", false);
+            }
+
+            function closeMessageDeleteModal() {
+                pendingMessageDeleteTarget = null;
+                $("#messageDeleteModal").hide();
+                $("#messageDeleteConfirm").prop("disabled", false);
+            }
+
+            function openChatDeleteModal(target) {
+                if (!target || !target.type || !target.id) return;
+
+                pendingChatDeleteTarget = target;
+                var safeName = $.trim(target.name || "") || "this chat";
+                var messageText = target.type === "group"
+                    ? ('Delete "' + safeName + '" from your chat list? It will appear again if new messages are sent there.')
+                    : ('Delete your chat with "' + safeName + '" from your list? It will appear again if either of you sends a new message.');
+                $("#chatDeleteModalText").text(messageText);
+                $("#chatDeleteModal").css("display", "flex");
+            }
+
+            function openMessageDeleteModal(target) {
+                if (!target || !target.type || !target.id) return;
+
+                pendingMessageDeleteTarget = target;
+                var preview = $.trim(target.preview || "");
+                if (preview.length > 120) {
+                    preview = preview.slice(0, 117) + "...";
+                }
+                var messageText = preview !== ""
+                    ? ('Delete "' + preview + '" from the chat?')
+                    : 'Delete this message from the chat?';
+                $("#messageDeleteModalText").text(messageText);
+                $("#messageDeleteModal").css("display", "flex");
+            }
+
+            function clearCurrentChatSelection() {
+                var previousContext = getActiveTypingContext();
+                if (previousContext) {
+                    syncOwnTypingState(false, true, previousContext);
+                }
+
+                currentChatUserId = 0;
+                currentGroupId = 0;
+                currentChatType = "user";
+                groupMentionMembers = [];
+                lastTypingInputAt = 0;
+                lastTypingStateKey = "";
+                lastTypingSentAt = 0;
+                applyTypingMetaHtml("");
+                hideMentionSuggestions();
+                resetAttachment();
+                clearChatItemDeleteActions();
+                clearMessageDeleteActions();
+                closeMessageDeleteModal();
+
+                $("#chatBox").empty();
+                $("#chatInterface").hide();
+                $("#noChatSelected").css("display", "flex");
+                $("#rightSidebar").removeClass("active");
+                $("#chatInfoOverlay").removeClass("active");
+                $("#rightSidebarContent").empty();
+                $("#chatInfoToggle").hide();
+                $("#chatInfoTitle").text("Chat Info");
+                $("#chatUserName").text("User Name");
+                $("#chatUserMeta").text("Offline");
+                $("#headerAvatar").html("");
+            }
+
+            function reloadChatListsAfterDeletion() {
+                if ($("#searchText").val() !== "") {
+                    $("#searchText").trigger("input");
+                    return;
+                }
+
+                refreshChatLists();
+            }
+
+            function hideChatThread(target) {
+                if (!target || !target.type || !target.id) return;
+
+                var payload = {
+                    chat_type: target.type,
+                    csrf_token: chatAjaxCsrfToken
+                };
+
+                if (target.type === "group") {
+                    payload.group_id = target.id;
+                } else {
+                    payload.user_id = target.id;
+                }
+
+                $("#chatDeleteConfirm").prop("disabled", true);
+
+                $.ajax({
+                    url: 'app/ajax/hideChatThread.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: payload
+                }).done(function(res){
+                    if (!res || !res.ok) {
+                        return;
+                    }
+
+                    var isActiveUser = target.type === "user" && currentChatType === "user" && parseInt(currentChatUserId, 10) === parseInt(target.id, 10);
+                    var isActiveGroup = target.type === "group" && currentChatType === "group" && parseInt(currentGroupId, 10) === parseInt(target.id, 10);
+
+                    if (isActiveUser || isActiveGroup) {
+                        clearCurrentChatSelection();
+                    } else {
+                        clearChatItemDeleteActions();
+                    }
+
+                    closeChatDeleteModal();
+                    reloadChatListsAfterDeletion();
+                }).always(function(){
+                    $("#chatDeleteConfirm").prop("disabled", false);
+                });
+            }
+
+            function deleteChatMessage(target) {
+                if (!target || !target.type || !target.id) return;
+
+                $("#messageDeleteConfirm").prop("disabled", true);
+
+                $.ajax({
+                    url: 'app/ajax/deleteMessage.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {
+                        message_type: target.type,
+                        message_id: target.id,
+                        csrf_token: chatAjaxCsrfToken
+                    }
+                }).done(function(res){
+                    if (!res || !res.ok) {
+                        return;
+                    }
+
+                    closeMessageDeleteModal();
+                    clearMessageDeleteActions();
+                    loadMessages(true);
+                    reloadChatListsAfterDeletion();
+                    if ($("#rightSidebar").hasClass("active")) {
+                        loadCurrentChatInfoSidebar();
+                    }
+                }).always(function(){
+                    $("#messageDeleteConfirm").prop("disabled", false);
+                });
+            }
+
+            function clearChatDeleteLongPressTimer() {
+                if (chatDeleteLongPressTimer) {
+                    window.clearTimeout(chatDeleteLongPressTimer);
+                    chatDeleteLongPressTimer = null;
+                }
+            }
+
+            function clearMessageDeleteLongPressTimer() {
+                if (messageDeleteLongPressTimer) {
+                    window.clearTimeout(messageDeleteLongPressTimer);
+                    messageDeleteLongPressTimer = null;
+                }
+            }
+
+            function getChatInfoPayload() {
+                if (currentChatType === "group" && currentGroupId != 0) {
+                    return {
+                        chat_type: "group",
+                        group_id: currentGroupId,
+                        csrf_token: chatAjaxCsrfToken
+                    };
+                }
+
+                if (currentChatType === "user" && currentChatUserId != 0) {
+                    return {
+                        chat_type: "user",
+                        user_id: currentChatUserId,
+                        csrf_token: chatAjaxCsrfToken
+                    };
+                }
+
+                return null;
+            }
+
+            function loadCurrentChatInfoSidebar() {
+                var payload = getChatInfoPayload();
+                if (!payload) {
+                    $("#rightSidebarContent").empty();
+                    return;
+                }
+
+                updateChatInfoTitle();
+                var requestSerial = ++chatInfoRequestSerial;
+                var contextKey = currentChatType + ":" + (currentChatType === "group" ? currentGroupId : currentChatUserId);
+
+                $.post('app/ajax/getChatInfo.php', payload, function(data){
+                    var activeKey = currentChatType + ":" + (currentChatType === "group" ? currentGroupId : currentChatUserId);
+                    if (requestSerial !== chatInfoRequestSerial || activeKey !== contextKey) {
+                        return;
+                    }
+
+                    $("#rightSidebarContent").html(data);
+                });
             }
 
             function getActiveTypingContext() {
@@ -502,8 +808,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
 
             function bindChatClicks(){
-                $(".chat-item").off("click.chatUser").on("click.chatUser", function(){
+                $(".chat-item").off("click.chatUser").on("click.chatUser", function(e){
                     if ($(this).hasClass("group-item")) return;
+                    if ($(e.target).closest(".chat-item-delete-btn").length) return;
+                    if ($(this).hasClass("show-delete-action")) {
+                        clearChatItemDeleteActions();
+                        return;
+                    }
+                    if (Date.now() < suppressChatClickUntil) return;
 
                     // Data
                     var userId = $(this).attr("data-id");
@@ -566,6 +878,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     currentChatType = "user";
                     groupMentionMembers = [];
                     hideMentionSuggestions();
+                    clearMessageDeleteActions();
+                    closeMessageDeleteModal();
 
                     // UI Update
                     $("#noChatSelected").hide();
@@ -573,8 +887,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     updateUserHeaderFromItem($(this));
                     
                     // UI Reset for User Chat
-                    $("#chatInfoToggle").hide();
+                    $("#chatInfoToggle").show();
                     $("#rightSidebar").removeClass("active");
+                    $("#chatInfoOverlay").removeClass("active");
+                    updateChatInfoTitle();
+                    loadCurrentChatInfoSidebar();
                     
                     // Reset attachment
                     resetAttachment();
@@ -587,7 +904,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
 
             function bindGroupClicks(){
-                $(".group-item").off("click.chatGroup").on("click.chatGroup", function(){
+                $(".group-item").off("click.chatGroup").on("click.chatGroup", function(e){
+                    if ($(e.target).closest(".chat-item-delete-btn").length) return;
+                    if ($(this).hasClass("show-delete-action")) {
+                        clearChatItemDeleteActions();
+                        return;
+                    }
+                    if (Date.now() < suppressChatClickUntil) return;
+
                     var groupId = $(this).attr("data-group-id");
                     var groupName = $(this).attr("data-group-name");
                     var previousContext = getActiveTypingContext();
@@ -646,6 +970,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     currentChatUserId = 0;
                     currentChatType = "group";
                     hideMentionSuggestions();
+                    clearMessageDeleteActions();
+                    closeMessageDeleteModal();
 
                     $("#noChatSelected").hide();
                     $("#chatInterface").css("display", "flex");
@@ -657,12 +983,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     $("#chatInfoToggle").show();
                     $("#rightSidebar").removeClass("active");
                     $("#chatInfoOverlay").removeClass("active");
+                    updateChatInfoTitle();
                     
                     // Reset attachment
                     resetAttachment();
                     loadMessages();
 
-                    loadGroupDetails(groupId);
+                    loadCurrentChatInfoSidebar();
                     loadGroupMentionMembers(groupId);
                 });
             }
@@ -740,6 +1067,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
 
             $("#chatInfoToggle").click(function(){
+                loadCurrentChatInfoSidebar();
                 $("#rightSidebar").toggleClass("active");
                 if($(window).width() <= 900) {
                     $("#chatInfoOverlay").toggleClass("active");
@@ -750,12 +1078,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 $("#rightSidebar").removeClass("active");
                 $("#chatInfoOverlay").removeClass("active");
             });
-
-            function loadGroupDetails(groupId){
-                $.post('app/ajax/getGroupDetails.php', { group_id: groupId }, function(data){
-                    $("#rightSidebarContent").html(data);
-                });
-            }
 
             // Back Button Logic
             $("#backToChatList").click(function() {
@@ -896,6 +1218,112 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 if (!$(e.target).closest("#messageInput, #mentionSuggestions").length) {
                     hideMentionSuggestions();
                 }
+                if (!$(e.target).closest(".chat-item.show-delete-action, .chat-delete-modal-card").length) {
+                    clearChatItemDeleteActions();
+                }
+                if (!$(e.target).closest(".message-outgoing.show-delete-action, .chat-delete-modal-card").length) {
+                    clearMessageDeleteActions();
+                }
+            });
+
+            $(document).on("click", ".chat-item-delete-btn", function(e){
+                e.preventDefault();
+                e.stopPropagation();
+                clearChatItemDeleteActions();
+                var target = getDeleteTargetFromButton($(this));
+                if (target) {
+                    openChatDeleteModal(target);
+                }
+            });
+
+            $(document).on("click", ".message-delete-btn", function(e){
+                e.preventDefault();
+                e.stopPropagation();
+                clearMessageDeleteActions();
+                var target = getMessageDeleteTargetFromButton($(this));
+                if (target) {
+                    openMessageDeleteModal(target);
+                }
+            });
+
+            $(document).on("touchstart", ".chat-item", function(e){
+                if ($(e.target).closest(".chat-item-delete-btn").length) {
+                    return;
+                }
+
+                clearChatDeleteLongPressTimer();
+                var item = $(this);
+
+                chatDeleteLongPressTimer = window.setTimeout(function(){
+                    clearChatItemDeleteActions();
+                    item.addClass("show-delete-action");
+                    suppressChatClickUntil = Date.now() + 700;
+                    chatDeleteLongPressTimer = null;
+                }, 550);
+            });
+
+            $(document).on("touchend touchcancel touchmove", ".chat-item", function(){
+                clearChatDeleteLongPressTimer();
+            });
+
+            $(document).on("touchstart", ".message-outgoing[data-delete-message-id]", function(e){
+                if ($(e.target).closest(".message-delete-btn").length) {
+                    return;
+                }
+
+                clearMessageDeleteLongPressTimer();
+                var item = $(this);
+
+                messageDeleteLongPressTimer = window.setTimeout(function(){
+                    clearMessageDeleteActions();
+                    item.addClass("show-delete-action");
+                    messageDeleteLongPressTimer = null;
+                }, 550);
+            });
+
+            $(document).on("touchend touchcancel touchmove", ".message-outgoing[data-delete-message-id]", function(){
+                clearMessageDeleteLongPressTimer();
+            });
+
+            $("#chatDeleteCancel").on("click", function(){
+                closeChatDeleteModal();
+            });
+
+            $("#chatDeleteModal").on("click", function(e){
+                if (e.target === this) {
+                    closeChatDeleteModal();
+                }
+            });
+
+            $("#chatDeleteConfirm").on("click", function(){
+                if (!pendingChatDeleteTarget) return;
+                hideChatThread(pendingChatDeleteTarget);
+            });
+
+            $("#messageDeleteCancel").on("click", function(){
+                closeMessageDeleteModal();
+            });
+
+            $("#messageDeleteModal").on("click", function(e){
+                if (e.target === this) {
+                    closeMessageDeleteModal();
+                }
+            });
+
+            $("#messageDeleteConfirm").on("click", function(){
+                if (!pendingMessageDeleteTarget) return;
+                deleteChatMessage(pendingMessageDeleteTarget);
+            });
+
+            $(document).on("click", ".chat-assets-tab", function(){
+                var target = $(this).attr("data-target") || "media";
+                var shell = $(this).closest(".chat-assets-shell");
+                if (shell.length === 0) return;
+
+                shell.find(".chat-assets-tab").removeClass("active").attr("aria-selected", "false");
+                $(this).addClass("active").attr("aria-selected", "true");
+                shell.find(".chat-assets-panel").removeClass("active");
+                shell.find('.chat-assets-panel[data-panel="' + target + '"]').addClass("active");
             });
 
             function sendMessage() {
@@ -935,6 +1363,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     processData: false,
                     contentType: false,
                     success: function(data) {
+                        var shouldRefreshChatInfo = $("#rightSidebar").hasClass("active") || selectedFiles.length > 0;
                         $("#messageInput").val("");
                         lastTypingInputAt = 0;
                         syncOwnTypingState(false, true);
@@ -942,6 +1371,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         resetAttachment();
                         loadMessages(true); // true to force scroll
                         refreshChatLists(); // Update list order immediately
+                        if (shouldRefreshChatInfo) {
+                            loadCurrentChatInfoSidebar();
+                        }
                     }
                 });
             }

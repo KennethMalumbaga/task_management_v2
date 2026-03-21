@@ -49,6 +49,11 @@ if (isset($_SESSION['id'])) {
                 $isMine = ((int)$msg['sender_id'] === (int)$user_id);
                 $formattedMessage = format_group_message_mentions($msg['message'], $mentionNames);
                 $seenReaders = $seenReceiptMap[(int)$msg['id']] ?? [];
+                $deletePreview = trim((string)($msg['message'] ?? ''));
+                $deletePreview = preg_replace('/\s+/', ' ', $deletePreview ?? '');
+                if ($deletePreview === '' && !empty($attachments)) {
+                    $deletePreview = count($attachments) > 1 ? 'Attachments' : 'Attachment';
+                }
                 
                 // Prepare Avatar
                 $avatarHtml = '';
@@ -62,7 +67,17 @@ if (isset($_SESSION['id'])) {
 ?>
         <div class="group-chat-message-block <?= $isMine ? 'is-outgoing' : 'is-incoming' ?>">
         <?php if ($isMine) { ?>
-            <div class="message-outgoing">
+            <div class="message-outgoing" data-delete-message-type="group" data-delete-message-id="<?= (int)$msg['id'] ?>">
+                 <button
+                    type="button"
+                    class="message-delete-btn"
+                    aria-label="Delete message"
+                    title="Delete message"
+                    data-delete-message-type="group"
+                    data-delete-message-id="<?= (int)$msg['id'] ?>"
+                    data-delete-message-preview="<?= htmlspecialchars($deletePreview, ENT_QUOTES, 'UTF-8') ?>">
+                    <i class="fa fa-trash-o"></i>
+                 </button>
                  <div class="message-bubble-outgoing">
                     <?=$formattedMessage?>
                     <?php 

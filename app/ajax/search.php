@@ -11,8 +11,10 @@ if (isset($_SESSION['id'])) {
        include "../model/Message.php";
        include "../model/Group.php";
        include "../model/GroupMessage.php";
+       include "../model/ChatVisibility.php";
 
        $key = "%{$_POST['key']}%";
+       $hiddenThreadsMap = get_hidden_threads_map($pdo, (int)$_SESSION['id']);
      
        $sql = "SELECT * FROM users
                WHERE (LOWER(full_name) LIKE LOWER(?) OR LOWER(username) LIKE LOWER(?))";
@@ -28,11 +30,13 @@ if (isset($_SESSION['id'])) {
            $users = $stmt->fetchAll();
            $userPresenceMap = get_users_clocked_in_map($pdo, array_column($users, 'id'));
            $hasUser = false;
-            foreach ($users as $user) {
+           foreach ($users as $user) {
                 if ($user['id'] == $_SESSION['id']) continue;
-                $hasUser = true;
-                
                 $lastMessage = lastChat($_SESSION['id'], $user['id'], $pdo);
+                if (chat_thread_should_be_hidden($hiddenThreadsMap['users'][(int)$user['id']] ?? null, (string)($lastMessage['created_at'] ?? ''))) {
+                    continue;
+                }
+                $hasUser = true;
                 $unreadCount = countUnreadChat($user['id'], $_SESSION['id'], $pdo);
                 $user['is_online'] = !empty($userPresenceMap[(int)$user['id']]);
         ?>
@@ -71,6 +75,7 @@ if (isset($_SESSION['id'])) {
        $groups = $groupStmt->fetchAll();
 
        ob_start();
+       $hasGroup = false;
        if(!empty($groups)) {
            foreach ($groups as $group) {
                $grpUnread = get_group_unread_count($pdo, $group['id'], $_SESSION['id']);
@@ -78,6 +83,10 @@ if (isset($_SESSION['id'])) {
                $lastMsgTime = !empty($lastGroupMsg['created_at'])
                    ? $lastGroupMsg['created_at']
                    : (!empty($group['created_at']) ? $group['created_at'] : null);
+               if (chat_thread_should_be_hidden($hiddenThreadsMap['groups'][(int)$group['id']] ?? null, (string)$lastMsgTime)) {
+                   continue;
+               }
+               $hasGroup = true;
                $groupLastTimestamp = !empty($lastGroupMsg['created_at']) ? strtotime($lastGroupMsg['created_at']) : 0;
                if ($groupLastTimestamp === false) $groupLastTimestamp = 0;
                $groupPreview = format_group_list_preview($pdo, $lastGroupMsg, (int)$_SESSION['id']);
@@ -100,10 +109,22 @@ if (isset($_SESSION['id'])) {
                     <div class="chat-time"><?=formatChatTime($lastMsgTime)?></div>
                 <?php } ?>
             </div>
+            <button
+                type="button"
+                class="chat-item-delete-btn"
+                aria-label="Delete chat <?= htmlspecialchars($group['name']) ?>"
+                title="Delete chat"
+                data-delete-type="group"
+                data-delete-id="<?=$group['id']?>"
+                data-delete-name="<?=htmlspecialchars($group['name'])?>">
+                <i class="fa fa-trash-o"></i>
+            </button>
        </div>
        <?php
            }
-       } else {
+       }
+
+       if (!$hasGroup) {
        ?>
        <div style="padding: 12px; color:#9CA3AF; font-size:13px;">No groups found</div>
        <?php

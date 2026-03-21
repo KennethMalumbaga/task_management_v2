@@ -358,6 +358,16 @@ if (!function_exists('render_chat_user_list_item')) {
                     <span class="chat-time"><?= htmlspecialchars((string)formatChatTime($lastMessage['created_at']), ENT_QUOTES, 'UTF-8') ?></span>
                 <?php } ?>
             </div>
+            <button
+                type="button"
+                class="chat-item-delete-btn"
+                aria-label="Delete chat with <?= htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8') ?>"
+                title="Delete chat"
+                data-delete-type="user"
+                data-delete-id="<?= $userId ?>"
+                data-delete-name="<?= htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8') ?>">
+                <i class="fa fa-trash-o"></i>
+            </button>
         </div>
         <?php
         return trim(ob_get_clean());
