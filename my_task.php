@@ -440,6 +440,82 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             margin-bottom: 12px;
         }
 
+        .subtask-title {
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-primary, #1F2937);
+            margin-bottom: 4px;
+        }
+
+        .subtask-meta {
+            font-size: 12px;
+            color: var(--text-secondary, #6B7280);
+        }
+
+        .subtask-phase {
+            font-size: 12px;
+            color: var(--primary-muted, var(--primary));
+        }
+
+        .subtask-submit-section {
+            margin-top: 15px;
+            border-top: 1px solid var(--border-subtle, #F3F4F6);
+            padding-top: 12px;
+        }
+
+        .subtask-note-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-subtle, #D1D5DB);
+            border-radius: 6px;
+            background: var(--surface-2, #FFFFFF);
+            color: var(--text-primary, #111827);
+            line-height: 1.45;
+        }
+
+        .subtask-note-input::placeholder {
+            color: var(--text-secondary, #6B7280);
+        }
+
+        .subtask-upload-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .subtask-file-input {
+            width: auto;
+            max-width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border-subtle, #D1D5DB);
+            border-radius: 6px;
+            background: var(--surface-2, #FFFFFF);
+            color: var(--text-primary, #374151);
+            box-sizing: border-box;
+        }
+
+        .subtask-file-input::file-selector-button {
+            margin-right: 10px;
+            padding: 8px 12px;
+            border: 1px solid var(--primary-border, #D1D5DB);
+            border-radius: 6px;
+            background: var(--primary-soft-2, #F9FAFB);
+            color: var(--text-primary, #374151);
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+
+        .subtask-file-input:hover::file-selector-button {
+            background: var(--primary-soft-3, #F3F4F6);
+        }
+
+        .subtask-upload-hint {
+            font-size: 11px;
+            color: var(--text-secondary, #6B7280);
+            margin-top: 4px;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .tasks-grid {
@@ -880,12 +956,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <div class="subtask-card">
                             <div class="subtask-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                                 <div>
-                                    <div style="font-weight: 500; font-size: 14px; color: #1F2937; margin-bottom: 4px;"><?= htmlspecialchars($sub['description']) ?></div> 
-                                    <div style="font-size: 12px; color: #6B7280;">
+                                    <div class="subtask-title"><?= htmlspecialchars($sub['description']) ?></div>
+                                    <div class="subtask-meta">
                                         <i class="fa fa-user"></i> Assigned to: <?= htmlspecialchars($sub['member_name']) ?>
                                     </div>
                                     <?php if (!empty($sub['timeline_phase_name'])) { ?>
-                                        <div style="font-size: 12px; color: var(--primary);">
+                                        <div class="subtask-phase">
                                             <i class="fa fa-flag"></i> Phase: <?= htmlspecialchars((string)$sub['timeline_phase_name']) ?>
                                         </div>
                                     <?php } ?>
@@ -976,18 +1052,18 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
                              <!-- Actions for Member (Submit) -->
                               <?php if($_SESSION['id'] == $sub['member_id'] && ($sub['status'] == 'pending' || $sub['status'] == 'in_progress' || $sub['status'] == 'revise')) { ?>
-                                <div style="margin-top: 15px; border-top: 1px solid #F3F4F6; padding-top: 12px;">
+                                <div class="subtask-submit-section">
                                     <form action="app/update-subtask-submission.php" method="POST" enctype="multipart/form-data">
                                         <?= csrf_field('update_subtask_submission_form') ?>
                                         <input type="hidden" name="id" value="<?=$sub['id']?>">
                                         
                                         <div style="margin-bottom: 10px;">
-                                            <textarea name="submission_note" class="form-input-v2" rows="2" placeholder="Add a description or note..." style="width: 100%; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px;"></textarea>
+                                            <textarea name="submission_note" class="form-input-v2 subtask-note-input" rows="2" placeholder="Add a description or note..."></textarea>
                                         </div>
 
-                                        <div style="display: flex; gap: 10px; align-items: center;">
-                                            <input type="file" name="submission_file" class="form-input-v2" style="width: auto;" required>
-                                            <div style="font-size: 11px; color: #6B7280; margin-top: 4px;">(up to 50MB)</div>
+                                        <div class="subtask-upload-row">
+                                            <input type="file" name="submission_file" class="form-input-v2 subtask-file-input" required>
+                                            <div class="subtask-upload-hint">(up to 50MB)</div>
                                             <button class="btn-v2 btn-indigo">Submit</button>
                                         </div>
                                     </form>
