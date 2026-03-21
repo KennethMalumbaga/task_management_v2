@@ -31,21 +31,21 @@ function create_group($pdo, $name, $leader_id, $member_ids = [], $created_by = n
     if ($has_task_id) {
         if ($hasOrgOnGroups) {
             $stmt = $pdo->prepare(
-                "INSERT INTO groups (name, created_by, type, task_id, organization_id) VALUES (?, ?, ?, ?, ?)"
+                "INSERT INTO `groups` (name, created_by, type, task_id, organization_id) VALUES (?, ?, ?, ?, ?)"
             );
             $stmt->execute([$name, $created_by, $type, $task_id, $orgId]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO groups (name, created_by, type, task_id) VALUES (?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO `groups` (name, created_by, type, task_id) VALUES (?, ?, ?, ?)");
             $stmt->execute([$name, $created_by, $type, $task_id]);
         }
     } else {
         if ($hasOrgOnGroups) {
             $stmt = $pdo->prepare(
-                "INSERT INTO groups (name, created_by, type, organization_id) VALUES (?, ?, ?, ?)"
+                "INSERT INTO `groups` (name, created_by, type, organization_id) VALUES (?, ?, ?, ?)"
             );
             $stmt->execute([$name, $created_by, $type, $orgId]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO groups (name, created_by, type) VALUES (?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO `groups` (name, created_by, type) VALUES (?, ?, ?)");
             $stmt->execute([$name, $created_by, $type]);
         }
     }
@@ -90,7 +90,7 @@ function get_all_groups($pdo)
 {
     [$sql, $params] = group_append_scope(
         $pdo,
-        "SELECT * FROM groups WHERE type = 'group'",
+        "SELECT * FROM `groups` WHERE type = 'group'",
         [],
         'groups'
     );
@@ -102,7 +102,7 @@ function get_all_groups($pdo)
 
 function get_group_by_id($pdo, $group_id)
 {
-    $sql = "SELECT * FROM groups WHERE id = ?";
+    $sql = "SELECT * FROM `groups` WHERE id = ?";
     [$sql, $params] = group_append_scope($pdo, $sql, [$group_id], 'groups');
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -112,7 +112,7 @@ function get_group_by_id($pdo, $group_id)
 function get_groups_for_user($pdo, $user_id)
 {
     $sql = "SELECT g.*
-            FROM groups g
+            FROM `groups` g
             JOIN group_members gm ON gm.group_id = g.id
             WHERE gm.user_id = ?";
     $params = [$user_id];
@@ -159,7 +159,7 @@ function is_user_in_group($pdo, $group_id, $user_id)
 
 function delete_group($pdo, $group_id)
 {
-    $sql = "DELETE FROM groups WHERE id = ?";
+    $sql = "DELETE FROM `groups` WHERE id = ?";
     [$sql, $params] = group_append_scope($pdo, $sql, [$group_id], 'groups');
     $stmt = $pdo->prepare($sql);
     return $stmt->execute($params);
@@ -167,7 +167,7 @@ function delete_group($pdo, $group_id)
 
 function delete_task_chat_groups_by_title($pdo, $task_title)
 {
-    $sql = "DELETE FROM groups WHERE name = ? AND type = 'task_chat'";
+    $sql = "DELETE FROM `groups` WHERE name = ? AND type = 'task_chat'";
     [$sql, $params] = group_append_scope($pdo, $sql, [$task_title], 'groups');
     $stmt = $pdo->prepare($sql);
     return $stmt->execute($params);
@@ -179,7 +179,7 @@ function delete_task_chat_groups_by_task_id($pdo, $task_id)
         return null;
     }
 
-    $sql = "DELETE FROM groups WHERE task_id = ? AND type = 'task_chat'";
+    $sql = "DELETE FROM `groups` WHERE task_id = ? AND type = 'task_chat'";
     [$sql, $params] = group_append_scope($pdo, $sql, [$task_id], 'groups');
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -191,7 +191,7 @@ function sync_task_chat_group_link_and_name($pdo, $task_id, $old_title, $new_tit
     $has_task_id = group_column_exists($pdo, 'groups', 'task_id');
 
     if ($has_task_id) {
-        $sql = "UPDATE groups
+        $sql = "UPDATE `groups`
                 SET name = ?, task_id = ?
                 WHERE type = 'task_chat' AND task_id = ?";
         [$sql, $params] = group_append_scope($pdo, $sql, [$new_title, $task_id, $task_id], 'groups');
@@ -200,7 +200,7 @@ function sync_task_chat_group_link_and_name($pdo, $task_id, $old_title, $new_tit
         $updated = $stmt->rowCount();
 
         if ($updated === 0 && !empty($old_title)) {
-            $sql = "UPDATE groups
+            $sql = "UPDATE `groups`
                     SET name = ?, task_id = ?
                     WHERE type = 'task_chat' AND name = ?";
             [$sql, $params] = group_append_scope($pdo, $sql, [$new_title, $task_id, $old_title], 'groups');
@@ -213,7 +213,7 @@ function sync_task_chat_group_link_and_name($pdo, $task_id, $old_title, $new_tit
     }
 
     if (!empty($old_title) && $old_title !== $new_title) {
-        $sql = "UPDATE groups SET name = ? WHERE type = 'task_chat' AND name = ?";
+        $sql = "UPDATE `groups` SET name = ? WHERE type = 'task_chat' AND name = ?";
         [$sql, $params] = group_append_scope($pdo, $sql, [$new_title, $old_title], 'groups');
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -226,15 +226,15 @@ function sync_task_chat_group_link_and_name($pdo, $task_id, $old_title, $new_tit
 function delete_orphan_task_chat_groups($pdo)
 {
     if (group_column_exists($pdo, 'groups', 'task_id')) {
-        $sql = "DELETE FROM groups
+        $sql = "DELETE FROM `groups`
                 WHERE type = 'task_chat'
                   AND (
                         (task_id IS NOT NULL AND NOT EXISTS (
-                            SELECT 1 FROM tasks t WHERE t.id = groups.task_id
+                            SELECT 1 FROM tasks t WHERE t.id = `groups`.task_id
                         ))
                         OR
                         (task_id IS NULL AND NOT EXISTS (
-                            SELECT 1 FROM tasks t WHERE t.title = groups.name
+                            SELECT 1 FROM tasks t WHERE t.title = `groups`.name
                         ))
                       )";
         [$sql, $params] = group_append_scope($pdo, $sql, [], 'groups');
@@ -243,10 +243,10 @@ function delete_orphan_task_chat_groups($pdo)
         return $stmt->rowCount();
     }
 
-    $sql = "DELETE FROM groups
+    $sql = "DELETE FROM `groups`
             WHERE type = 'task_chat'
               AND NOT EXISTS (
-                    SELECT 1 FROM tasks t WHERE t.title = groups.name
+                    SELECT 1 FROM tasks t WHERE t.title = `groups`.name
               )";
     [$sql, $params] = group_append_scope($pdo, $sql, [], 'groups');
     $stmt = $pdo->prepare($sql);
@@ -261,19 +261,19 @@ function delete_legacy_duplicate_group_chats_by_title($pdo, $title)
     }
 
     $has_task_id = group_column_exists($pdo, 'groups', 'task_id');
-    $taskIdClause = $has_task_id ? "AND groups.task_id IS NULL" : "";
+    $taskIdClause = $has_task_id ? "AND `groups`.task_id IS NULL" : "";
     $taskIdClause2 = $has_task_id ? "AND g2.task_id IS NULL" : "";
 
-    $sql = "DELETE FROM groups
+    $sql = "DELETE FROM `groups`
             WHERE type = 'group'
               {$taskIdClause}
-              AND LOWER(groups.name) = LOWER(?)
+              AND LOWER(`groups`.name) = LOWER(?)
               AND NOT EXISTS (
                     SELECT 1 FROM tasks t WHERE LOWER(t.title) = LOWER(?)
               )
               AND (
                     SELECT COUNT(*)
-                    FROM groups g2
+                    FROM `groups` g2
                     WHERE g2.type = 'group'
                       {$taskIdClause2}
                       AND LOWER(g2.name) = LOWER(?)
@@ -291,7 +291,7 @@ function delete_legacy_duplicate_group_chats_by_title($pdo, $title)
 function check_group_exists($pdo, $name)
 {
     $sql = "SELECT 1
-            FROM groups
+            FROM `groups`
             WHERE type = 'group' AND LOWER(TRIM(name)) = LOWER(TRIM(?))";
     [$sql, $params] = group_append_scope($pdo, $sql, [$name], 'groups');
     $sql .= " LIMIT 1";
@@ -308,7 +308,7 @@ function get_top_rated_groups($pdo, $limit = 5)
                    COUNT(DISTINCT gm.user_id) as member_count,
                    ROUND(AVG(t.rating), 1) as avg_rating,
                    COUNT(DISTINCT t.id) as rated_task_count
-            FROM groups g
+            FROM `groups` g
             JOIN group_members gm ON gm.group_id = g.id
             JOIN task_assignees ta ON ta.user_id = gm.user_id
             JOIN tasks t ON t.id = ta.task_id
@@ -347,3 +347,4 @@ function get_top_rated_groups($pdo, $limit = 5)
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
+

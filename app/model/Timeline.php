@@ -444,7 +444,7 @@ if (!function_exists('timeline_fetch_project_group_name')) {
         }
 
         $sql = "SELECT g.name
-                FROM groups g
+                FROM `groups` g
                 JOIN group_members gm ON gm.group_id = g.id
                 WHERE g.type = 'group' AND gm.user_id = ? AND gm.role = 'leader'";
         [$sql, $params] = timeline_append_scope($pdo, $sql, [$leaderId], 'groups', 'g');
@@ -1109,3 +1109,4 @@ if (!function_exists('timeline_delete_phase')) {
         return $stmt->rowCount() > 0;
     }
 }
+

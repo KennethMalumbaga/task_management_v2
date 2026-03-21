@@ -101,7 +101,7 @@ function get_group_unread_count($pdo, $group_id, $user_id)
 function count_all_group_unread($pdo, $user_id)
 {
     $sql = "SELECT g.id
-            FROM groups g
+            FROM `groups` g
             JOIN group_members gm ON gm.group_id = g.id
             WHERE gm.user_id = ?";
     $params = [$user_id];
@@ -438,3 +438,4 @@ if (!function_exists('table_exists')) {
         }
     }
 }
+

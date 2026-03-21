@@ -61,7 +61,7 @@ if (isset($_SESSION['id'])) {
        $usersHtml = ob_get_clean();
 
        $groupSql = "SELECT g.*
-                    FROM groups g
+                    FROM `groups` g
                     INNER JOIN group_members gm ON g.id = gm.group_id
                      WHERE gm.user_id = ?
                        AND LOWER(g.name) LIKE LOWER(?)";
@@ -137,3 +137,4 @@ if (isset($_SESSION['id'])) {
        ]);
     }
 }
+
