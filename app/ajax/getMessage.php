@@ -31,7 +31,14 @@ if (isset($_SESSION['id'])) {
     opend($id_1, $pdo, $chats);   
     
     if (!empty($chats)) {
+    $lastDateKey = null;
     foreach ($chats as $chat) {
+        $currentDateKey = chat_message_day_key($chat['created_at']);
+        if ($currentDateKey !== '' && $currentDateKey !== $lastDateKey) {
+            echo render_chat_date_separator($chat['created_at']);
+            $lastDateKey = $currentDateKey;
+        }
+
         $attachments = getAttachments($chat['chat_id'], $pdo);
         if ($chat['sender_id'] == $id_1) { // My message (Outgoing)
     ?>
@@ -61,7 +68,10 @@ if (isset($_SESSION['id'])) {
                 } 
                 ?>
              </div>
-             <div class="message-time"><?=formatChatTime($chat['created_at'])?></div>
+             <div class="message-time">
+                <span><?=format_chat_message_time($chat['created_at'])?></span>
+                <?=render_chat_read_receipt($chat['opened'] ?? false)?>
+             </div>
         </div>
     <?php } else { // Received message (Incoming) ?>
         <div class="message-incoming">
@@ -91,7 +101,7 @@ if (isset($_SESSION['id'])) {
                     } 
                     ?>
                  </div>
-                 <div class="message-time"><?=formatChatTime($chat['created_at'])?></div>
+                 <div class="message-time"><?=format_chat_message_time($chat['created_at'])?></div>
              </div>
         </div>
     <?php } } }

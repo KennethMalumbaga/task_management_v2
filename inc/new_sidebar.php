@@ -61,6 +61,7 @@
 
     $notificationReadCsrfToken = csrf_token('notification_read_action');
     $notificationReadAllCsrfToken = csrf_token('notification_read_all_action');
+    $presenceHeartbeatCsrfToken = csrf_token('presence_heartbeat');
     $notifRows = get_all_my_notifications($pdo, $_SESSION['id']);
     if (!is_array($notifRows)) {
         $notifRows = [];
@@ -880,6 +881,55 @@
         pollAttendanceState();
         attendanceTimer = setInterval(pollAttendanceState, ATTENDANCE_POLL_MS);
         evalTimer = setInterval(evaluateIdleState, EVALUATE_INTERVAL_MS);
+    })();
+
+    (function presenceHeartbeat() {
+        var csrfToken = <?= json_encode($presenceHeartbeatCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        if (!csrfToken) return;
+
+        var heartbeatUrl = 'app/ajax/presence_heartbeat.php';
+        var heartbeatIntervalMs = 25000;
+        var inFlight = false;
+        var lastSentAt = 0;
+
+        function sendHeartbeat(force) {
+            var now = Date.now();
+            if (!force && (now - lastSentAt) < 5000) return;
+            if (document.hidden) return;
+            if (inFlight) return;
+
+            inFlight = true;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', heartbeatUrl, true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4) return;
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    lastSentAt = Date.now();
+                }
+                inFlight = false;
+            };
+            xhr.onerror = function () {
+                inFlight = false;
+            };
+            xhr.send('csrf_token=' + encodeURIComponent(csrfToken));
+        }
+
+        sendHeartbeat(true);
+        setInterval(function () {
+            sendHeartbeat(false);
+        }, heartbeatIntervalMs);
+
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) {
+                sendHeartbeat(true);
+            }
+        });
+
+        window.addEventListener('focus', function () {
+            sendHeartbeat(true);
+        });
     })();
 
     (function refreshNotificationsPreview() {

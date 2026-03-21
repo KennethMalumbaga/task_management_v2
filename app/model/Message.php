@@ -136,6 +136,22 @@ function opend($id_1, $conn, $chats)
     }
 }
 
+if (!function_exists('chat_message_is_opened')) {
+    function chat_message_is_opened($openedValue)
+    {
+        if (is_bool($openedValue)) {
+            return $openedValue;
+        }
+
+        if (is_numeric($openedValue)) {
+            return ((int)$openedValue) === 1;
+        }
+
+        $normalized = strtolower(trim((string)$openedValue));
+        return in_array($normalized, ['1', 'true', 't', 'yes'], true);
+    }
+}
+
 function formatChatTime($timestamp)
 {
     $time = strtotime($timestamp);
@@ -146,4 +162,91 @@ function formatChatTime($timestamp)
         return date('g:i a', $time);
     }
     return date('F j, Y', $time);
+}
+
+if (!function_exists('chat_message_day_key')) {
+    function chat_message_day_key($timestamp)
+    {
+        $time = strtotime((string)$timestamp);
+        if ($time === false) {
+            return '';
+        }
+
+        return date('Y-m-d', $time);
+    }
+}
+
+if (!function_exists('format_chat_message_time')) {
+    function format_chat_message_time($timestamp)
+    {
+        $time = strtotime((string)$timestamp);
+        if ($time === false) {
+            return '';
+        }
+
+        $currentDate = date('Y-m-d');
+        $msgDate = date('Y-m-d', $time);
+
+        if ($currentDate === $msgDate) {
+            return date('g:i A', $time);
+        }
+
+        return date('M j g:i A', $time);
+    }
+}
+
+if (!function_exists('format_chat_day_label')) {
+    function format_chat_day_label($timestamp)
+    {
+        $time = strtotime((string)$timestamp);
+        if ($time === false) {
+            return '';
+        }
+
+        $todayStart = strtotime(date('Y-m-d'));
+        $messageDayStart = strtotime(date('Y-m-d', $time));
+        $dayDiff = (int)(($todayStart - $messageDayStart) / 86400);
+
+        if ($dayDiff === 0) {
+            return 'Today';
+        }
+
+        if ($dayDiff === 1) {
+            return 'Yesterday';
+        }
+
+        return date('F j, Y', $time);
+    }
+}
+
+if (!function_exists('render_chat_date_separator')) {
+    function render_chat_date_separator($timestamp)
+    {
+        $label = format_chat_day_label($timestamp);
+        if ($label === '') {
+            return '';
+        }
+
+        return '<div class="chat-date-separator" role="separator" aria-label="'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '"><span>'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '</span></div>';
+    }
+}
+
+if (!function_exists('render_chat_read_receipt')) {
+    function render_chat_read_receipt($openedValue)
+    {
+        $isOpened = chat_message_is_opened($openedValue);
+        $label = $isOpened ? 'Seen' : 'Sent';
+        $statusClass = $isOpened ? 'message-status-seen' : 'message-status-sent';
+        $marks = $isOpened ? '&#10003;&#10003;' : '&#10003;';
+
+        return '<span class="message-status ' . $statusClass . '" aria-label="'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '" title="'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '">' . $marks . '</span>';
+    }
 }

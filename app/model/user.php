@@ -48,6 +48,322 @@ if (!function_exists('user_profile_image_url')) {
     }
 }
 
+if (!function_exists('user_display_initials')) {
+    function user_display_initials($fullName, $limit = 2)
+    {
+        $name = trim((string)$fullName);
+        if ($name === '') {
+            return 'U';
+        }
+
+        $parts = preg_split('/\s+/', $name);
+        $initials = '';
+        foreach ($parts as $part) {
+            $part = trim((string)$part);
+            if ($part === '') {
+                continue;
+            }
+
+            $initials .= mb_strtoupper(mb_substr($part, 0, 1));
+            if (mb_strlen($initials) >= (int)$limit) {
+                break;
+            }
+        }
+
+        if ($initials === '') {
+            $initials = mb_strtoupper(mb_substr($name, 0, 1));
+        }
+
+        return $initials !== '' ? $initials : 'U';
+    }
+}
+
+if (!function_exists('user_presence_ensure_schema')) {
+    function user_presence_ensure_schema($pdo)
+    {
+        static $cache = [];
+
+        $cacheKey = is_object($pdo) ? spl_object_hash($pdo) : 'default';
+        if (array_key_exists($cacheKey, $cache)) {
+            return (bool)$cache[$cacheKey];
+        }
+
+        if (tenant_column_exists($pdo, 'users', 'last_active_at')) {
+            $cache[$cacheKey] = true;
+            return true;
+        }
+
+        try {
+            $driver = strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+            if ($driver === 'mysql') {
+                $pdo->exec("ALTER TABLE users ADD COLUMN last_active_at DATETIME NULL AFTER created_at");
+            } else {
+                $pdo->exec("ALTER TABLE users ADD COLUMN last_active_at TIMESTAMP NULL");
+            }
+        } catch (Throwable $e) {
+            // Another request may have added the column already, or the DB may not allow schema changes here.
+        }
+
+        $cache[$cacheKey] = tenant_column_exists($pdo, 'users', 'last_active_at');
+        return (bool)$cache[$cacheKey];
+    }
+}
+
+if (!function_exists('user_presence_touch')) {
+    function user_presence_touch($pdo, $userId, $organizationId = null, $activityAt = null)
+    {
+        $userId = (int)$userId;
+        if ($userId <= 0 || !user_presence_ensure_schema($pdo)) {
+            return false;
+        }
+
+        date_default_timezone_set('Asia/Manila');
+        $activityAt = $activityAt ? (string)$activityAt : date('Y-m-d H:i:s');
+
+        $sql = "UPDATE users SET last_active_at = ? WHERE id = ?";
+        $params = [$activityAt, $userId];
+        $scope = tenant_get_scope($pdo, 'users', '', 'AND', 'organization_id', $organizationId);
+        $sql .= $scope['sql'];
+        $params = array_merge($params, $scope['params']);
+
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute($params);
+    }
+}
+
+if (!function_exists('user_presence_mark_offline')) {
+    function user_presence_mark_offline($pdo, $userId, $organizationId = null)
+    {
+        $userId = (int)$userId;
+        if ($userId <= 0 || !user_presence_ensure_schema($pdo)) {
+            return false;
+        }
+
+        $sql = "UPDATE users SET last_active_at = NULL WHERE id = ?";
+        $params = [$userId];
+        $scope = tenant_get_scope($pdo, 'users', '', 'AND', 'organization_id', $organizationId);
+        $sql .= $scope['sql'];
+        $params = array_merge($params, $scope['params']);
+
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute($params);
+    }
+}
+
+if (!function_exists('get_users_attendance_online_map')) {
+    function get_users_attendance_online_map($pdo, array $userIds)
+    {
+        $statusMap = [];
+        foreach ($userIds as $userId) {
+            $userId = (int)$userId;
+            if ($userId > 0) {
+                $statusMap[$userId] = false;
+            }
+        }
+
+        if (empty($statusMap)) {
+            return [];
+        }
+
+        date_default_timezone_set('Asia/Manila');
+        $today = date('Y-m-d');
+        $ids = array_keys($statusMap);
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+        $sql = "SELECT DISTINCT user_id
+                FROM attendance
+                WHERE user_id IN ($placeholders)
+                  AND att_date = ?
+                  AND time_in IS NOT NULL
+                  AND (time_out IS NULL OR time_out = '00:00:00')";
+        $params = array_merge($ids, [$today]);
+        [$sql, $params] = user_model_append_scope($pdo, $sql, $params, 'attendance');
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $activeUserIds = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+
+        foreach ($activeUserIds as $activeUserId) {
+            $statusMap[(int)$activeUserId] = true;
+        }
+
+        return $statusMap;
+    }
+}
+
+if (!function_exists('get_users_online_map')) {
+    function get_users_online_map($pdo, array $userIds, $freshWindowSeconds = 75)
+    {
+        $statusMap = [];
+        foreach ($userIds as $userId) {
+            $userId = (int)$userId;
+            if ($userId > 0) {
+                $statusMap[$userId] = false;
+            }
+        }
+
+        if (empty($statusMap)) {
+            return [];
+        }
+
+        if (user_presence_ensure_schema($pdo)) {
+            date_default_timezone_set('Asia/Manila');
+            $freshWindowSeconds = max(15, (int)$freshWindowSeconds);
+            $cutoff = date('Y-m-d H:i:s', time() - $freshWindowSeconds);
+            $ids = array_keys($statusMap);
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+            $sql = "SELECT id
+                    FROM users
+                    WHERE id IN ($placeholders)
+                      AND last_active_at IS NOT NULL
+                      AND last_active_at >= ?";
+            $params = array_merge($ids, [$cutoff]);
+            [$sql, $params] = user_model_append_scope($pdo, $sql, $params, 'users');
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $activeUserIds = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+
+            foreach ($activeUserIds as $activeUserId) {
+                $statusMap[(int)$activeUserId] = true;
+            }
+        }
+
+        // Keep attendance as a fallback so existing employee presence behavior does not regress.
+        $attendanceMap = get_users_attendance_online_map($pdo, array_keys($statusMap));
+        foreach ($attendanceMap as $userId => $isAttendanceOnline) {
+            if ($isAttendanceOnline) {
+                $statusMap[(int)$userId] = true;
+            }
+        }
+
+        return $statusMap;
+    }
+}
+
+if (!function_exists('get_users_clocked_in_map')) {
+    function get_users_clocked_in_map($pdo, array $userIds)
+    {
+        return get_users_online_map($pdo, $userIds);
+    }
+}
+
+if (!function_exists('chat_user_presence_label')) {
+    function chat_user_presence_label($isOnline)
+    {
+        return $isOnline ? 'Online' : 'Offline';
+    }
+}
+
+if (!function_exists('chat_user_avatar_html')) {
+    function chat_user_avatar_html($user, $isOnline = false)
+    {
+        $profileUrl = user_profile_image_url($user['profile_image'] ?? '');
+        $initials = user_display_initials($user['full_name'] ?? 'User');
+
+        ob_start();
+        ?>
+        <div class="avatar-md">
+            <?php if ($profileUrl !== '') { ?>
+                <img src="<?= htmlspecialchars($profileUrl, ENT_QUOTES, 'UTF-8') ?>" alt="Profile">
+            <?php } else { ?>
+                <?= htmlspecialchars($initials, ENT_QUOTES, 'UTF-8') ?>
+            <?php } ?>
+            <?php if ($isOnline) { ?>
+                <span class="chat-avatar-status-dot is-online" aria-hidden="true"></span>
+            <?php } ?>
+        </div>
+        <?php
+        return trim(ob_get_clean());
+    }
+}
+
+if (!function_exists('chat_user_presence_html')) {
+    function chat_user_presence_html($isOnline = false)
+    {
+        $statusClass = $isOnline ? 'is-online' : 'is-offline';
+        $label = chat_user_presence_label($isOnline);
+
+        ob_start();
+        ?>
+        <span class="chat-user-presence <?= $statusClass ?>">
+            <span class="chat-user-presence-dot <?= $statusClass ?>" aria-hidden="true"></span>
+            <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
+        </span>
+        <?php
+        return trim(ob_get_clean());
+    }
+}
+
+if (!function_exists('render_chat_user_list_item')) {
+    function render_chat_user_list_item($user, $lastMessage, $unreadCount, $currentUserId)
+    {
+        $userId = (int)($user['id'] ?? 0);
+        $fullName = trim((string)($user['full_name'] ?? 'User'));
+        if ($fullName === '') {
+            $fullName = 'User';
+        }
+
+        $roleLabel = ucfirst((string)($user['role'] ?? 'user'));
+        $lastTimestamp = !empty($lastMessage['created_at']) ? strtotime((string)$lastMessage['created_at']) : 0;
+        if ($lastTimestamp === false) {
+            $lastTimestamp = 0;
+        }
+
+        $isOnline = !empty($user['is_online']);
+        $unreadCount = (int)$unreadCount;
+        $unreadClass = $unreadCount > 0 ? 'unread' : '';
+
+        ob_start();
+        ?>
+        <div class="chat-item <?= $unreadClass ?>"
+             data-id="<?= $userId ?>"
+             data-name="<?= htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8') ?>"
+             data-role="<?= htmlspecialchars($roleLabel, ENT_QUOTES, 'UTF-8') ?>"
+             data-online="<?= $isOnline ? '1' : '0' ?>"
+             data-last-ts="<?= (int)$lastTimestamp ?>">
+            <?= chat_user_avatar_html($user, $isOnline) ?>
+            <div class="chat-item-content">
+                <div class="chat-item-header">
+                    <div class="chat-item-identity">
+                        <span class="chat-user-name"><?= htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8') ?></span>
+                    </div>
+                </div>
+
+                <div class="chat-item-sub-row">
+                    <?php if (!empty($lastMessage)) { ?>
+                        <div class="chat-item-last-msg">
+                            <?php
+                            if ((int)($lastMessage['sender_id'] ?? 0) === (int)$currentUserId) {
+                                echo "You: ";
+                            }
+                            if (!empty($lastMessage['attachment']) && empty($lastMessage['message'])) {
+                                echo "<i class='fa fa-paperclip'></i> Attachment";
+                            } else {
+                                echo htmlspecialchars((string)($lastMessage['message'] ?? ''), ENT_QUOTES, 'UTF-8');
+                            }
+                            ?>
+                        </div>
+                    <?php } else { ?>
+                        <div class="chat-user-role"><?= htmlspecialchars($roleLabel, ENT_QUOTES, 'UTF-8') ?></div>
+                    <?php } ?>
+
+                    <?php if ($unreadCount > 0) { ?>
+                        <span class="message-badge"><?= $unreadCount ?></span>
+                    <?php } ?>
+                </div>
+
+                <?php if (!empty($lastMessage) && !empty($lastMessage['created_at']) && function_exists('formatChatTime')) { ?>
+                    <span class="chat-time"><?= htmlspecialchars((string)formatChatTime($lastMessage['created_at']), ENT_QUOTES, 'UTF-8') ?></span>
+                <?php } ?>
+            </div>
+        </div>
+        <?php
+        return trim(ob_get_clean());
+    }
+}
+
 function insert_user($pdo, $data)
 {
     $orgId = tenant_get_current_org_id();

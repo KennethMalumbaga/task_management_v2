@@ -25,9 +25,19 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     session_write_close();
 }
 
+if ($user_id > 0) {
+    try {
+        require_once 'DB_connection.php';
+        require_once 'app/model/user.php';
+        user_presence_mark_offline($pdo, $user_id, $organization_id);
+    } catch (Throwable $e) {
+        // Logout should proceed even if presence update fails.
+    }
+}
+
 if ($user_id > 0 && $role === 'employee') {
     try {
-        require 'DB_connection.php';
+        require_once 'DB_connection.php';
         require_once 'inc/tenant.php';
         require_once 'inc/attendance_pause.php';
 

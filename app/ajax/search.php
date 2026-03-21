@@ -26,55 +26,17 @@ if (isset($_SESSION['id'])) {
        ob_start();
        if($stmt->rowCount() > 0){ 
            $users = $stmt->fetchAll();
+           $userPresenceMap = get_users_clocked_in_map($pdo, array_column($users, 'id'));
            $hasUser = false;
             foreach ($users as $user) {
                 if ($user['id'] == $_SESSION['id']) continue;
                 $hasUser = true;
                 
                 $lastMessage = lastChat($_SESSION['id'], $user['id'], $pdo);
-                $lastTimestamp = !empty($lastMessage['created_at']) ? strtotime($lastMessage['created_at']) : 0;
-                if ($lastTimestamp === false) $lastTimestamp = 0;
                 $unreadCount = countUnreadChat($user['id'], $_SESSION['id'], $pdo);
-                $unreadClass = ($unreadCount > 0) ? "unread" : "";
+                $user['is_online'] = !empty($userPresenceMap[(int)$user['id']]);
         ?>
-       <div class="chat-item <?=$unreadClass?>" data-id="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>" data-role="<?=ucfirst($user['role'])?>" data-last-ts="<?=$lastTimestamp?>">
-            <div class="avatar-md">
-                 <?php 
-                 if (!empty($user['profile_image']) && file_exists('../../uploads/' . $user['profile_image'])) {
-                     echo '<img src="uploads/'.$user['profile_image'].'" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">';
-                 } else {
-                     echo strtoupper(substr($user['full_name'], 0, 1));
-                 }
-                 ?>
-            </div>
-            <div class="chat-item-content">
-                <div class="chat-item-header">
-                    <span class="chat-user-name"><?= htmlspecialchars($user['full_name']) ?></span>
-                </div>
-                
-                <div class="chat-item-sub-row">
-                    <?php if(!empty($lastMessage)) { ?>
-                        <div class="chat-item-last-msg">
-                            <?php 
-                                if($lastMessage['sender_id'] == $_SESSION['id']) echo "You: ";
-                                if(!empty($lastMessage['attachment']) && empty($lastMessage['message'])) echo "<i class='fa fa-paperclip'></i> Attachment"; 
-                                else echo htmlspecialchars($lastMessage['message']);
-                            ?>
-                        </div>
-                    <?php } else { ?>
-                        <div class="chat-user-role"><?= ucfirst($user['role']) ?></div>
-                    <?php } ?>
-                    
-                    <?php if($unreadCount > 0) { ?>
-                        <span class="message-badge"><?=$unreadCount?></span>
-                    <?php } ?>
-                </div>
-                
-                <?php if(!empty($lastMessage)) { ?>
-                    <span class="chat-time"><?=formatChatTime($lastMessage['created_at'])?></span>
-                <?php } ?>
-            </div>
-       </div>
+       <?= render_chat_user_list_item($user, $lastMessage, $unreadCount, (int)$_SESSION['id']) ?>
        <?php 
            }
            
@@ -118,6 +80,7 @@ if (isset($_SESSION['id'])) {
                    : (!empty($group['created_at']) ? $group['created_at'] : null);
                $groupLastTimestamp = !empty($lastGroupMsg['created_at']) ? strtotime($lastGroupMsg['created_at']) : 0;
                if ($groupLastTimestamp === false) $groupLastTimestamp = 0;
+               $groupPreview = format_group_list_preview($pdo, $lastGroupMsg, (int)$_SESSION['id']);
        ?>
        <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>" data-last-ts="<?=$groupLastTimestamp?>">
             <div class="avatar-md" style="background:var(--primary-soft-3); color:var(--primary);">
@@ -128,7 +91,7 @@ if (isset($_SESSION['id'])) {
                     <span class="chat-user-name"><?=htmlspecialchars($group['name'])?></span>
                 </div>
                 <div class="chat-item-sub-row">
-                    <div class="chat-user-role">Group Chat</div>
+                    <div class="chat-item-last-msg"><?=$groupPreview?></div>
                     <?php if($grpUnread > 0){ ?>
                         <span class="message-badge"><?=$grpUnread?></span>
                     <?php } ?>

@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../inc/tenant.php';
+require_once __DIR__ . '/user.php';
 
 function group_message_scope($pdo, $sql, $params, $table, $alias = '', $joinWord = 'AND')
 {
@@ -142,6 +143,163 @@ function get_group_attachments($pdo, $message_id)
     $stmt = $pdo->prepare("SELECT attachment_name FROM group_message_attachments WHERE message_id = ?");
     $stmt->execute([$message_id]);
     return $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+}
+
+if (!function_exists('format_group_list_preview')) {
+    function format_group_list_preview($pdo, $lastGroupMsg, $currentUserId)
+    {
+        if (empty($lastGroupMsg) || !is_array($lastGroupMsg)) {
+            return 'Group Chat';
+        }
+
+        $senderId = (int)($lastGroupMsg['sender_id'] ?? 0);
+        $senderName = trim((string)($lastGroupMsg['full_name'] ?? ''));
+        $messageText = trim((string)($lastGroupMsg['message'] ?? ''));
+        $messageId = (int)($lastGroupMsg['id'] ?? 0);
+
+        $prefix = '';
+        if ($senderId > 0) {
+            if ($senderId === (int)$currentUserId) {
+                $prefix = 'You: ';
+            } elseif ($senderName !== '') {
+                $prefix = $senderName . ': ';
+            }
+        }
+
+        if ($messageText !== '') {
+            return htmlspecialchars($prefix . $messageText, ENT_QUOTES, 'UTF-8');
+        }
+
+        if ($messageId > 0) {
+            $attachments = get_group_attachments($pdo, $messageId);
+            if (!empty($attachments)) {
+                return htmlspecialchars($prefix, ENT_QUOTES, 'UTF-8') . "<i class='fa fa-paperclip'></i> Attachment";
+            }
+        }
+
+        return 'Group Chat';
+    }
+}
+
+function get_group_message_read_states($pdo, $group_id, $exclude_user_id = 0)
+{
+    if (!table_exists($pdo, 'group_message_reads')) {
+        return [];
+    }
+
+    $group_id = (int)$group_id;
+    $exclude_user_id = (int)$exclude_user_id;
+    if ($group_id <= 0) {
+        return [];
+    }
+
+    $sql = "SELECT gmr.user_id, gmr.last_message_id, u.full_name, u.profile_image
+            FROM group_message_reads gmr
+            JOIN users u ON u.id = gmr.user_id
+            WHERE gmr.group_id = ?
+              AND gmr.last_message_id IS NOT NULL
+              AND gmr.last_message_id > 0";
+    $params = [$group_id];
+
+    if ($exclude_user_id > 0) {
+        $sql .= " AND gmr.user_id <> ?";
+        $params[] = $exclude_user_id;
+    }
+
+    [$sql, $params] = group_message_scope($pdo, $sql, $params, 'group_message_reads', 'gmr');
+    $sql .= " ORDER BY gmr.last_message_id DESC, gmr.user_id ASC";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function build_group_seen_receipt_map($messages, $readStates, $currentUserId)
+{
+    $currentUserId = (int)$currentUserId;
+    $messageIds = [];
+
+    foreach ((array)$messages as $message) {
+        $messageId = (int)($message['id'] ?? 0);
+        if ($messageId > 0) {
+            $messageIds[] = $messageId;
+        }
+    }
+
+    if (empty($messageIds)) {
+        return [];
+    }
+
+    sort($messageIds, SORT_NUMERIC);
+    $receiptMap = [];
+
+    foreach ((array)$readStates as $readState) {
+        $lastReadId = (int)($readState['last_message_id'] ?? 0);
+        if ($lastReadId <= 0) {
+            continue;
+        }
+
+        $anchorMessageId = 0;
+        foreach ($messageIds as $messageId) {
+            if ($messageId > $lastReadId) {
+                break;
+            }
+            $anchorMessageId = $messageId;
+        }
+
+        if ($anchorMessageId <= 0) {
+            continue;
+        }
+
+        if (!isset($receiptMap[$anchorMessageId])) {
+            $receiptMap[$anchorMessageId] = [];
+        }
+
+        $receiptMap[$anchorMessageId][] = $readState;
+    }
+
+    return $receiptMap;
+}
+
+function render_group_seen_receipts($readers, $maxVisible = 4)
+{
+    $readers = is_array($readers) ? array_values($readers) : [];
+    if (empty($readers)) {
+        return '';
+    }
+
+    $maxVisible = max(1, (int)$maxVisible);
+    $visibleReaders = array_slice($readers, 0, $maxVisible);
+    $remainingCount = max(0, count($readers) - count($visibleReaders));
+
+    ob_start();
+    ?>
+    <div class="group-message-seen-row" aria-label="Seen by group members">
+        <?php foreach ($visibleReaders as $reader) { ?>
+            <?php
+            $name = trim((string)($reader['full_name'] ?? 'User'));
+            if ($name === '') {
+                $name = 'User';
+            }
+            $profileUrl = user_profile_image_url($reader['profile_image'] ?? '');
+            $initials = user_display_initials($name);
+            ?>
+            <span class="group-message-seen-avatar" title="<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>">
+                <?php if ($profileUrl !== '') { ?>
+                    <img src="<?= htmlspecialchars($profileUrl, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>">
+                <?php } else { ?>
+                    <span class="group-message-seen-avatar-fallback"><?= htmlspecialchars($initials, ENT_QUOTES, 'UTF-8') ?></span>
+                <?php } ?>
+            </span>
+        <?php } ?>
+        <?php if ($remainingCount > 0) { ?>
+            <span class="group-message-seen-avatar group-message-seen-avatar-more" title="<?= htmlspecialchars($remainingCount . ' more', ENT_QUOTES, 'UTF-8') ?>">
+                <span class="group-message-seen-avatar-fallback">+<?= (int)$remainingCount ?></span>
+            </span>
+        <?php } ?>
+    </div>
+    <?php
+    return trim(ob_get_clean());
 }
 
 function build_group_member_mention_names($members)

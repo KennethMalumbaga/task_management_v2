@@ -18,6 +18,7 @@ if (isset($_SESSION['id'])) {
         include "../../DB_connection.php";
         include "../model/GroupMessage.php";
         include "../model/Group.php";
+        include "../model/Typing.php";
 
         $message = $_POST['message'];
         $group_id = (int)$_POST['group_id'];
@@ -53,6 +54,8 @@ if (isset($_SESSION['id'])) {
                 }
             }
         }
+
+        typing_status_clear_group($pdo, $from_id, $group_id);
     }
 }
 

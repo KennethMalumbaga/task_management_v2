@@ -19,6 +19,7 @@ if (isset($_SESSION['id'])) {
 	
 	include "../../DB_connection.php";
     include "../model/Message.php";
+    include "../model/Typing.php";
 
 	$message = $_POST['message'];
 	$to_id = $_POST['to_id'];
@@ -56,6 +57,8 @@ if (isset($_SESSION['id'])) {
             }
         }
     }
+
+    typing_status_clear_direct($pdo, $from_id, (int)$to_id);
 
 	}
 }

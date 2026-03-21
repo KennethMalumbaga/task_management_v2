@@ -26,6 +26,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     usort($users, function($a, $b) {
         return strtotime($b['last_msg_time']) - strtotime($a['last_msg_time']);
     });
+    $userPresenceMap = get_users_clocked_in_map($pdo, array_column($users, 'id'));
 
     // Fetch groups
     $all_groups = get_groups_for_user($pdo, $_SESSION['id']);
@@ -33,6 +34,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     if (!empty($all_groups)) {
         foreach ($all_groups as $group) {
             $lastGroupMsg = get_last_group_message($pdo, $group['id']);
+            $group['last_message_data'] = $lastGroupMsg;
             $group['last_msg_sort_time'] = (!empty($lastGroupMsg) && !empty($lastGroupMsg['created_at']))
                 ? $lastGroupMsg['created_at']
                 : null;
@@ -101,47 +103,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     if ($users != 0) {
                         foreach ($users as $user) {
                             $lastMessage = $user['last_message_data'];
-                            $lastTimestamp = (!empty($lastMessage['created_at'])) ? strtotime($lastMessage['created_at']) : 0;
-                            if ($lastTimestamp === false) $lastTimestamp = 0;
                             $unreadCount = countUnreadChat($user['id'], $_SESSION['id'], $pdo);
-                            $unreadClass = ($unreadCount > 0) ? "unread" : "";
+                            $user['is_online'] = !empty($userPresenceMap[(int)$user['id']]);
                     ?>
-                    <div class="chat-item <?=$unreadClass?>" data-id="<?=$user['id']?>" data-name="<?=htmlspecialchars($user['full_name'])?>" data-role="<?=ucfirst($user['role'])?>" data-last-ts="<?=$lastTimestamp?>">
-                        <div class="avatar-md">
-                             <?php if (!empty($user['profile_image']) && $user['profile_image'] != 'default.png' && file_exists('uploads/' . $user['profile_image'])): ?>
-                                <img src="uploads/<?=$user['profile_image']?>" alt="Profile" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                             <?php else: ?>
-                                <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
-                             <?php endif; ?>
-                        </div>
-                        <div class="chat-item-content">
-                            <div class="chat-item-header">
-                                <span class="chat-user-name"><?= htmlspecialchars($user['full_name']) ?></span>
-                            </div>
-                            
-                            <div class="chat-item-sub-row">
-                                <?php if(!empty($lastMessage)) { ?>
-                                    <div class="chat-item-last-msg">
-                                        <?php 
-                                            if($lastMessage['sender_id'] == $_SESSION['id']) echo "You: ";
-                                            if(!empty($lastMessage['attachment']) && empty($lastMessage['message'])) echo "<i class='fa fa-paperclip'></i> Attachment"; 
-                                            else echo htmlspecialchars($lastMessage['message']);
-                                        ?>
-                                    </div>
-                                <?php } else { ?>
-                                    <div class="chat-user-role"><?= ucfirst($user['role']) ?></div>
-                                <?php } ?>
-                                
-                                <?php if($unreadCount > 0) { ?>
-                                    <span class="message-badge"><?=$unreadCount?></span>
-                                <?php } ?>
-                            </div>
-                            
-                            <?php if(!empty($lastMessage)) { ?>
-                                <span class="chat-time"><?=formatChatTime($lastMessage['created_at'])?></span>
-                            <?php } ?>
-                        </div>
-                    </div>
+                    <?= render_chat_user_list_item($user, $lastMessage, $unreadCount, (int)$_SESSION['id']) ?>
                     <?php 
                         }
                     } 
@@ -155,8 +120,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="chat-list" id="groupList">
                     <?php if (!empty($groups)) { foreach ($groups as $group) { ?>
                         <?php
+                            $lastGroupMsg = $group['last_message_data'] ?? [];
                             $groupLastTimestamp = !empty($group['last_msg_sort_time']) ? strtotime($group['last_msg_sort_time']) : 0;
                             if ($groupLastTimestamp === false) $groupLastTimestamp = 0;
+                            $groupPreview = format_group_list_preview($pdo, $lastGroupMsg, (int)$_SESSION['id']);
                         ?>
                         <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>" data-last-ts="<?=$groupLastTimestamp?>">
                             <div class="avatar-md" style="background:var(--primary-soft-3); color:var(--primary);">
@@ -167,7 +134,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <span class="chat-user-name"><?=htmlspecialchars($group['name'])?></span>
                                 </div>
                                 <div class="chat-item-sub-row">
-                                    <div class="chat-user-role">Group Chat</div>
+                                    <div class="chat-item-last-msg"><?=$groupPreview?></div>
                                     <?php 
                                         $grpUnread = get_group_unread_count($pdo, $group['id'], $_SESSION['id']);
                                         if($grpUnread > 0){
@@ -210,7 +177,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             </div>
                             <div class="chat-header-info">
                                 <h3 id="chatUserName">User Name</h3>
-                                <span id="chatUserRole">Role</span>
+                                <span id="chatUserMeta" class="chat-header-meta">Offline</span>
                             </div>
                         </div>
                         <div class="chat-info-toggle" id="chatInfoToggle" title="Toggle Info" style="display:none;">
@@ -271,6 +238,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             var mentionSuggestionsData = [];
             var mentionSelectionIndex = -1;
             var currentListFilter = "all";
+            var activeTypingMetaHtml = "";
+            var lastTypingInputAt = 0;
+            var lastTypingStateKey = "";
+            var lastTypingSentAt = 0;
+            var typingStatusRequestInFlight = false;
 
             // Search Filter
              $("#searchText").on("input", function(){
@@ -291,14 +263,264 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             bindFilterTabs();
             applyChatFilter(currentListFilter);
 
+            function buildUserMetaHtml(isOnline){
+                var stateClass = isOnline ? "is-online" : "is-offline";
+                var label = isOnline ? "Online" : "Offline";
+                return '<span class="chat-user-presence ' + stateClass + '"><span class="chat-user-presence-dot ' + stateClass + '"></span>' + label + '</span>';
+            }
+
+            function updateUserHeaderFromItem(chatItem){
+                if (!chatItem || !chatItem.length) return;
+
+                var userName = chatItem.attr("data-name") || "User";
+                var isOnline = String(chatItem.attr("data-online") || "") === "1";
+                var avatarHtml = chatItem.find(".avatar-md").html();
+
+                $("#chatUserName").text(userName);
+                $("#chatUserMeta").html(buildUserMetaHtml(isOnline));
+                $("#headerAvatar").html(avatarHtml);
+            }
+
+            function syncActiveChatHeader(){
+                if (currentChatType === "user" && currentChatUserId != 0) {
+                    var activeUserItem = $('.chat-item[data-id="' + currentChatUserId + '"]').not(".group-item").first();
+                    if (activeUserItem.length > 0) {
+                        updateUserHeaderFromItem(activeUserItem);
+                    }
+                    return;
+                }
+
+                if (currentChatType === "group" && currentGroupId != 0) {
+                    var activeGroupItem = $('.group-item[data-group-id="' + currentGroupId + '"]').first();
+                    if (activeGroupItem.length > 0) {
+                        var groupName = activeGroupItem.attr("data-group-name") || "Group";
+                        $("#chatUserName").text(groupName);
+                    }
+                    $("#chatUserMeta").text("Group Chat");
+                    $("#headerAvatar").html('<i class="fa fa-users"></i>');
+                }
+            }
+
+            function getActiveTypingContext() {
+                if (currentChatType === "group" && currentGroupId != 0) {
+                    return {
+                        type: "group",
+                        id: parseInt(currentGroupId, 10) || 0,
+                        key: "group:" + currentGroupId
+                    };
+                }
+
+                if (currentChatType === "user" && currentChatUserId != 0) {
+                    return {
+                        type: "user",
+                        id: parseInt(currentChatUserId, 10) || 0,
+                        key: "user:" + currentChatUserId
+                    };
+                }
+
+                return null;
+            }
+
+            function buildTypingAvatarStackHtml(avatars) {
+                if (!Array.isArray(avatars) || avatars.length === 0) {
+                    return "";
+                }
+
+                var html = '<span class="chat-typing-avatar-stack" aria-hidden="true">';
+                for (var i = 0; i < avatars.length && i < 2; i++) {
+                    var avatar = avatars[i] || {};
+                    var imageUrl = $.trim(avatar.image_url || "");
+                    var initials = $.trim(avatar.initials || "?") || "?";
+                    var name = $.trim(avatar.name || "User") || "User";
+
+                    html += '<span class="chat-typing-avatar" title="' + escapeHtml(name) + '">';
+                    if (imageUrl !== "") {
+                        html += '<img src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(name) + '">';
+                    } else {
+                        html += '<span class="chat-typing-avatar-fallback">' + escapeHtml(initials) + '</span>';
+                    }
+                    html += '</span>';
+                }
+                html += '</span>';
+
+                return html;
+            }
+
+            function buildTypingMetaHtml(label, avatars) {
+                var safeLabel = $.trim(label || "") || "Typing";
+                var avatarHtml = buildTypingAvatarStackHtml(avatars);
+                return '<div class="message-incoming chat-typing-message" id="chatTypingIndicator">' +
+                            avatarHtml +
+                            '<div class="message-structure">' +
+                                '<div class="chat-typing-bubble" role="status" aria-live="polite" aria-label="' + escapeHtml(safeLabel) + '">' +
+                                    '<span class="chat-typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>' +
+                                '</div>' +
+                            '</div>' +
+                       '</div>';
+            }
+
+            function isChatBoxNearBottom() {
+                var chatBox = $("#chatBox");
+                if (chatBox.length === 0 || !chatBox[0]) {
+                    return true;
+                }
+
+                return chatBox[0].scrollHeight - chatBox[0].scrollTop <= chatBox[0].clientHeight + 50;
+            }
+
+            function renderTypingIndicatorInChat(shouldScroll) {
+                var chatBox = $("#chatBox");
+                if (chatBox.length === 0) {
+                    return;
+                }
+
+                chatBox.find("#chatTypingIndicator").remove();
+                if (activeTypingMetaHtml !== "") {
+                    chatBox.append(activeTypingMetaHtml);
+                }
+
+                if (shouldScroll) {
+                    scrollDown();
+                }
+            }
+
+            function applyTypingMetaHtml(html) {
+                var shouldScroll = isChatBoxNearBottom();
+                activeTypingMetaHtml = html || "";
+                renderTypingIndicatorInChat(shouldScroll);
+            }
+
+            function postTypingState(context, isTyping) {
+                if (!context || !context.id) return;
+
+                var payload = {
+                    is_typing: isTyping ? 1 : 0,
+                    csrf_token: chatAjaxCsrfToken
+                };
+
+                if (context.type === "group") {
+                    payload.group_id = context.id;
+                } else {
+                    payload.user_id = context.id;
+                }
+
+                $.ajax({
+                    url: 'app/ajax/setTypingStatus.php',
+                    type: 'POST',
+                    data: payload
+                });
+            }
+
+            function syncOwnTypingState(isTyping, force, contextOverride) {
+                var context = contextOverride || getActiveTypingContext();
+                if (!context || !context.id) {
+                    if (!isTyping) {
+                        lastTypingStateKey = "";
+                        lastTypingSentAt = 0;
+                    }
+                    return;
+                }
+
+                if (!isTyping && lastTypingStateKey === "") {
+                    return;
+                }
+
+                var nextStateKey = context.key + ":" + (isTyping ? "1" : "0");
+                var now = Date.now();
+
+                if (lastTypingStateKey === nextStateKey) {
+                    if (!isTyping) {
+                        if (!force || (now - lastTypingSentAt) < 400) {
+                            return;
+                        }
+                    } else if ((now - lastTypingSentAt) < 1800) {
+                        return;
+                    }
+                }
+
+                postTypingState(context, isTyping);
+                lastTypingStateKey = nextStateKey;
+                lastTypingSentAt = now;
+            }
+
+            function maintainOwnTypingState() {
+                var context = getActiveTypingContext();
+                if (!context) {
+                    return;
+                }
+
+                var hasText = $.trim($("#messageInput").val() || "") !== "";
+                var isActivelyTyping = hasText && lastTypingInputAt > 0 && (Date.now() - lastTypingInputAt) < 4000;
+
+                if (!hasText && /:1$/.test(lastTypingStateKey)) {
+                    syncOwnTypingState(false, true);
+                    return;
+                }
+
+                syncOwnTypingState(isActivelyTyping, false);
+            }
+
+            function refreshTypingStatus() {
+                var context = getActiveTypingContext();
+                if (!context || !context.id || typingStatusRequestInFlight) {
+                    if (!context) {
+                        applyTypingMetaHtml("");
+                    }
+                    return;
+                }
+
+                typingStatusRequestInFlight = true;
+                var requestKey = context.key;
+                var payload = { csrf_token: chatAjaxCsrfToken };
+
+                if (context.type === "group") {
+                    payload.group_id = context.id;
+                } else {
+                    payload.user_id = context.id;
+                }
+
+                $.ajax({
+                    url: 'app/ajax/getTypingStatus.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: payload
+                }).done(function(res){
+                    var activeContext = getActiveTypingContext();
+                    if (!activeContext || activeContext.key !== requestKey) {
+                        return;
+                    }
+
+                    if (res && res.ok && res.typing) {
+                        applyTypingMetaHtml(buildTypingMetaHtml(res.label, res.avatars || []));
+                        return;
+                    }
+
+                    applyTypingMetaHtml("");
+                }).always(function(){
+                    typingStatusRequestInFlight = false;
+                });
+            }
+
             function bindChatClicks(){
                 $(".chat-item").off("click.chatUser").on("click.chatUser", function(){
                     if ($(this).hasClass("group-item")) return;
 
                     // Data
                     var userId = $(this).attr("data-id");
-                    var userName = $(this).attr("data-name");
-                    var userRole = $(this).attr("data-role");
+                    var previousContext = getActiveTypingContext();
+                    var nextTypingKey = "user:" + userId;
+                    var hasContextChanged = !previousContext || previousContext.key !== nextTypingKey;
+
+                    if (previousContext && hasContextChanged) {
+                        syncOwnTypingState(false, true, previousContext);
+                    }
+
+                    if (hasContextChanged) {
+                        lastTypingInputAt = 0;
+                        lastTypingStateKey = "";
+                        lastTypingSentAt = 0;
+                        applyTypingMetaHtml("");
+                    }
                     
                     // Styles
                     $(".chat-item").removeClass("active");
@@ -339,9 +561,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                           }
                     }
 
-                    // Avatar clone for header
-                    var avatarHtml = $(this).find(".avatar-md").html();
-
                     currentChatUserId = userId;
                     currentGroupId = 0;
                     currentChatType = "user";
@@ -351,9 +570,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     // UI Update
                     $("#noChatSelected").hide();
                     $("#chatInterface").css("display", "flex");
-                    $("#chatUserName").text(userName);
-                    $("#chatUserRole").text(userRole);
-                    $("#headerAvatar").html(avatarHtml);
+                    updateUserHeaderFromItem($(this));
                     
                     // UI Reset for User Chat
                     $("#chatInfoToggle").hide();
@@ -373,6 +590,20 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 $(".group-item").off("click.chatGroup").on("click.chatGroup", function(){
                     var groupId = $(this).attr("data-group-id");
                     var groupName = $(this).attr("data-group-name");
+                    var previousContext = getActiveTypingContext();
+                    var nextTypingKey = "group:" + groupId;
+                    var hasContextChanged = !previousContext || previousContext.key !== nextTypingKey;
+
+                    if (previousContext && hasContextChanged) {
+                        syncOwnTypingState(false, true, previousContext);
+                    }
+
+                    if (hasContextChanged) {
+                        lastTypingInputAt = 0;
+                        lastTypingStateKey = "";
+                        lastTypingSentAt = 0;
+                        applyTypingMetaHtml("");
+                    }
 
                     // Styles
                     $(".chat-item").removeClass("active");
@@ -419,7 +650,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     $("#noChatSelected").hide();
                     $("#chatInterface").css("display", "flex");
                     $("#chatUserName").text(groupName);
-                    $("#chatUserRole").text("Group");
+                    $("#chatUserMeta").text("Group Chat");
                     $("#headerAvatar").html('<i class="fa fa-users"></i>');
                     
                     // UI Set for Group Chat
@@ -505,6 +736,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
                 bindChatClicks();
                 bindGroupClicks();
+                syncActiveChatHeader();
             }
 
             $("#chatInfoToggle").click(function(){
@@ -620,6 +852,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
             $("#messageInput").on("input", function(){
                 updateMentionSuggestions();
+                var hasText = $.trim($(this).val() || "") !== "";
+                lastTypingInputAt = hasText ? Date.now() : 0;
+                syncOwnTypingState(hasText, true);
             });
 
             $("#messageInput").on("keydown", function(e){
@@ -701,6 +936,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     contentType: false,
                     success: function(data) {
                         $("#messageInput").val("");
+                        lastTypingInputAt = 0;
+                        syncOwnTypingState(false, true);
                         hideMentionSuggestions();
                         resetAttachment();
                         loadMessages(true); // true to force scroll
@@ -722,6 +959,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     var isScrolledToBottom = chatBox[0].scrollHeight - chatBox[0].scrollTop <= chatBox[0].clientHeight + 50;
                     
                     $("#chatBox").html(data);
+                    renderTypingIndicatorInChat(false);
                     
                     // Scroll down if we were already at bottom or if forced (like after sending)
                     if(isScrolledToBottom || forceScroll) {
@@ -740,6 +978,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 loadMessages();
                 refreshChatLists();
             }, 3000); // Check every 3 seconds
+
+            setInterval(function(){
+                maintainOwnTypingState();
+                refreshTypingStatus();
+            }, 1500);
 
             function refreshChatLists(){
                 // Only refresh if search is empty to avoid interrupting typing

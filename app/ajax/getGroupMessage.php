@@ -33,12 +33,22 @@ if (isset($_SESSION['id'])) {
         $mentionNames = build_group_member_mention_names($groupMembers);
 
         $messages = get_group_messages($pdo, $group_id);
+        $readStates = get_group_message_read_states($pdo, $group_id, $user_id);
+        $seenReceiptMap = build_group_seen_receipt_map($messages, $readStates, $user_id);
 
         if (!empty($messages)) {
+            $lastDateKey = null;
             foreach ($messages as $msg) {
+                $currentDateKey = chat_message_day_key($msg['created_at']);
+                if ($currentDateKey !== '' && $currentDateKey !== $lastDateKey) {
+                    echo render_chat_date_separator($msg['created_at']);
+                    $lastDateKey = $currentDateKey;
+                }
+
                 $attachments = get_group_attachments($pdo, $msg['id']);
                 $isMine = ((int)$msg['sender_id'] === (int)$user_id);
                 $formattedMessage = format_group_message_mentions($msg['message'], $mentionNames);
+                $seenReaders = $seenReceiptMap[(int)$msg['id']] ?? [];
                 
                 // Prepare Avatar
                 $avatarHtml = '';
@@ -50,6 +60,7 @@ if (isset($_SESSION['id'])) {
                     }
                 }
 ?>
+        <div class="group-chat-message-block <?= $isMine ? 'is-outgoing' : 'is-incoming' ?>">
         <?php if ($isMine) { ?>
             <div class="message-outgoing">
                  <div class="message-bubble-outgoing">
@@ -77,7 +88,7 @@ if (isset($_SESSION['id'])) {
                     } 
                     ?>
                  </div>
-                 <div class="message-time"><?=formatChatTime($msg['created_at'])?></div>
+                 <div class="message-time"><?=format_chat_message_time($msg['created_at'])?></div>
             </div>
         <?php } else { ?>
             <div class="message-incoming">
@@ -111,10 +122,16 @@ if (isset($_SESSION['id'])) {
                         } 
                         ?>
                      </div>
-                     <div class="message-time"><?=formatChatTime($msg['created_at'])?></div>
+                     <div class="message-time"><?=format_chat_message_time($msg['created_at'])?></div>
                  </div>
             </div>
         <?php } ?>
+        <?php if (!empty($seenReaders)) { ?>
+            <div class="group-message-seen-anchor">
+                <?=render_group_seen_receipts($seenReaders)?>
+            </div>
+        <?php } ?>
+        </div>
 <?php
             }
         }

@@ -2521,9 +2521,38 @@ body.messages-page .chat-info-content {
     background: linear-gradient(180deg, {{darkSurface2}} 0%, {{darkSurface3}} 100%) !important;
 }
 
+body.messages-page .messages-page-main .chat-date-separator {
+    color: {{darkMuted}} !important;
+}
+
+body.messages-page .messages-page-main .chat-date-separator::before,
+body.messages-page .messages-page-main .chat-date-separator::after {
+    background: {{darkBorderSoft}} !important;
+}
+
 body.messages-page .messages-page-main .message-bubble-incoming {
     background: {{darkSurface3}} !important;
     color: {{darkText}} !important;
+}
+
+body.messages-page .messages-page-main .chat-typing-bubble {
+    background: {{darkSurface2}} !important;
+    color: {{darkText}} !important;
+    border-color: {{darkBorderSoft}} !important;
+}
+
+body.messages-page .messages-page-main .chat-typing-message .chat-typing-avatar {
+    border-color: {{darkSurface2}} !important;
+}
+
+body.messages-page .messages-page-main .group-message-seen-avatar {
+    background: {{darkSurface2}} !important;
+    color: {{darkText}} !important;
+    border-color: {{darkSurface}} !important;
+}
+
+body.messages-page .messages-page-main .group-message-seen-avatar-more {
+    background: {{darkBorderSoft}} !important;
 }
 
 body.messages-page .messages-page-main .chat-header-info h3,
