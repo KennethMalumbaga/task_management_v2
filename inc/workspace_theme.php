@@ -2551,6 +2551,12 @@ body.messages-page .messages-page-main .group-message-seen-avatar {
     border-color: {{darkSurface}} !important;
 }
 
+body.messages-page .messages-page-main .direct-message-seen-avatar {
+    background: {{darkSurface2}} !important;
+    color: {{darkText}} !important;
+    border-color: {{darkSurface}} !important;
+}
+
 body.messages-page .messages-page-main .group-message-seen-avatar-more {
     background: {{darkBorderSoft}} !important;
 }

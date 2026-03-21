@@ -313,14 +313,51 @@ if (!function_exists('render_chat_read_receipt')) {
     function render_chat_read_receipt($openedValue)
     {
         $isOpened = chat_message_is_opened($openedValue);
-        $label = $isOpened ? 'Seen' : 'Sent';
-        $statusClass = $isOpened ? 'message-status-seen' : 'message-status-sent';
-        $marks = $isOpened ? '&#10003;&#10003;' : '&#10003;';
+        if ($isOpened) {
+            return '';
+        }
+
+        $label = 'Sent';
+        $statusClass = 'message-status-sent';
+        $marks = '&#10003;';
 
         return '<span class="message-status ' . $statusClass . '" aria-label="'
             . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
             . '" title="'
             . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
             . '">' . $marks . '</span>';
+    }
+}
+
+if (!function_exists('find_last_seen_direct_chat_anchor_id')) {
+    function find_last_seen_direct_chat_anchor_id($chats, $currentUserId, $otherUserId)
+    {
+        $currentUserId = (int)$currentUserId;
+        $otherUserId = (int)$otherUserId;
+        if ($currentUserId <= 0 || $otherUserId <= 0 || !is_array($chats)) {
+            return 0;
+        }
+
+        $lastAnchorChatId = 0;
+        $hasOutgoingMessage = false;
+        foreach ($chats as $chat) {
+            $chatId = (int)($chat['chat_id'] ?? 0);
+            $senderId = (int)($chat['sender_id'] ?? 0);
+
+            if ($senderId === $currentUserId) {
+                $hasOutgoingMessage = true;
+            }
+
+            if ($senderId === $otherUserId && $hasOutgoingMessage && $chatId > $lastAnchorChatId) {
+                $lastAnchorChatId = $chatId;
+                continue;
+            }
+
+            if ($senderId === $currentUserId && chat_message_is_opened($chat['opened'] ?? false) && $chatId > $lastAnchorChatId) {
+                $lastAnchorChatId = $chatId;
+            }
+        }
+
+        return $lastAnchorChatId;
     }
 }
