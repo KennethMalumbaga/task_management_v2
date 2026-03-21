@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.env.local
+uploads/
+screenshots/
+tmp/
+videos/
+extension.zip
+extension.crx
+screenshot_debug.log
