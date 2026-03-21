@@ -4,6 +4,11 @@ set -eu
 APP_ROOT="/var/www/html"
 STORAGE_ROOT="/data"
 
+# Ensure Apache uses the mod_php-compatible MPM at container startup.
+a2dismod mpm_event >/dev/null 2>&1 || true
+a2dismod mpm_worker >/dev/null 2>&1 || true
+a2enmod mpm_prefork >/dev/null 2>&1 || true
+
 prepare_path() {
     name="$1"
     target="$STORAGE_ROOT/$name"
