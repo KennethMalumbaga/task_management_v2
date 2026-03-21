@@ -1469,8 +1469,108 @@ body.print-dtr-only .dtr-form-header { display: block; }
 }
 
 @media (max-width: 720px) {
-    .metrics-grid { grid-template-columns: 1fr; }
+    .report-header {
+        gap: 12px;
+    }
+
+    .report-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .report-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .reports-page .reports-filters {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: end;
+        gap: 10px;
+        padding: 14px;
+    }
+
+    .reports-page .reports-filters .filter-group {
+        min-width: 0;
+        max-width: none;
+    }
+
+    .reports-page .reports-filters .filter-group:nth-child(5),
+    .reports-page .reports-filters .filter-actions {
+        grid-column: 1 / -1;
+    }
+
+    .reports-page .reports-filters .filter-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding-bottom: 0;
+    }
+
+    .reports-page .reports-filters .filter-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .metrics-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .reports-page .reports-stats-grid .metric-card {
+        padding: 12px 10px;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .reports-page .reports-stats-grid .metric-card > div:last-child {
+        min-width: 0;
+    }
+
+    .reports-page .reports-stats-grid .metric-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+    }
+
+    .reports-page .reports-stats-grid .metric-icon svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .reports-page .reports-stats-grid .metric-label {
+        font-size: 9px;
+        line-height: 1.2;
+        margin-bottom: 3px;
+    }
+
+    .reports-page .reports-stats-grid .metric-value {
+        font-size: 18px;
+    }
+
+    .reports-page .reports-stats-grid .metric-sub {
+        font-size: 10px;
+        line-height: 1.25;
+    }
+
     .alerts-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+    .reports-page .reports-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .reports-page .reports-filters .filter-group:nth-child(5),
+    .reports-page .reports-filters .filter-actions {
+        grid-column: auto;
+    }
+
+    .reports-page .reports-filters .filter-actions {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 @media print {

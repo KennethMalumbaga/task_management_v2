@@ -230,9 +230,6 @@ $isFreeTrialActive = $isFreeTrialStatus && !$isFreeTrialExpired;
 $subscriptionStateLabel = $isSubscriptionBlocked
     ? ($isFreeTrialExpired ? 'FREE TRIAL EXPIRED' : 'EXPIRED')
     : ($isFreeTrialActive ? 'FREE TRIAL' : (in_array($subscriptionStatusRaw, ['active'], true) ? 'ACTIVE' : strtoupper((string)$subscriptionStatusText)));
-$heroSubscriptionValueClass = $isFreeTrialStatus
-    ? ($isFreeTrialExpired ? 'billing-v2-value-warn' : 'billing-v2-value-trial')
-    : ($isSubscriptionBlocked ? 'billing-v2-value-warn' : 'billing-v2-value-ok');
 $showTrialStatusCard = $isFreeTrialStatus || $isSubscriptionBlocked;
 $trialCardIsAlert = $isSubscriptionBlocked || $isFreeTrialExpired;
 $expiredReferenceDate = $trialEndsShort !== 'N/A' ? $trialEndsShort : $periodEndsShort;
@@ -309,7 +306,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                 </div>
                 <div class="workspace-hero-stat billing-v2-hero-stat">
                     <span>Subscription</span>
-                    <strong class="<?= $heroSubscriptionValueClass ?>"><?= htmlspecialchars($subscriptionStateLabel) ?></strong>
+                    <strong><?= htmlspecialchars($subscriptionStateLabel) ?></strong>
                 </div>
                 <div class="workspace-hero-stat billing-v2-hero-stat">
                     <span>Seats</span>

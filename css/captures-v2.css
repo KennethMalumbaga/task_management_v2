@@ -963,7 +963,44 @@
 
 @media (max-width: 700px) {
     .captures-v2-page .stats {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .captures-v2-page .sc {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 8px;
+        min-width: 0;
+    }
+
+    .captures-v2-page .si {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+    }
+
+    .captures-v2-page .si i {
+        font-size: 13px;
+    }
+
+    .captures-v2-page .sv {
+        font-size: 16px;
+        line-height: 1.05;
+    }
+
+    .captures-v2-page .sv.mono {
+        font-size: 10px;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    .captures-v2-page .sl {
+        font-size: 9px;
+        line-height: 1.2;
+        margin-top: 1px;
+        word-break: break-word;
     }
 }
 
