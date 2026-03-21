@@ -161,13 +161,13 @@ if (!function_exists('subtask_timeline_phase_is_valid_for_task')) {
         $sql = "SELECT 1
                 FROM project_timeline_phases pp
                 JOIN project_timeline_tasks tt ON tt.id = pp.timeline_task_id
-                WHERE pp.id = ? AND tt.project_id = ?
-                LIMIT 1";
+                WHERE pp.id = ? AND tt.project_id = ?";
 
         $params = [$timelinePhaseId, $taskId];
         $phaseScope = tenant_get_scope($pdo, 'project_timeline_phases', 'pp');
         $taskScope = tenant_get_scope($pdo, 'project_timeline_tasks', 'tt');
         $sql .= $phaseScope['sql'] . $taskScope['sql'];
+        $sql .= " LIMIT 1";
         $params = array_merge($params, $phaseScope['params'], $taskScope['params']);
 
         $stmt = $pdo->prepare($sql);
@@ -237,12 +237,12 @@ if (!function_exists('subtask_task_has_timeline_phases')) {
         $sql = "SELECT 1
                 FROM project_timeline_phases pp
                 JOIN project_timeline_tasks tt ON tt.id = pp.timeline_task_id
-                WHERE tt.project_id = ?
-                LIMIT 1";
+                WHERE tt.project_id = ?";
         $params = [$taskId];
         $phaseScope = tenant_get_scope($pdo, 'project_timeline_phases', 'pp');
         $taskScope = tenant_get_scope($pdo, 'project_timeline_tasks', 'tt');
         $sql .= $phaseScope['sql'] . $taskScope['sql'];
+        $sql .= " LIMIT 1";
         $params = array_merge($params, $phaseScope['params'], $taskScope['params']);
 
         $stmt = $pdo->prepare($sql);
@@ -275,13 +275,13 @@ if (!function_exists('subtask_get_phase_due_window')) {
                 FROM project_timeline_phases pp
                 JOIN project_timeline_tasks tt ON tt.id = pp.timeline_task_id
                 JOIN tasks t ON t.id = tt.project_id
-                WHERE tt.project_id = ? AND pp.id = ?
-                LIMIT 1";
+                WHERE tt.project_id = ? AND pp.id = ?";
         $params = [$taskId, $timelinePhaseId];
         $phaseScope = tenant_get_scope($pdo, 'project_timeline_phases', 'pp');
         $taskScope = tenant_get_scope($pdo, 'project_timeline_tasks', 'tt');
         $projectScope = tenant_get_scope($pdo, 'tasks', 't');
         $sql .= $phaseScope['sql'] . $taskScope['sql'] . $projectScope['sql'];
+        $sql .= " LIMIT 1";
         $params = array_merge($params, $phaseScope['params'], $taskScope['params'], $projectScope['params']);
 
         $stmt = $pdo->prepare($sql);
@@ -433,9 +433,9 @@ if (!function_exists('subtask_get_task_leader_user_id')) {
 
         $sql = "SELECT user_id
                 FROM task_assignees
-                WHERE task_id = ? AND role = 'leader'
-                ORDER BY id ASC";
+                WHERE task_id = ? AND role = 'leader'";
         [$sql, $params] = subtask_append_scope($pdo, $sql, [$taskId], 'task_assignees');
+        $sql .= " ORDER BY id ASC";
         $sql .= " LIMIT 1";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -473,9 +473,9 @@ if (!function_exists('subtask_fetch_timeline_phases_for_task_lane')) {
 
         $sql = "SELECT id, timeline_task_id, name, start_day, duration_days
                 FROM project_timeline_phases
-                WHERE timeline_task_id = ?
-                ORDER BY sort_order ASC, id ASC";
+                WHERE timeline_task_id = ?";
         [$sql, $params] = subtask_append_scope($pdo, $sql, [$timelineTaskId], 'project_timeline_phases');
+        $sql .= " ORDER BY sort_order ASC, id ASC";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -504,9 +504,9 @@ if (!function_exists('subtask_resolve_autosync_member_id')) {
 
         $sql = "SELECT user_id
                 FROM task_assignees
-                WHERE task_id = ?
-                ORDER BY CASE WHEN role = 'leader' THEN 0 ELSE 1 END, id ASC";
+                WHERE task_id = ?";
         [$sql, $params] = subtask_append_scope($pdo, $sql, [$projectId], 'task_assignees');
+        $sql .= " ORDER BY CASE WHEN role = 'leader' THEN 0 ELSE 1 END, id ASC";
         $sql .= " LIMIT 1";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -631,8 +631,9 @@ if (!function_exists('subtask_sync_all_phases_for_project_task')) {
             return ['total' => 0, 'synced' => 0];
         }
 
-        $sql = "SELECT id FROM project_timeline_tasks WHERE project_id = ? ORDER BY id ASC";
+        $sql = "SELECT id FROM project_timeline_tasks WHERE project_id = ?";
         [$sql, $params] = subtask_append_scope($pdo, $sql, [$projectId], 'project_timeline_tasks');
+        $sql .= " ORDER BY id ASC";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $timelineTaskIds = $stmt->fetchAll(PDO::FETCH_COLUMN);

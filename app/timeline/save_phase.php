@@ -64,6 +64,7 @@ try {
         );
         $phaseSubtaskSynced = (bool)$syncedSubtask;
     } catch (Throwable $syncErr) {
+        error_log('Timeline phase subtask sync failed: ' . $syncErr->getMessage());
         $phaseSubtaskSynced = false;
     }
 

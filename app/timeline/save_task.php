@@ -57,6 +57,7 @@ try {
             (int)$auth['id']
         );
     } catch (Throwable $syncErr) {
+        error_log('Timeline task phase-subtask sync failed: ' . $syncErr->getMessage());
         $phaseSubtaskSync = ['total' => 0, 'synced' => 0];
     }
 
