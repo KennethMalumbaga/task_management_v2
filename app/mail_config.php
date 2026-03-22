@@ -86,10 +86,13 @@ if ($appUrl === '') {
 }
 
 define('MAIL_HOST', getenv('MAIL_HOST') ?: 'smtp.gmail.com');
+define('MAIL_DRIVER', getenv('MAIL_DRIVER') ?: 'auto');
 define('MAIL_USERNAME', getenv('MAIL_USERNAME') ?: 'taskflowcore@gmail.com');
 define('MAIL_PASSWORD', getenv('MAIL_PASSWORD') ?: '');
 define('MAIL_PORT', (int)(getenv('MAIL_PORT') ?: 587));
 define('MAIL_FROM_ADDRESS', getenv('MAIL_FROM_ADDRESS') ?: MAIL_USERNAME);
 define('MAIL_FROM_NAME', getenv('MAIL_FROM_NAME') ?: 'Task Management System');
+define('RESEND_API_KEY', getenv('RESEND_API_KEY') ?: '');
+define('RESEND_FROM_ADDRESS', getenv('RESEND_FROM_ADDRESS') ?: '');
 define('APP_URL', rtrim($appUrl !== '' ? $appUrl : 'http://localhost/task_management', '/'));
 ?>
