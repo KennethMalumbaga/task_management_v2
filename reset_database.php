@@ -30,6 +30,69 @@ function reset_table_exists(PDO $pdo, string $table): bool
     return tenant_table_exists($pdo, $table);
 }
 
+function reset_get_global_tables(): array
+{
+    // Keep child tables before parents so MySQL truncation stays predictable.
+    return [
+        'group_message_attachments',
+        'group_message_reads',
+        'group_messages',
+        'chat_attachments',
+        'chat_typing_statuses',
+        'chat_hidden_threads',
+        'screenshots',
+        'attendance_pauses',
+        'attendance_adjustments',
+        'group_members',
+        'notifications',
+        'leader_feedback',
+        'project_timeline_phases',
+        'subtasks',
+        'task_assignees',
+        'project_timeline_tasks',
+        'groups',
+        'workspace_invites',
+        'bulletin_posts',
+        'user_login_verifications',
+        'chats',
+        'attendance',
+        'tasks',
+        'password_resets',
+        'organization_members',
+        'subscriptions',
+        'users',
+        'organizations'
+    ];
+}
+
+function reset_get_tenant_scoped_tables(): array
+{
+    // Only tables that can be safely cleared by organization_id belong here.
+    return [
+        'group_message_reads',
+        'group_messages',
+        'chats',
+        'chat_hidden_threads',
+        'chat_typing_statuses',
+        'screenshots',
+        'attendance_pauses',
+        'attendance_adjustments',
+        'attendance',
+        'notifications',
+        'leader_feedback',
+        'project_timeline_phases',
+        'project_timeline_tasks',
+        'subtasks',
+        'task_assignees',
+        'group_members',
+        'groups',
+        'tasks',
+        'password_resets',
+        'workspace_invites',
+        'bulletin_posts'
+    ];
+}
+
 function reset_should_return_to_dashboard(): bool
 {
     if (PHP_SAPI === 'cli') {
@@ -75,26 +138,7 @@ try {
         }
         reset_print_line("Global mode enabled.");
 
-        $tables = [
-            'group_message_reads',
-            'group_messages',
-            'chat_attachments',
-            'chats',
-            'screenshots',
-            'attendance',
-            'notifications',
-            'leader_feedback',
-            'subtasks',
-            'task_assignees',
-            'group_members',
-            'groups',
-            'tasks',
-            'password_resets',
-            'organization_members',
-            'subscriptions',
-            'users',
-            'organizations'
-        ];
+        $tables = reset_get_global_tables();
 
         $existingTables = [];
         foreach ($tables as $table) {
@@ -159,21 +203,7 @@ try {
         }
         reset_print_line("Tenant-safe mode for org_id={$orgId}");
 
-        $tables = [
-            'group_message_reads',
-            'group_messages',
-            'chats',
-            'screenshots',
-            'attendance',
-            'notifications',
-            'leader_feedback',
-            'subtasks',
-            'task_assignees',
-            'group_members',
-            'groups',
-            'tasks',
-            'password_resets'
-        ];
+        $tables = reset_get_tenant_scoped_tables();
 
         foreach ($tables as $table) {
             if (!reset_table_exists($pdo, $table)) {
