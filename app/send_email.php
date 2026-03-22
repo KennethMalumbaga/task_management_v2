@@ -99,6 +99,23 @@ if (!function_exists('tm_mail_extract_error_message')) {
     }
 }
 
+if (!function_exists('tm_mail_resolve_login_verification_recipient')) {
+    function tm_mail_resolve_login_verification_recipient($toEmail)
+    {
+        $toEmail = trim((string)$toEmail);
+        $override = trim((string)RESEND_TEST_TO);
+        if ($override === '') {
+            return $toEmail;
+        }
+        if (!tm_mail_is_railway_runtime() || !tm_mail_should_use_resend()) {
+            return $toEmail;
+        }
+
+        error_log("Verification email test override active: sending to {$override} instead of {$toEmail}");
+        return $override;
+    }
+}
+
 if (!function_exists('tm_mail_send_via_resend')) {
     function tm_mail_send_via_resend($toEmail, $subject, $htmlBody, $textBody, $errorPrefix)
     {
@@ -295,6 +312,7 @@ function send_workspace_invite_email($to_email, $full_name, $workspace_name, $to
 }
 
 function send_login_verification_code_email($to_email, $full_name, $code) {
+    $recipientEmail = tm_mail_resolve_login_verification_recipient($to_email);
     $htmlBody = "
         <h2>Login Verification</h2>
         <p>Hello {$full_name},</p>
@@ -308,7 +326,7 @@ function send_login_verification_code_email($to_email, $full_name, $code) {
     $textBody = "Hello {$full_name}. Your TaskFlow verification code is {$code}. It expires in 10 minutes.";
 
     return tm_send_app_mail(
-        $to_email,
+        $recipientEmail,
         $full_name,
         'Your TaskFlow verification code',
         $htmlBody,

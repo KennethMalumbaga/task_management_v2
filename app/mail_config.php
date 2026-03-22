@@ -94,5 +94,6 @@ define('MAIL_FROM_ADDRESS', getenv('MAIL_FROM_ADDRESS') ?: MAIL_USERNAME);
 define('MAIL_FROM_NAME', getenv('MAIL_FROM_NAME') ?: 'Task Management System');
 define('RESEND_API_KEY', getenv('RESEND_API_KEY') ?: '');
 define('RESEND_FROM_ADDRESS', getenv('RESEND_FROM_ADDRESS') ?: '');
+define('RESEND_TEST_TO', getenv('RESEND_TEST_TO') ?: '');
 define('APP_URL', rtrim($appUrl !== '' ? $appUrl : 'http://localhost/task_management', '/'));
 ?>
