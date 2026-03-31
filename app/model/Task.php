@@ -586,6 +586,25 @@ function get_all_tasks_by_user($pdo, $user_id)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+if (!function_exists('get_tasks_led_by_user')) {
+    function get_tasks_led_by_user($pdo, $user_id)
+    {
+        $sql = "SELECT DISTINCT t.*
+                FROM tasks t
+                JOIN task_assignees ta ON t.id = ta.task_id
+                WHERE ta.user_id = ? AND ta.role = 'leader'";
+        $params = [(int)$user_id];
+        $scope = tenant_get_scope($pdo, 'tasks', 't');
+        $sql .= $scope['sql'] . " ORDER BY t.title ASC, t.id DESC";
+        $params = array_merge($params, $scope['params']);
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return is_array($rows) ? $rows : [];
+    }
+}
+
 function get_employee_task_progress($pdo, $user_id)
 {
     $sqlTotal = "SELECT COUNT(DISTINCT task_id) FROM task_assignees WHERE user_id=?";

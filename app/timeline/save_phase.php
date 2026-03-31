@@ -14,6 +14,7 @@ $timelineTaskId = isset($_POST['timeline_task_id']) ? (int)$_POST['timeline_task
 $phaseId = isset($_POST['phase_id']) ? (int)$_POST['phase_id'] : 0;
 $name = trim((string)($_POST['name'] ?? ''));
 $description = trim((string)($_POST['description'] ?? ''));
+$phaseType = trim((string)($_POST['phase_type'] ?? 'standard'));
 $icon = (string)($_POST['icon'] ?? 'fa-circle');
 $color = (string)($_POST['color'] ?? '#6C3CE1');
 $startDay = isset($_POST['start_day']) ? (int)$_POST['start_day'] : 1;
@@ -43,6 +44,7 @@ try {
         $phaseId,
         $name,
         $description,
+        $phaseType,
         $icon,
         $color,
         $startDay,

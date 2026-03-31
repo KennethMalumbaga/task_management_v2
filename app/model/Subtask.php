@@ -123,6 +123,14 @@ if (!function_exists('subtask_ensure_schema')) {
                 }
             }
 
+            if (!tenant_column_exists($pdo, 'subtasks', 'google_doc_id')) {
+                $pdo->exec("ALTER TABLE subtasks ADD COLUMN google_doc_id VARCHAR(255) NULL");
+            }
+
+            if (!tenant_column_exists($pdo, 'subtasks', 'google_doc_url')) {
+                $pdo->exec("ALTER TABLE subtasks ADD COLUMN google_doc_url VARCHAR(2048) NULL");
+            }
+
             if (!subtask_index_exists($pdo, 'subtasks', 'idx_subtasks_timeline_phase_id')) {
                 if ($driver === 'mysql') {
                     $pdo->exec("CREATE INDEX idx_subtasks_timeline_phase_id ON subtasks (timeline_phase_id)");
@@ -471,7 +479,7 @@ if (!function_exists('subtask_fetch_timeline_phases_for_task_lane')) {
             return [];
         }
 
-        $sql = "SELECT id, timeline_task_id, name, start_day, duration_days
+        $sql = "SELECT id, timeline_task_id, name, phase_type, start_day, duration_days
                 FROM project_timeline_phases
                 WHERE timeline_task_id = ?";
         [$sql, $params] = subtask_append_scope($pdo, $sql, [$timelineTaskId], 'project_timeline_phases');
@@ -697,18 +705,21 @@ function get_subtasks_by_task($pdo, $task_id)
     $hasTimelinePhaseTable = tenant_table_exists($pdo, 'project_timeline_phases');
 
     if ($hasTimelinePhase && $hasTimelinePhaseTable) {
-        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, pp.name AS timeline_phase_name
+        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, pp.name AS timeline_phase_name,
+                       COALESCE(pp.phase_type, 'standard') AS timeline_phase_type
                 FROM subtasks s
                 LEFT JOIN users u ON s.member_id = u.id
                 LEFT JOIN project_timeline_phases pp ON pp.id = s.timeline_phase_id
                 WHERE s.task_id = ?";
     } elseif ($hasTimelinePhase) {
-        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, NULL AS timeline_phase_name
+        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, NULL AS timeline_phase_name,
+                       'standard' AS timeline_phase_type
                 FROM subtasks s
                 LEFT JOIN users u ON s.member_id = u.id
                 WHERE s.task_id = ?";
     } else {
-        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, NULL AS timeline_phase_id, NULL AS timeline_phase_name
+        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, NULL AS timeline_phase_id,
+                       NULL AS timeline_phase_name, 'standard' AS timeline_phase_type
                 FROM subtasks s
                 LEFT JOIN users u ON s.member_id = u.id
                 WHERE s.task_id = ?";
@@ -731,6 +742,149 @@ function get_subtask_by_id($pdo, $subtask_id)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+if (!function_exists('subtask_attach_google_doc')) {
+    function subtask_attach_google_doc($pdo, $subtaskId, $googleDocId, $googleDocUrl)
+    {
+        subtask_ensure_schema($pdo);
+
+        $subtaskId = (int)$subtaskId;
+        $googleDocId = trim((string)$googleDocId);
+        $googleDocUrl = trim((string)$googleDocUrl);
+        if ($subtaskId <= 0 || $googleDocId === '' || $googleDocUrl === '') {
+            return false;
+        }
+
+        $sql = "UPDATE subtasks
+                SET google_doc_id = ?, google_doc_url = ?,
+                    status = CASE WHEN status = 'pending' THEN 'in_progress' ELSE status END,
+                    updated_at = NOW()
+                WHERE id = ?";
+        [$sql, $params] = subtask_append_scope($pdo, $sql, [$googleDocId, $googleDocUrl, $subtaskId], 'subtasks');
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute($params);
+    }
+}
+
+if (!function_exists('subtask_is_document_phase')) {
+    function subtask_is_document_phase($subtaskRow)
+    {
+        return subtask_get_workspace_phase_type($subtaskRow) === 'document';
+    }
+}
+
+if (!function_exists('subtask_get_workspace_phase_type')) {
+    function subtask_get_workspace_phase_type($subtaskRow)
+    {
+        $phaseType = strtolower(trim((string)($subtaskRow['timeline_phase_type'] ?? 'standard')));
+        return in_array($phaseType, ['document', 'sheet', 'slides'], true) ? $phaseType : 'standard';
+    }
+}
+
+if (!function_exists('subtask_is_google_workspace_phase')) {
+    function subtask_is_google_workspace_phase($subtaskRow)
+    {
+        return subtask_get_workspace_phase_type($subtaskRow) !== 'standard';
+    }
+}
+
+if (!function_exists('subtask_google_workspace_meta')) {
+    function subtask_google_workspace_meta($subtaskRowOrType)
+    {
+        $type = is_array($subtaskRowOrType)
+            ? subtask_get_workspace_phase_type($subtaskRowOrType)
+            : subtask_get_workspace_phase_type(['timeline_phase_type' => $subtaskRowOrType]);
+
+        $meta = [
+            'standard' => [
+                'type' => 'standard',
+                'phase_label' => 'Standard Phase',
+                'workspace_title' => 'Google Workspace',
+                'workspace_heading' => 'Google Workspace',
+                'item_label' => 'Google file',
+                'create_label' => 'Create in Google Workspace',
+                'open_label' => 'Open Google File',
+                'submit_label' => 'Submit Google File',
+                'create_help' => 'Create the working file in Google Workspace for this phase.',
+                'saved_help' => 'This file is saved to this phase and can be reopened anytime.',
+                'waiting_help' => 'The assigned member can create the Google Workspace file for this phase.',
+                'submit_help' => 'Add notes for the leader before submitting this Google Workspace file...',
+                'submitted_notice' => 'Google file submitted successfully',
+                'submitted_notification_label' => 'Google file',
+                'icon' => 'fa-google',
+                'phase_icon' => 'fa-file-o',
+                'accent_bg' => '#F8FAFC',
+                'accent_border' => '#CBD5E1',
+                'accent_color' => '#334155',
+            ],
+            'document' => [
+                'type' => 'document',
+                'phase_label' => 'Document Phase',
+                'workspace_title' => 'Google Docs Workspace',
+                'workspace_heading' => 'Google Docs Workspace',
+                'item_label' => 'Google Doc',
+                'create_label' => 'Create in Google Docs',
+                'open_label' => 'Open Google Doc',
+                'submit_label' => 'Submit Google Doc',
+                'create_help' => 'Create the working document in Google Docs for this phase.',
+                'saved_help' => 'This document is saved to this phase and can be reopened anytime.',
+                'waiting_help' => 'The assigned member can create the Google Doc for this phase.',
+                'submit_help' => 'Add notes for the leader before submitting this Google Doc...',
+                'submitted_notice' => 'Google Doc submitted successfully',
+                'submitted_notification_label' => 'Google Doc',
+                'icon' => 'fa-google',
+                'phase_icon' => 'fa-file-text-o',
+                'accent_bg' => '#EFF6FF',
+                'accent_border' => '#BFDBFE',
+                'accent_color' => '#1D4ED8',
+            ],
+            'sheet' => [
+                'type' => 'sheet',
+                'phase_label' => 'Spreadsheet Phase',
+                'workspace_title' => 'Google Sheets Workspace',
+                'workspace_heading' => 'Google Sheets Workspace',
+                'item_label' => 'Google Sheet',
+                'create_label' => 'Create in Google Sheets',
+                'open_label' => 'Open Google Sheet',
+                'submit_label' => 'Submit Google Sheet',
+                'create_help' => 'Create the working spreadsheet in Google Sheets for this phase.',
+                'saved_help' => 'This spreadsheet is saved to this phase and can be reopened anytime.',
+                'waiting_help' => 'The assigned member can create the Google Sheet for this phase.',
+                'submit_help' => 'Add notes for the leader before submitting this Google Sheet...',
+                'submitted_notice' => 'Google Sheet submitted successfully',
+                'submitted_notification_label' => 'Google Sheet',
+                'icon' => 'fa-google',
+                'phase_icon' => 'fa-table',
+                'accent_bg' => '#ECFDF5',
+                'accent_border' => '#A7F3D0',
+                'accent_color' => '#047857',
+            ],
+            'slides' => [
+                'type' => 'slides',
+                'phase_label' => 'Slides Phase',
+                'workspace_title' => 'Google Slides Workspace',
+                'workspace_heading' => 'Google Slides Workspace',
+                'item_label' => 'Google Slides deck',
+                'create_label' => 'Create in Google Slides',
+                'open_label' => 'Open Google Slides',
+                'submit_label' => 'Submit Google Slides',
+                'create_help' => 'Create the working presentation in Google Slides for this phase.',
+                'saved_help' => 'This presentation is saved to this phase and can be reopened anytime.',
+                'waiting_help' => 'The assigned member can create the Google Slides deck for this phase.',
+                'submit_help' => 'Add notes for the leader before submitting this Google Slides deck...',
+                'submitted_notice' => 'Google Slides submitted successfully',
+                'submitted_notification_label' => 'Google Slides deck',
+                'icon' => 'fa-google',
+                'phase_icon' => 'fa-clone',
+                'accent_bg' => '#FFF7ED',
+                'accent_border' => '#FDBA74',
+                'accent_color' => '#C2410C',
+            ],
+        ];
+
+        return $meta[$type] ?? $meta['standard'];
+    }
+}
+
 function get_subtasks_by_member($pdo, $member_id)
 {
     $sql = "SELECT s.*, t.title as task_title
@@ -743,6 +897,95 @@ function get_subtasks_by_member($pdo, $member_id)
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+if (!function_exists('get_calendar_subtasks_visible_to_user')) {
+    function get_calendar_subtasks_visible_to_user($pdo, $userId, $sessionRole = 'employee', $startDate = null, $endDate = null)
+    {
+        subtask_ensure_schema($pdo);
+
+        $userId = (int)$userId;
+        $sessionRole = strtolower(trim((string)$sessionRole));
+        $hasTimelinePhase = tenant_column_exists($pdo, 'subtasks', 'timeline_phase_id');
+        $hasTimelinePhaseTable = tenant_table_exists($pdo, 'project_timeline_phases');
+
+        if ($hasTimelinePhase && $hasTimelinePhaseTable) {
+            $sql = "SELECT s.*,
+                           t.title AS task_title,
+                           COALESCE(u.full_name, 'Unassigned member') AS member_name,
+                           pp.name AS timeline_phase_name,
+                           COALESCE(pp.phase_type, 'standard') AS timeline_phase_type
+                    FROM subtasks s
+                    JOIN tasks t ON t.id = s.task_id
+                    LEFT JOIN users u ON u.id = s.member_id
+                    LEFT JOIN project_timeline_phases pp ON pp.id = s.timeline_phase_id
+                    WHERE 1=1";
+        } elseif ($hasTimelinePhase) {
+            $sql = "SELECT s.*,
+                           t.title AS task_title,
+                           COALESCE(u.full_name, 'Unassigned member') AS member_name,
+                           NULL AS timeline_phase_name,
+                           'standard' AS timeline_phase_type
+                    FROM subtasks s
+                    JOIN tasks t ON t.id = s.task_id
+                    LEFT JOIN users u ON u.id = s.member_id
+                    WHERE 1=1";
+        } else {
+            $sql = "SELECT s.*,
+                           t.title AS task_title,
+                           COALESCE(u.full_name, 'Unassigned member') AS member_name,
+                           NULL AS timeline_phase_id,
+                           NULL AS timeline_phase_name,
+                           'standard' AS timeline_phase_type
+                    FROM subtasks s
+                    JOIN tasks t ON t.id = s.task_id
+                    LEFT JOIN users u ON u.id = s.member_id
+                    WHERE 1=1";
+        }
+
+        $params = [];
+        if ($sessionRole !== 'admin') {
+            $leaderScope = tenant_get_scope($pdo, 'task_assignees', 'leader_ta');
+            $sql .= " AND (
+                        s.member_id = ?
+                        OR EXISTS (
+                            SELECT 1
+                            FROM task_assignees leader_ta
+                            WHERE leader_ta.task_id = s.task_id
+                              AND leader_ta.user_id = ?
+                              AND leader_ta.role = 'leader'" . $leaderScope['sql'] . "
+                        )
+                    )";
+            $params[] = $userId;
+            $params[] = $userId;
+            $params = array_merge($params, $leaderScope['params']);
+        }
+
+        $startDate = subtask_normalize_date_ymd($startDate);
+        $endDate = subtask_normalize_date_ymd($endDate);
+        if ($startDate !== null && $endDate !== null) {
+            $sql .= " AND s.due_date BETWEEN ? AND ?";
+            $params[] = $startDate;
+            $params[] = $endDate;
+        } elseif ($startDate !== null) {
+            $sql .= " AND s.due_date >= ?";
+            $params[] = $startDate;
+        } elseif ($endDate !== null) {
+            $sql .= " AND s.due_date <= ?";
+            $params[] = $endDate;
+        }
+
+        $subtaskScope = tenant_get_scope($pdo, 'subtasks', 's');
+        $taskScope = tenant_get_scope($pdo, 'tasks', 't');
+        $sql .= $subtaskScope['sql'] . $taskScope['sql'];
+        $params = array_merge($params, $subtaskScope['params'], $taskScope['params']);
+        $sql .= " ORDER BY s.due_date ASC, s.id ASC";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return is_array($rows) ? $rows : [];
+    }
 }
 
 function update_subtask_submission($pdo, $id, $file_path, $note = null)

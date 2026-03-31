@@ -1024,6 +1024,21 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div style="margin-bottom: 24px;">
                         <?php if (!empty($subtasks)) { 
                             foreach($subtasks as $sub) { 
+                                $subtaskIsWorkspace = subtask_is_google_workspace_phase($sub);
+                                $subtaskWorkspaceMeta = subtask_google_workspace_meta($sub);
+                                $subtaskGoogleDocUrl = trim((string)($sub['google_doc_url'] ?? ''));
+                                $subtaskStatusValue = strtolower(trim((string)($sub['status'] ?? 'pending')));
+                                $subtaskCanCreateDoc = $subtaskIsWorkspace
+                                    && (int)($sub['member_id'] ?? 0) === (int)$_SESSION['id']
+                                    && $subtaskGoogleDocUrl === '';
+                                $subtaskCanSubmitDoc = $subtaskIsWorkspace
+                                    && (int)($sub['member_id'] ?? 0) === (int)$_SESSION['id']
+                                    && $subtaskGoogleDocUrl !== ''
+                                    && in_array($subtaskStatusValue, ['pending', 'in_progress', 'revise', 'rejected'], true);
+                                $subtaskHasGoogleDocSubmission = $subtaskGoogleDocUrl !== ''
+                                    && trim((string)($sub['submission_file'] ?? '')) !== ''
+                                    && trim((string)$sub['submission_file']) === $subtaskGoogleDocUrl;
+                                $subtaskHasInlineOpenAction = $subtaskCanSubmitDoc || $subtaskHasGoogleDocSubmission;
                                 $subStatusClass = "pending";
                                 if ($sub['status'] == 'in_progress') $subStatusClass = "in_progress";
                                 if ($sub['status'] == 'completed') $subStatusClass = "completed";
@@ -1043,6 +1058,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                             <i class="fa fa-flag"></i> Phase: <?= htmlspecialchars((string)$sub['timeline_phase_name']) ?>
                                         </div>
                                     <?php } ?>
+                                    <?php if ($subtaskIsWorkspace) { ?>
+                                        <div class="subtask-phase" style="margin-top: 6px;">
+                                            <i class="fa <?= htmlspecialchars($subtaskWorkspaceMeta['phase_icon']) ?>"></i> <?= htmlspecialchars($subtaskWorkspaceMeta['phase_label']) ?>
+                                        </div>
+                                    <?php } ?>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <?php if (!empty($sub['score'])) { ?>
@@ -1053,6 +1073,40 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <span class="badge-v2 <?=$subStatusClass?>"><?= str_replace('_',' ', $sub['status']) ?></span>
                                 </div>
                             </div>
+
+                            <?php if ($subtaskIsWorkspace) { ?>
+                                <div style="background: <?= htmlspecialchars($subtaskWorkspaceMeta['accent_bg']) ?>; border: 1px solid <?= htmlspecialchars($subtaskWorkspaceMeta['accent_border']) ?>; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                                    <div style="font-size: 12px; font-weight: 600; color: <?= htmlspecialchars($subtaskWorkspaceMeta['accent_color']) ?>; margin-bottom: 8px;">
+                                        <i class="fa <?= htmlspecialchars($subtaskWorkspaceMeta['icon']) ?>"></i> <?= htmlspecialchars($subtaskWorkspaceMeta['workspace_heading']) ?>
+                                    </div>
+
+                                    <?php if ($subtaskGoogleDocUrl !== '') { ?>
+                                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
+                                            <?php if (!$subtaskHasInlineOpenAction) { ?>
+                                            <a href="<?= htmlspecialchars($subtaskGoogleDocUrl) ?>" target="_blank" rel="noopener noreferrer" class="btn-v2 btn-white" style="border-color: <?= htmlspecialchars($subtaskWorkspaceMeta['accent_border']) ?>; color: <?= htmlspecialchars($subtaskWorkspaceMeta['accent_color']) ?>;">
+                                                <i class="fa fa-external-link"></i> <?= htmlspecialchars($subtaskWorkspaceMeta['open_label']) ?>
+                                            </a>
+                                            <?php } ?>
+                                            <span style="font-size: 12px; color: #475569;"><?= htmlspecialchars($subtaskWorkspaceMeta['saved_help']) ?></span>
+                                        </div>
+                                    <?php } elseif ($subtaskCanCreateDoc) { ?>
+                                        <div style="font-size: 13px; color: #334155; margin-bottom: 10px;">
+                                            <?= htmlspecialchars($subtaskWorkspaceMeta['create_help']) ?>
+                                        </div>
+                                        <form action="app/google-subtask-doc.php" method="POST" style="display: inline-flex;">
+                                            <?= csrf_field('google_subtask_doc_form') ?>
+                                            <input type="hidden" name="subtask_id" value="<?= (int)$sub['id'] ?>">
+                                            <button type="submit" class="btn-v2 btn-indigo">
+                                                <i class="fa fa-google"></i> <?= htmlspecialchars($subtaskWorkspaceMeta['create_label']) ?>
+                                            </button>
+                                        </form>
+                                    <?php } else { ?>
+                                        <div style="font-size: 12px; color: #475569;">
+                                            <?= htmlspecialchars($subtaskWorkspaceMeta['waiting_help']) ?>
+                                        </div>
+                                    <?php } ?>
+                                </div>
+                            <?php } ?>
 
                              <!-- Submission View -->
                              <?php if(!empty($sub['submission_file']) || $sub['status'] == 'submitted' || $sub['status'] == 'completed') { ?>
@@ -1065,7 +1119,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <?php } ?>
                                     <div style="margin-top: 4px;">
                                         <?php if($sub['submission_file']) { ?>
-                                            <a href="<?=$sub['submission_file']?>" target="_blank" style="color: var(--primary); font-size: 13px;"><i class="fa fa-paperclip"></i> View File</a>
+                                            <a href="<?=$sub['submission_file']?>" target="_blank" style="color: var(--primary); font-size: 13px;">
+                                                <i class="fa <?=$subtaskHasGoogleDocSubmission ? 'fa-google' : 'fa-paperclip'?>"></i>
+                                                <?= $subtaskHasGoogleDocSubmission ? htmlspecialchars($subtaskWorkspaceMeta['open_label']) : 'View File' ?>
+                                            </a>
                                         <?php } else { ?>
                                             <span style="font-size: 13px; color: #6B7280;">Submitted (No file)</span>
                                         <?php } ?>
@@ -1129,7 +1186,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                              <?php } ?>
 
                              <!-- Actions for Member (Submit) -->
-                              <?php if($_SESSION['id'] == $sub['member_id'] && ($sub['status'] == 'pending' || $sub['status'] == 'in_progress' || $sub['status'] == 'revise')) { ?>
+                              <?php if($_SESSION['id'] == $sub['member_id'] && !$subtaskIsWorkspace && ($sub['status'] == 'pending' || $sub['status'] == 'in_progress' || $sub['status'] == 'revise')) { ?>
                                 <div class="subtask-submit-section">
                                     <form action="app/update-subtask-submission.php" method="POST" enctype="multipart/form-data">
                                         <?= csrf_field('update_subtask_submission_form') ?>
@@ -1143,6 +1200,28 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                             <input type="file" name="submission_file" class="form-input-v2 subtask-file-input" required>
                                             <div class="subtask-upload-hint">(up to 50MB)</div>
                                             <button class="btn-v2 btn-indigo">Submit</button>
+                                        </div>
+                                    </form>
+                                </div>
+                              <?php } ?>
+
+                              <?php if ($subtaskCanSubmitDoc) { ?>
+                                <div class="subtask-submit-section">
+                                    <form action="app/submit-subtask-google-doc.php" method="POST">
+                                        <?= csrf_field('submit_subtask_google_doc_form') ?>
+                                        <input type="hidden" name="id" value="<?= (int)$sub['id'] ?>">
+
+                                        <div style="margin-bottom: 10px;">
+                                            <textarea name="submission_note" class="form-input-v2 subtask-note-input" rows="2" placeholder="<?= htmlspecialchars($subtaskWorkspaceMeta['submit_help']) ?>"></textarea>
+                                        </div>
+
+                                        <div class="subtask-upload-row">
+                                            <a href="<?= htmlspecialchars($subtaskGoogleDocUrl) ?>" target="_blank" rel="noopener noreferrer" class="btn-v2 btn-white" style="border-color:<?= htmlspecialchars($subtaskWorkspaceMeta['accent_border']) ?>;color:<?= htmlspecialchars($subtaskWorkspaceMeta['accent_color']) ?>;">
+                                                <i class="fa fa-google"></i> <?= htmlspecialchars($subtaskWorkspaceMeta['open_label']) ?>
+                                            </a>
+                                            <button class="btn-v2 btn-green" type="submit">
+                                                <i class="fa fa-paper-plane"></i> <?= htmlspecialchars($subtaskWorkspaceMeta['submit_label']) ?>
+                                            </button>
                                         </div>
                                     </form>
                                 </div>

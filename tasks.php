@@ -993,6 +993,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                             if($sub['status']=='rejected') $sClass="rejected";
                     ?>
                     <div class="subtask-card" style="padding: 12px; margin-bottom: 8px;">
+                        <?php
+                            $adminWorkspaceMeta = subtask_google_workspace_meta($sub);
+                            $adminSubtaskGoogleDocUrl = trim((string)($sub['google_doc_url'] ?? ''));
+                            $adminSubtaskSubmissionFile = trim((string)($sub['submission_file'] ?? ''));
+                            $adminSubtaskHasGoogleDocSubmission = $adminSubtaskGoogleDocUrl !== ''
+                                && $adminSubtaskSubmissionFile !== ''
+                                && $adminSubtaskSubmissionFile === $adminSubtaskGoogleDocUrl;
+                        ?>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                             <span style="font-weight: 600; font-size: 13px; color: #1F2937;"><?= htmlspecialchars($sub['description']) ?></span>
                             <span class="badge-v2 <?=$sClass?>" style="font-size: 10px;"><?= str_replace('_',' ', $sub['status']) ?></span>
@@ -1003,7 +1011,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         </div>
                         <?php if(!empty($sub['submission_file'])) { ?>
                             <div style="font-size: 12px; margin-top: 5px;">
-                                <a href="<?=$sub['submission_file']?>" target="_blank" style="color: var(--primary);">View File</a>
+                                <a href="<?=$sub['submission_file']?>" target="_blank" style="color: var(--primary);">
+                                    <?= $adminSubtaskHasGoogleDocSubmission ? htmlspecialchars($adminWorkspaceMeta['open_label']) : 'View File' ?>
+                                </a>
                             </div>
                         <?php } ?>
                     </div>
