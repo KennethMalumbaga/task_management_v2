@@ -413,6 +413,69 @@ if (!function_exists('subtask_get_by_timeline_phase_id')) {
     }
 }
 
+if (!function_exists('subtask_find_unlinked_match_for_phase')) {
+    function subtask_find_unlinked_match_for_phase($pdo, $taskId, array $phaseRow, $preferredMemberId = 0)
+    {
+        $taskId = (int)$taskId;
+        $phaseName = trim((string)($phaseRow['name'] ?? ''));
+        $preferredMemberId = (int)$preferredMemberId;
+
+        if ($taskId <= 0 || $phaseName === '' || !tenant_column_exists($pdo, 'subtasks', 'timeline_phase_id')) {
+            return null;
+        }
+
+        $sql = "SELECT *
+                FROM subtasks
+                WHERE task_id = ?
+                  AND description = ?
+                  AND (timeline_phase_id IS NULL OR timeline_phase_id = 0)";
+        [$sql, $params] = subtask_append_scope($pdo, $sql, [$taskId, $phaseName], 'subtasks');
+        $sql .= " ORDER BY CASE WHEN member_id = ? THEN 0 ELSE 1 END,
+                         CASE WHEN LOWER(COALESCE(status, 'pending')) IN ('submitted', 'completed') THEN 1 ELSE 0 END,
+                         id ASC
+                  LIMIT 1";
+        $params[] = $preferredMemberId;
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            return $row;
+        }
+
+        if (tenant_column_exists($pdo, 'subtasks', 'organization_id')) {
+            $stmt = $pdo->prepare(
+                "SELECT *
+                 FROM subtasks
+                 WHERE task_id = ?
+                   AND description = ?
+                   AND (timeline_phase_id IS NULL OR timeline_phase_id = 0)
+                   AND (organization_id IS NULL OR organization_id = 0)
+                 ORDER BY CASE WHEN member_id = ? THEN 0 ELSE 1 END,
+                          CASE WHEN LOWER(COALESCE(status, 'pending')) IN ('submitted', 'completed') THEN 1 ELSE 0 END,
+                          id ASC
+                 LIMIT 1"
+            );
+            $stmt->execute([$taskId, $phaseName, $preferredMemberId]);
+            $legacy = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($legacy) {
+                $targetOrgId = tenant_get_current_org_id();
+                if (!$targetOrgId) {
+                    $targetOrgId = subtask_get_task_org_id($pdo, (int)($legacy['task_id'] ?? 0));
+                }
+                if ($targetOrgId) {
+                    $upd = $pdo->prepare("UPDATE subtasks SET organization_id = ? WHERE id = ?");
+                    $upd->execute([(int)$targetOrgId, (int)$legacy['id']]);
+                    $legacy['organization_id'] = (int)$targetOrgId;
+                }
+                return $legacy;
+            }
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('subtask_is_user_assigned_to_task')) {
     function subtask_is_user_assigned_to_task($pdo, $taskId, $userId)
     {
@@ -556,6 +619,9 @@ if (!function_exists('subtask_sync_from_timeline_phase')) {
         }
 
         $existing = subtask_get_by_timeline_phase_id($pdo, $phaseId);
+        if (!$existing) {
+            $existing = subtask_find_unlinked_match_for_phase($pdo, $projectId, $phaseRow, $memberId);
+        }
         if ($existing) {
             $existingStatus = strtolower(trim((string)($existing['status'] ?? 'pending')));
             $isLocked = in_array($existingStatus, ['submitted', 'completed'], true);
@@ -570,12 +636,12 @@ if (!function_exists('subtask_sync_from_timeline_phase')) {
             }
 
             $sql = "UPDATE subtasks
-                    SET description = ?, due_date = ?, member_id = ?, updated_at = NOW()
+                    SET description = ?, due_date = ?, member_id = ?, timeline_phase_id = ?, updated_at = NOW()
                     WHERE id = ?";
             [$sql, $params] = subtask_append_scope(
                 $pdo,
                 $sql,
-                [$nextDescription, $nextDueDate, $nextMemberId, (int)$existing['id']],
+                [$nextDescription, $nextDueDate, $nextMemberId, $phaseId, (int)$existing['id']],
                 'subtasks'
             );
             $stmt = $pdo->prepare($sql);

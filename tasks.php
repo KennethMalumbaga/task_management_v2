@@ -8,6 +8,21 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
     require_once "app/model/LeaderFeedback.php";
     require_once "inc/csrf.php";
 
+    $tasksForSync = get_all_tasks($pdo);
+    if (is_array($tasksForSync) && !empty($tasksForSync)) {
+        foreach ($tasksForSync as $taskRowForSync) {
+            $taskIdForSync = (int)($taskRowForSync['id'] ?? 0);
+            if ($taskIdForSync <= 0) {
+                continue;
+            }
+            try {
+                subtask_sync_all_phases_for_project_task($pdo, $taskIdForSync, (int)$_SESSION['id']);
+            } catch (Throwable $syncErr) {
+                // Keep page rendering even if auto-backfill fails for a task.
+            }
+        }
+    }
+
     $text = "Tasks";
     // Filter Logic
     if (isset($_GET['due_date']) && $_GET['due_date'] === "Due Today") {

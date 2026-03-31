@@ -189,6 +189,6 @@ $timelineUserId = (int)($_SESSION['id'] ?? 0);
         <div class="tlp-tooltip-days" id="tlpTooltipDays"></div>
     </div>
 
-    <script src="app/timeline/timeline-page.js"></script>
+    <script src="app/timeline/timeline-page.js?v=<?= urlencode((string)(@filemtime(__DIR__ . '/app/timeline/timeline-page.js') ?: '1')) ?>"></script>
 </body>
 </html>
