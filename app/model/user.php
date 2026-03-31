@@ -9,6 +9,110 @@ function user_model_append_scope($pdo, $sql, $params, $table, $alias = '', $join
     return [$sql . $scope['sql'], array_merge($params, $scope['params'])];
 }
 
+if (!function_exists('user_google_auth_ensure_schema')) {
+    function user_google_auth_ensure_schema($pdo)
+    {
+        static $cache = [];
+
+        $cacheKey = is_object($pdo) ? spl_object_hash($pdo) : 'default';
+        if (array_key_exists($cacheKey, $cache)) {
+            return (bool)$cache[$cacheKey];
+        }
+
+        $columnsToEnsure = [
+            'google_sub' => [
+                'mysql' => "ALTER TABLE users ADD COLUMN google_sub VARCHAR(255) NULL AFTER username",
+                'pgsql' => "ALTER TABLE users ADD COLUMN google_sub VARCHAR(255)",
+            ],
+            'google_email_verified' => [
+                'mysql' => "ALTER TABLE users ADD COLUMN google_email_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER google_sub",
+                'pgsql' => "ALTER TABLE users ADD COLUMN google_email_verified BOOLEAN DEFAULT FALSE",
+            ],
+            'google_picture' => [
+                'mysql' => "ALTER TABLE users ADD COLUMN google_picture VARCHAR(2048) NULL AFTER profile_image",
+                'pgsql' => "ALTER TABLE users ADD COLUMN google_picture VARCHAR(2048)",
+            ],
+        ];
+
+        $driver = strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+        foreach ($columnsToEnsure as $column => $queries) {
+            if (tenant_column_exists($pdo, 'users', $column)) {
+                continue;
+            }
+
+            try {
+                $sql = $driver === 'mysql' ? $queries['mysql'] : $queries['pgsql'];
+                $pdo->exec($sql);
+            } catch (Throwable $e) {
+                // Another request may have added the column already.
+            }
+        }
+
+        $cache[$cacheKey] = tenant_column_exists($pdo, 'users', 'google_sub');
+        return (bool)$cache[$cacheKey];
+    }
+}
+
+if (!function_exists('user_get_by_google_sub_unscoped')) {
+    function user_get_by_google_sub_unscoped($pdo, $googleSub)
+    {
+        if (!user_google_auth_ensure_schema($pdo)) {
+            return 0;
+        }
+
+        $googleSub = trim((string)$googleSub);
+        if ($googleSub === '') {
+            return 0;
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE google_sub = ? LIMIT 1");
+        $stmt->execute([$googleSub]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $user ?: 0;
+    }
+}
+
+if (!function_exists('user_get_by_email_unscoped')) {
+    function user_get_by_email_unscoped($pdo, $email)
+    {
+        $email = strtolower(trim((string)$email));
+        if ($email === '') {
+            return 0;
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $user ?: 0;
+    }
+}
+
+if (!function_exists('user_link_google_account_unscoped')) {
+    function user_link_google_account_unscoped($pdo, $userId, $googleSub, $emailVerified = false, $pictureUrl = null)
+    {
+        if (!user_google_auth_ensure_schema($pdo)) {
+            return false;
+        }
+
+        $userId = (int)$userId;
+        $googleSub = trim((string)$googleSub);
+        $pictureUrl = trim((string)$pictureUrl);
+        $emailVerified = filter_var($emailVerified, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $emailVerified = $emailVerified === null ? !empty($emailVerified) : $emailVerified;
+
+        if ($userId <= 0 || $googleSub === '') {
+            return false;
+        }
+
+        $stmt = $pdo->prepare(
+            "UPDATE users
+             SET google_sub = ?, google_email_verified = ?, google_picture = ?
+             WHERE id = ?"
+        );
+        return $stmt->execute([$googleSub, $emailVerified ? 1 : 0, $pictureUrl !== '' ? $pictureUrl : null, $userId]);
+    }
+}
+
 function get_all_users($pdo, $role = 'all')
 {
     if ($role === 'all') {
