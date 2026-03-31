@@ -182,7 +182,7 @@ try {
     $hasGoogleVerifiedColumn = tenant_column_exists($pdo, 'users', 'google_email_verified');
 
     $userColumns = ['full_name', 'username', 'password', 'role', 'must_change_password'];
-    $userValues = [$fullName, $email, $passwordHash, $role, "false"];
+    $userValues = [$fullName, $email, $passwordHash, $role, 0];
 
     if (tenant_column_exists($pdo, 'users', 'organization_id')) {
         $userColumns[] = 'organization_id';

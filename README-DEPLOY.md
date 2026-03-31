@@ -35,6 +35,7 @@ This guide is written for beginners. Follow it step by step.
    - `APP_URL=http://localhost/task_management_v2`
    - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`
    - `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`
+   - if using Google Sign-In, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
 5. Create database (if needed) and import schema/data:
    - `mysql -u your_db_user -p -e "CREATE DATABASE IF NOT EXISTS your_db_name CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"`
    - `mysql -u your_db_user -p your_db_name < task_management_db_mysql.sql`
@@ -52,6 +53,7 @@ This guide is written for beginners. Follow it step by step.
    - `APP_ENV=production`
    - `APP_URL=https://your-domain.com`
    - real DB and mail credentials
+   - if using Google Sign-In on Railway, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
 2. Keep maintenance scripts disabled:
    - `ALLOW_MAINTENANCE_SCRIPTS=0`
 3. Use HTTPS.
@@ -93,6 +95,20 @@ If email fails, check:
 1. `MAIL_USERNAME` and `MAIL_PASSWORD`
 2. SMTP host/port settings
 3. Sender permissions of your mail provider
+
+## 6.1 Google Sign-In on Local and Railway
+
+Google Sign-In now uses the callback-based Google Identity flow for login, signup, and invite acceptance, so it does not depend on a fixed redirect URI per environment.
+
+- Local env example:
+  - `APP_URL=http://localhost/task_management_v2`
+- Railway env example:
+  - `APP_URL=https://your-app.up.railway.app`
+- In Google Cloud Console, add every host you use under Authorized JavaScript origins:
+  - `http://localhost`
+  - `https://your-app.up.railway.app`
+
+If Google login works locally but fails on Railway, or the other way around, the usual cause is that one of those origins is missing from the Google OAuth client.
 
 ## 7. Security basics you should do now
 
