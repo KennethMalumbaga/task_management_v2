@@ -4,11 +4,11 @@ use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
 
 // Adjust path as needed based on where it was extracted
-require '../lib/PHPMailer/src/Exception.php';
-require '../lib/PHPMailer/src/PHPMailer.php';
-require '../lib/PHPMailer/src/SMTP.php';
+require_once __DIR__ . '/../lib/PHPMailer/src/Exception.php';
+require_once __DIR__ . '/../lib/PHPMailer/src/PHPMailer.php';
+require_once __DIR__ . '/../lib/PHPMailer/src/SMTP.php';
 
-include "mail_config.php";
+require_once __DIR__ . "/mail_config.php";
 
 function send_confirmation_email($to_email, $full_name, $password) {
     if (MAIL_USERNAME === '' || MAIL_PASSWORD === '') {
@@ -191,6 +191,98 @@ function send_login_verification_code_email($to_email, $full_name, $code) {
         return true;
     } catch (Exception $e) {
         error_log("Verification email failed: {$mail->ErrorInfo}");
+        return false;
+    }
+}
+
+function send_meeting_reminder_email($to_email, $full_name, array $meetingData) {
+    if (MAIL_USERNAME === '' || MAIL_PASSWORD === '') {
+        error_log('Mail not configured: set MAIL_USERNAME and MAIL_PASSWORD environment variables.');
+        return false;
+    }
+
+    $title = trim((string)($meetingData['title'] ?? ''));
+    if ($title === '') {
+        $title = 'TaskFlow Meeting';
+    }
+
+    $meetingDate = trim((string)($meetingData['meeting_date'] ?? ''));
+    $startTime = trim((string)($meetingData['start_time'] ?? ''));
+    $endTime = trim((string)($meetingData['end_time'] ?? ''));
+    $timezone = trim((string)($meetingData['timezone'] ?? 'Asia/Manila'));
+    $description = trim((string)($meetingData['description'] ?? ''));
+    $meetUrl = trim((string)($meetingData['google_meet_url'] ?? ''));
+    $calendarUrl = trim((string)($meetingData['google_calendar_url'] ?? ''));
+
+    $dateLabel = $meetingDate;
+    if ($meetingDate !== '') {
+        $dateTs = strtotime($meetingDate);
+        if ($dateTs !== false) {
+            $dateLabel = date('F j, Y', $dateTs);
+        }
+    }
+
+    $timeLabel = trim($startTime . ($endTime !== '' ? ' - ' . $endTime : ''));
+    if ($startTime !== '' && $endTime !== '') {
+        $startTs = strtotime($startTime);
+        $endTs = strtotime($endTime);
+        if ($startTs !== false && $endTs !== false) {
+            $timeLabel = date('g:i A', $startTs) . ' - ' . date('g:i A', $endTs);
+        }
+    }
+
+    $safeName = htmlspecialchars(trim((string)$full_name) !== '' ? (string)$full_name : 'there', ENT_QUOTES);
+    $safeTitle = htmlspecialchars($title, ENT_QUOTES);
+    $safeDate = htmlspecialchars($dateLabel, ENT_QUOTES);
+    $safeTime = htmlspecialchars($timeLabel, ENT_QUOTES);
+    $safeTimezone = htmlspecialchars($timezone, ENT_QUOTES);
+    $safeDescription = nl2br(htmlspecialchars($description, ENT_QUOTES));
+    $safeMeetUrl = htmlspecialchars($meetUrl, ENT_QUOTES);
+    $safeCalendarUrl = htmlspecialchars($calendarUrl, ENT_QUOTES);
+
+    $mail = new PHPMailer(true);
+
+    try {
+        $mail->isSMTP();
+        $mail->Host       = MAIL_HOST;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = MAIL_USERNAME;
+        $mail->Password   = MAIL_PASSWORD;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = MAIL_PORT;
+
+        $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
+        $mail->addAddress($to_email, trim((string)$full_name));
+
+        $mail->isHTML(true);
+        $mail->Subject = 'Meeting Reminder: ' . $title;
+        $mail->Body = "
+            <h2>Meeting Reminder</h2>
+            <p>Hello {$safeName},</p>
+            <p>This is your TaskFlow reminder that <strong>{$safeTitle}</strong> starts in about 1 hour.</p>
+            <p><strong>Date:</strong> {$safeDate}<br>
+            <strong>Time:</strong> {$safeTime}<br>
+            <strong>Timezone:</strong> {$safeTimezone}</p>
+            " . ($description !== '' ? "<p><strong>Notes:</strong><br>{$safeDescription}</p>" : "") . "
+            " . ($meetUrl !== '' ? "<p><a href=\"{$safeMeetUrl}\">Join Google Meet</a></p>" : "") . "
+            " . ($calendarUrl !== '' ? "<p><a href=\"{$safeCalendarUrl}\">Open in Google Calendar</a></p>" : "") . "
+            <br>
+            <p>Regards,<br>The Team</p>
+        ";
+        $mail->AltBody =
+            "Hello {$full_name},\n\n" .
+            "Reminder: {$title} starts in about 1 hour.\n" .
+            ($dateLabel !== '' ? "Date: {$dateLabel}\n" : '') .
+            ($timeLabel !== '' ? "Time: {$timeLabel}\n" : '') .
+            "Timezone: {$timezone}\n" .
+            ($description !== '' ? "Notes: {$description}\n" : '') .
+            ($meetUrl !== '' ? "Join Google Meet: {$meetUrl}\n" : '') .
+            ($calendarUrl !== '' ? "Open in Google Calendar: {$calendarUrl}\n" : '');
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Meeting reminder email failed: {$mail->ErrorInfo}");
         return false;
     }
 }

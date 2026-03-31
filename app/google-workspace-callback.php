@@ -136,13 +136,16 @@ if ($refreshToken === '') {
     google_workspace_callback_redirect($taskId, "Google did not grant offline access. Please try again and allow access.");
 }
 
+$existingScopes = trim((string)(($existing ?? null)['scope'] ?? ''));
+$mergedScopes = google_workspace_scope_merge($existingScopes, trim((string)($tokens['scope'] ?? '')));
+
 google_workspace_save_refresh_token(
     $pdo,
     $currentUserId,
     $googleSub,
     $googleEmail,
     $refreshToken,
-    trim((string)($tokens['scope'] ?? ''))
+    $mergedScopes
 );
 
 header("Location: google-subtask-doc.php?resume=1");

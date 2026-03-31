@@ -58,7 +58,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     $attendanceAjaxCsrfToken = csrf_token('attendance_ajax_actions');
     $bulletinPostCsrfToken = csrf_token('bulletin_post_action');
     $bulletinDeleteCsrfToken = csrf_token('bulletin_delete_action');
-    $bulletinPosts = get_recent_bulletin_posts($pdo, 30);
+    $bulletinPosts = get_recent_bulletin_posts($pdo, 30, (int)$_SESSION['id'], (string)$_SESSION['role']);
     $bulletinPostsJson = json_encode($bulletinPosts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     $active_users = [];
     if ($_SESSION['role'] === 'admin') {

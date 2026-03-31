@@ -3,6 +3,11 @@ session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
     include "app/model/Task.php";
+    include "app/model/Subtask.php";
+    include "app/model/Group.php";
+    include "app/model/CalendarMeeting.php";
+    include "app/helpers/google_calendar.php";
+    include "inc/csrf.php";
 
     // --- 1. Date & Calendar Logic ---
     $currentDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
@@ -17,6 +22,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     $daysInMonth = date('t', $gridTimestamp);
     // Sunday-start index: 0 = Sunday, 6 = Saturday
     $dayOfWeek = (int)date('w', $gridTimestamp);
+    $calendarCells = $dayOfWeek + $daysInMonth;
+    $targetCells = $calendarCells > 35 ? 42 : 35;
+    $gridStartTimestamp = strtotime("-{$dayOfWeek} days", $gridTimestamp);
+    $gridEndTimestamp = strtotime('+' . ($targetCells - 1) . ' days', $gridStartTimestamp);
+    $gridStartDate = date('Y-m-d', $gridStartTimestamp);
+    $gridEndDate = date('Y-m-d', $gridEndTimestamp);
 
     // Prev/Next Month Links
     $prevMonthTimestamp = strtotime("-1 month", $gridTimestamp);
@@ -36,10 +47,30 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     } else {
         $allTasks = get_all_tasks_by_user($pdo, $_SESSION['id']);
     }
+    $calendarLeaderTasks = $_SESSION['role'] === 'admin' ? [] : get_tasks_led_by_user($pdo, (int)$_SESSION['id']);
+    $calendarMeetingTaskOptions = $_SESSION['role'] === 'admin' ? $allTasks : $calendarLeaderTasks;
+    $calendarCanCreateMeeting = $_SESSION['role'] === 'admin' || !empty($calendarLeaderTasks);
+    $allSubtasks = get_calendar_subtasks_visible_to_user($pdo, (int)$_SESSION['id'], (string)$_SESSION['role'], $gridStartDate, $gridEndDate);
+
+    $allMeetings = calendar_meetings_get_between($pdo, $gridStartDate, $gridEndDate, (int)$_SESSION['id'], (string)$_SESSION['role']);
+    $meetingsForSelectedDate = calendar_meetings_get_for_date($pdo, $currentDate, (int)$_SESSION['id'], (string)$_SESSION['role']);
+    $meetingsByDate = [];
+    foreach ($allMeetings as $meeting) {
+        $meetingDate = trim((string)($meeting['meeting_date'] ?? ''));
+        if ($meetingDate !== '') {
+            $meetingsByDate[$meetingDate][] = $meeting;
+        }
+    }
+    $calendarGroups = $_SESSION['role'] === 'admin' ? get_all_groups($pdo) : [];
+
+    $calendarStatusError = trim((string)($_GET['error'] ?? ''));
+    $calendarStatusSuccess = trim((string)($_GET['success'] ?? ''));
 
     // --- 3. Group Tasks by Date ---
     $tasksByDate = [];
     $tasksForSelectedDate = [];
+    $subtasksByDate = [];
+    $subtasksForSelectedDate = [];
 
     if ($allTasks) {
         foreach ($allTasks as $task) {
@@ -49,6 +80,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 
                 if ($tDate === $currentDate) {
                     $tasksForSelectedDate[] = $task;
+                }
+            }
+        }
+    }
+
+    if ($allSubtasks) {
+        foreach ($allSubtasks as $subtask) {
+            if (!empty($subtask['due_date'])) {
+                $sDate = $subtask['due_date'];
+                $subtasksByDate[$sDate][] = $subtask;
+
+                if ($sDate === $currentDate) {
+                    $subtasksForSelectedDate[] = $subtask;
                 }
             }
         }
@@ -100,7 +144,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             align-items: stretch;
         }
         .calendar-top-controls {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
             margin-bottom: 10px;
+        }
+        .calendar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
         .calendar-widget {
             min-width: 0;
@@ -131,6 +187,36 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         .cal-nav-btn:hover {
             transform: translateY(-1px);
             box-shadow: 0 10px 18px rgba(var(--primary-rgb), 0.28);
+        }
+        .cal-action-btn {
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            padding: 10px 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+            color: #fff;
+            box-shadow: 0 10px 18px rgba(20, 184, 166, 0.22);
+        }
+        .cal-action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 24px rgba(20, 184, 166, 0.28);
+        }
+        .cal-action-btn.secondary {
+            background: #ffffff;
+            color: #0f766e;
+            border: 1px solid #99f6e4;
+            box-shadow: none;
+        }
+        .cal-action-btn.secondary:hover {
+            box-shadow: none;
         }
         .cal-month-title {
             margin: 0 8px;
@@ -262,6 +348,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             background: #dcfce7;
             color: #166534;
         }
+        .cal-chip.meeting {
+            background: #ccfbf1;
+            color: #115e59;
+        }
+        .cal-chip.subtask {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
         .cal-chip.other {
             background: var(--primary-soft);
             color: var(--primary-ink);
@@ -288,19 +382,153 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: #fff;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
+            justify-content: space-between;
             gap: 10px;
             font-size: 20px;
             font-weight: 700;
+        }
+        .cal-tasks-head-copy {
+            min-width: 0;
         }
         .cal-tasks-head h3 {
             margin: 0;
             font-size: 17px;
             font-weight: 700;
         }
+        .cal-tasks-head p {
+            margin: 4px 0 0;
+            font-size: 12px;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.84);
+        }
         .cal-tasks-body {
             padding: 12px;
             flex: 1;
+        }
+        .cal-section {
+            margin-bottom: 18px;
+        }
+        .cal-section:last-child {
+            margin-bottom: 0;
+        }
+        .cal-section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .cal-section-head h4 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #334155;
+        }
+        .cal-section-head span {
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 700;
+        }
+        .cal-section-empty {
+            border: 1px dashed #d7dee7;
+            border-radius: 12px;
+            padding: 14px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .cal-section-empty strong {
+            color: #334155;
+        }
+        .cal-meeting-item {
+            border-radius: 14px;
+            border: 1px solid #bfdbfe;
+            background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+            padding: 14px;
+            margin-bottom: 12px;
+            box-shadow: 0 8px 18px rgba(59, 130, 246, 0.08);
+        }
+        .cal-meeting-item:last-child {
+            margin-bottom: 0;
+        }
+        .cal-meeting-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .cal-meeting-title {
+            margin: 0 0 4px;
+            font-size: 16px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .cal-meeting-host {
+            margin: 0;
+            font-size: 12px;
+            color: #475569;
+            font-weight: 600;
+        }
+        .cal-meeting-time {
+            flex-shrink: 0;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .cal-meeting-audience {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            border-radius: 999px;
+            background: #ecfeff;
+            color: #0f766e;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+        .cal-meeting-desc {
+            margin: 0 0 12px;
+            font-size: 13px;
+            color: #334155;
+            line-height: 1.5;
+        }
+        .cal-meeting-links {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .cal-inline-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 800;
+            border-radius: 999px;
+            padding: 8px 12px;
+        }
+        .cal-inline-link.meet {
+            background: #0f766e;
+            color: #ffffff;
+        }
+        .cal-inline-link.secondary {
+            background: #ffffff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+        }
+        .cal-inline-link:hover {
+            opacity: 0.92;
         }
         .cal-task-item {
             border-radius: 12px;
@@ -337,6 +565,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         .cal-task-item.tone-neutral {
             background: #f3f4f6;
             border-color: #e5e7eb;
+        }
+        .cal-task-item.tone-phase {
+            background: #f5f3ff;
+            border-color: #ddd6fe;
         }
         .cal-task-left {
             display: flex;
@@ -460,6 +692,130 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             opacity: 0.55;
             display: block;
         }
+        .cal-feedback {
+            margin-bottom: 14px;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.45;
+            border: 1px solid transparent;
+        }
+        .cal-feedback.error {
+            background: #fef2f2;
+            color: #b91c1c;
+            border-color: #fecaca;
+        }
+        .cal-feedback.success {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #a7f3d0;
+        }
+        .cal-modal-shell {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 22px;
+            background: rgba(15, 23, 42, 0.48);
+            z-index: 1200;
+        }
+        .cal-modal-shell.is-open {
+            display: flex;
+        }
+        .cal-modal-card {
+            width: min(100%, 520px);
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
+            overflow: hidden;
+        }
+        .cal-modal-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 20px 12px;
+        }
+        .cal-modal-head h3 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .cal-modal-head p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .cal-modal-close {
+            border: none;
+            background: #f1f5f9;
+            color: #475569;
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        .cal-modal-form {
+            padding: 0 20px 20px;
+        }
+        .cal-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .cal-form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .cal-form-field.full {
+            grid-column: 1 / -1;
+        }
+        .cal-form-field label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #334155;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+        .cal-form-field input,
+        .cal-form-field select,
+        .cal-form-field textarea {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 11px 12px;
+            font: inherit;
+            color: #0f172a;
+            background: #ffffff;
+        }
+        .cal-form-field textarea {
+            resize: vertical;
+            min-height: 88px;
+        }
+        .cal-form-help {
+            margin: 12px 0 0;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #475569;
+            line-height: 1.5;
+        }
+        .cal-modal-actions {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
 
         @media (max-width: 1150px) {
             .cal-month-title {
@@ -497,9 +853,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             .cal-chip {
                 font-size: 9px;
             }
+            .cal-tasks-head {
+                flex-direction: column;
+                align-items: stretch;
+            }
             .cal-task-item {
                 flex-direction: column;
                 align-items: stretch;
+            }
+            .cal-form-grid {
+                grid-template-columns: 1fr;
+            }
+            .cal-modal-shell {
+                padding: 12px;
             }
             .cal-task-side {
                 text-align: left;
@@ -515,7 +881,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <!-- Main Content -->
     <div class="dash-main">
         <div class="dash-card calendar-layout calendar-shell">
+            <?php if ($calendarStatusError !== '') { ?>
+                <div class="cal-feedback error"><?= htmlspecialchars($calendarStatusError) ?></div>
+            <?php } ?>
+            <?php if ($calendarStatusSuccess !== '') { ?>
+                <div class="cal-feedback success"><?= htmlspecialchars($calendarStatusSuccess) ?></div>
+            <?php } ?>
+
             <div class="calendar-top-controls">
+                <div>
                     <div class="cal-month-nav">
                         <a href="calendar.php?month=<?=$prevMonth?>&year=<?=$prevYear?>&date=<?=$prevYear?>-<?=$prevMonth?>-01" class="cal-nav-btn">
                             <i class="fa fa-chevron-left"></i> Prev
@@ -529,6 +903,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <i class="fa fa-calendar"></i>
                         Today is <?= htmlspecialchars($todayLabel) ?>
                     </div>
+                </div>
+                <?php if ($calendarCanCreateMeeting) { ?>
+                    <div class="calendar-actions">
+                        <button type="button" class="cal-action-btn" id="calendarCreateMeetingBtn" data-meeting-date="<?= htmlspecialchars($currentDate, ENT_QUOTES) ?>">
+                            <i class="fa fa-video-camera"></i> Create Meeting
+                        </button>
+                    </div>
+                <?php } ?>
             </div>
 
             <div class="calendar-wrapper">
@@ -548,8 +930,6 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <div class="cal-dates">
                             <?php
                             $prevMonthDays = (int)date('t', $prevMonthTimestamp);
-                            $calendarCells = $dayOfWeek + $daysInMonth;
-                            $targetCells = $calendarCells > 35 ? 42 : 35;
                             $trailingCells = max(0, $targetCells - $calendarCells);
 
                             // Leading days from previous month
@@ -565,13 +945,50 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                 $isActive = ($dateStr === $currentDate) ? 'active' : '';
                                 $isToday = ($dateStr === $todayDate) ? 'today' : '';
                                 $dayTasks = $tasksByDate[$dateStr] ?? [];
+                                $daySubtasks = $subtasksByDate[$dateStr] ?? [];
+                                $dayMeetings = $meetingsByDate[$dateStr] ?? [];
+                                $overflowCount = 0;
+                                $shownChips = 0;
 
                                 echo "<a href='calendar.php?month={$gridMonth}&year={$gridYear}&date={$dateStr}' class='cal-day {$isActive} {$isToday}'>";
                                 echo "<span class='cal-day-num'>{$day}</span>";
                                 echo "<span class='cal-day-chips'>";
 
-                                if (!empty($dayTasks)) {
-                                    $chips = array_slice($dayTasks, 0, 2);
+                                if (!empty($daySubtasks) && $shownChips < 2) {
+                                    $firstSubtask = $daySubtasks[0];
+                                    $phaseLabel = trim((string)($firstSubtask['timeline_phase_name'] ?? ''));
+                                    if ($phaseLabel === '') {
+                                        $phaseLabel = trim((string)($firstSubtask['description'] ?? 'Phase'));
+                                    }
+                                    if ($phaseLabel === '') {
+                                        $phaseLabel = 'Phase';
+                                    }
+                                    $subtaskLabel = mb_strimwidth($phaseLabel, 0, 18, '...');
+                                    echo "<span class='cal-chip subtask'>" . htmlspecialchars($subtaskLabel) . "</span>";
+                                    $shownChips++;
+                                    $overflowCount += max(0, count($daySubtasks) - 1);
+                                } elseif (!empty($daySubtasks)) {
+                                    $overflowCount += count($daySubtasks);
+                                }
+
+                                if (!empty($dayMeetings) && $shownChips < 2) {
+                                    $firstMeeting = $dayMeetings[0];
+                                    $meetingTitle = trim((string)($firstMeeting['title'] ?? 'Meeting'));
+                                    if ($meetingTitle === '') {
+                                        $meetingTitle = 'Meeting';
+                                    }
+                                    $meetingTime = trim((string)($firstMeeting['start_time'] ?? ''));
+                                    $meetingPrefix = $meetingTime !== '' ? date('g:i A', strtotime($meetingTime)) . ' ' : '';
+                                    $meetingLabel = mb_strimwidth($meetingPrefix . $meetingTitle, 0, 18, '...');
+                                    echo "<span class='cal-chip meeting'>" . htmlspecialchars($meetingLabel) . "</span>";
+                                    $shownChips++;
+                                    $overflowCount += max(0, count($dayMeetings) - 1);
+                                } elseif (!empty($dayMeetings)) {
+                                    $overflowCount += count($dayMeetings);
+                                }
+
+                                if (!empty($dayTasks) && $shownChips < 2) {
+                                    $chips = array_slice($dayTasks, 0, 2 - $shownChips);
                                     foreach ($chips as $chipTask) {
                                         $chipStatusRaw = strtolower((string)($chipTask['status'] ?? ''));
                                         $chipClass = 'other';
@@ -588,12 +1005,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                         }
                                         $chipText = mb_strimwidth($chipText, 0, 16, '...');
                                         echo "<span class='cal-chip {$chipClass}'>" . htmlspecialchars($chipText) . "</span>";
+                                        $shownChips++;
                                     }
+                                    $overflowCount += max(0, count($dayTasks) - count($chips));
+                                } elseif (!empty($dayTasks)) {
+                                    $overflowCount += count($dayTasks);
+                                }
 
-                                    if (count($dayTasks) > 2) {
-                                        $moreCount = count($dayTasks) - 2;
-                                        echo "<span class='cal-chip more'>+{$moreCount}</span>";
-                                    }
+                                if ($overflowCount > 0) {
+                                    echo "<span class='cal-chip more'>+{$overflowCount}</span>";
                                 }
 
                                 echo "</span>";
@@ -613,15 +1033,155 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <!-- Tasks List for Selected Day -->
                 <div class="calendar-tasks">
                     <div class="cal-tasks-head">
-                        <i class="fa fa-list-ul" aria-hidden="true"></i>
-                        <h3>Tasks Deadlines for <?= date('F j, Y', strtotime($currentDate)) ?></h3>
+                        <div class="cal-tasks-head-copy">
+                            <h3><i class="fa fa-list-ul" aria-hidden="true"></i> Agenda for <?= date('F j, Y', strtotime($currentDate)) ?></h3>
+                            <p>Create a meeting straight from the selected date, then reopen the Meet link here anytime.</p>
+                        </div>
+                        <?php if ($calendarCanCreateMeeting) { ?>
+                            <button type="button" class="cal-action-btn secondary" data-meeting-date="<?= htmlspecialchars($currentDate, ENT_QUOTES) ?>">
+                                <i class="fa fa-plus-circle"></i> Create Meeting
+                            </button>
+                        <?php } ?>
                     </div>
                     <div class="cal-tasks-body">
-                    
-                    <?php if (count($tasksForSelectedDate) > 0) { 
+                        <div class="cal-section">
+                            <div class="cal-section-head">
+                                <h4>Meetings</h4>
+                                <span><?= count($meetingsForSelectedDate) ?> scheduled</span>
+                            </div>
+
+                            <?php if (!empty($meetingsForSelectedDate)) { ?>
+                                <?php foreach ($meetingsForSelectedDate as $meeting) {
+                                    $creatorAvatar = 'img/user.png';
+                                    if (!empty($meeting['creator_profile_image'])) {
+                                        $creatorAvatar = 'uploads/' . $meeting['creator_profile_image'];
+                                    }
+                                    $meetingStart = trim((string)($meeting['start_time'] ?? ''));
+                                    $meetingEnd = trim((string)($meeting['end_time'] ?? ''));
+                                    $timeRange = '';
+                                    if ($meetingStart !== '' && $meetingEnd !== '') {
+                                        $timeRange = date('g:i A', strtotime($meetingStart)) . ' - ' . date('g:i A', strtotime($meetingEnd));
+                                    }
+                                ?>
+                                    <div class="cal-meeting-item">
+                                        <div class="cal-meeting-top">
+                                            <div>
+                                                <p class="cal-meeting-title"><?= htmlspecialchars((string)($meeting['title'] ?? 'Workspace meeting')) ?></p>
+                                                <p class="cal-meeting-host">
+                                                    <img src="<?= htmlspecialchars($creatorAvatar, ENT_QUOTES) ?>" alt="Organizer" class="cal-task-member-avatar" style="width:22px;height:22px;vertical-align:middle;margin-right:6px;">
+                                                    Organized by <?= htmlspecialchars((string)($meeting['creator_name'] ?? 'Workspace member')) ?>
+                                                </p>
+                                                <span class="cal-meeting-audience">
+                                                    <i class="fa fa-users"></i>
+                                                    <?php if (($meeting['audience_type'] ?? 'everyone') === 'group') { ?>
+                                                        Group<?= !empty($meeting['group_name']) ? ': ' . htmlspecialchars((string)$meeting['group_name']) : '' ?>
+                                                    <?php } elseif (($meeting['audience_type'] ?? 'everyone') === 'task') { ?>
+                                                        Task<?= !empty($meeting['task_name']) ? ': ' . htmlspecialchars((string)$meeting['task_name']) : '' ?>
+                                                    <?php } else { ?>
+                                                        Everyone
+                                                    <?php } ?>
+                                                </span>
+                                            </div>
+                                            <?php if ($timeRange !== '') { ?>
+                                                <span class="cal-meeting-time"><?= htmlspecialchars($timeRange) ?></span>
+                                            <?php } ?>
+                                        </div>
+                                        <?php if (!empty($meeting['description'])) { ?>
+                                            <p class="cal-meeting-desc"><?= nl2br(htmlspecialchars((string)$meeting['description'])) ?></p>
+                                        <?php } ?>
+                                        <div class="cal-meeting-links">
+                                            <?php if (!empty($meeting['google_meet_url'])) { ?>
+                                                <a href="<?= htmlspecialchars((string)$meeting['google_meet_url'], ENT_QUOTES) ?>" target="_blank" rel="noopener noreferrer" class="cal-inline-link meet">
+                                                    <i class="fa fa-video-camera"></i> Join Google Meet
+                                                </a>
+                                            <?php } ?>
+                                            <?php if (!empty($meeting['google_calendar_url'])) { ?>
+                                                <a href="<?= htmlspecialchars((string)$meeting['google_calendar_url'], ENT_QUOTES) ?>" target="_blank" rel="noopener noreferrer" class="cal-inline-link secondary">
+                                                    <i class="fa fa-calendar"></i> Open in Google Calendar
+                                                </a>
+                                            <?php } ?>
+                                        </div>
+                                    </div>
+                                <?php } ?>
+                            <?php } else { ?>
+                                <div class="cal-section-empty">
+                                    <strong>No meetings yet for this day.</strong><br>
+                                    Use <em>Create Meeting</em> to open Google Calendar authorization once, generate a Google Meet link, and save it back here.
+                                </div>
+                            <?php } ?>
+                        </div>
+
+                        <div class="cal-section">
+                            <div class="cal-section-head">
+                                <h4>Subtasks and Phases</h4>
+                                <span><?= count($subtasksForSelectedDate) ?> due</span>
+                            </div>
+
+                            <?php if (!empty($subtasksForSelectedDate)) { ?>
+                                <?php
+                                    $subtaskRedirectPage = ($_SESSION['role'] == 'admin') ? 'tasks.php' : 'my_task.php';
+                                    foreach ($subtasksForSelectedDate as $subtask) {
+                                        $redirectUrl = $subtaskRedirectPage . '?open_task=' . (int)$subtask['task_id'];
+                                        $subtaskToneClass = 'tone-phase';
+                                        $subtaskStatus = strtolower(trim((string)($subtask['status'] ?? 'pending')));
+                                        if ($subtaskStatus === 'completed') {
+                                            $subtaskToneClass = 'tone-success';
+                                        } elseif ($subtaskStatus === 'submitted') {
+                                            $subtaskToneClass = 'tone-review';
+                                        } elseif ($subtaskStatus === 'in_progress') {
+                                            $subtaskToneClass = 'tone-info';
+                                        } elseif ($subtaskStatus === 'pending') {
+                                            $subtaskToneClass = 'tone-phase';
+                                        }
+
+                                        $phaseName = trim((string)($subtask['timeline_phase_name'] ?? ''));
+                                        $phaseMeta = subtask_google_workspace_meta($subtask);
+                                        $phaseTypeLabel = $phaseName !== ''
+                                            ? $phaseName
+                                            : trim((string)($subtask['description'] ?? 'Subtask'));
+                                        $taskName = trim((string)($subtask['task_title'] ?? 'Task'));
+                                        $memberName = trim((string)($subtask['member_name'] ?? 'Unassigned member'));
+                                    ?>
+                                    <div class="cal-task-item <?= htmlspecialchars($subtaskToneClass, ENT_QUOTES) ?>" onclick="location.href='<?= htmlspecialchars($redirectUrl, ENT_QUOTES) ?>'">
+                                        <div class="cal-task-left">
+                                            <div class="cal-task-member-avatar" style="width:42px;height:42px;font-size:13px;background:#ffffff;color:#6d28d9;border:2px solid rgba(109,40,217,0.15);">
+                                                <i class="fa <?= htmlspecialchars((string)($phaseMeta['phase_icon'] ?? 'fa-list-alt'), ENT_QUOTES) ?>"></i>
+                                            </div>
+                                            <div class="cal-task-meta">
+                                                <p class="cal-task-name"><?= htmlspecialchars($phaseTypeLabel) ?></p>
+                                                <p class="cal-task-assignee"><?= htmlspecialchars($taskName) ?> • <?= htmlspecialchars($memberName) ?></p>
+                                                <p class="cal-task-desc">
+                                                    <?= htmlspecialchars((string)($phaseMeta['phase_label'] ?? 'Phase')) ?>
+                                                    <?php if (!empty($subtask['description']) && $phaseName !== trim((string)$subtask['description'])) { ?>
+                                                        • <?= htmlspecialchars(mb_strimwidth((string)$subtask['description'], 0, 56, '...')) ?>
+                                                    <?php } ?>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="cal-task-side">
+                                            <span class="cal-task-side-label">Subtask Status</span>
+                                            <span class="cal-task-side-value"><?= htmlspecialchars(ucwords(str_replace('_', ' ', (string)($subtask['status'] ?? 'pending')))) ?></span>
+                                        </div>
+                                    </div>
+                                <?php } ?>
+                            <?php } else { ?>
+                                <div class="cal-section-empty">
+                                    <strong>No subtasks or timeline phases due on this day.</strong><br>
+                                    Leaders will see all member phases for the tasks they lead, while admins can see all workspace subtasks here.
+                                </div>
+                            <?php } ?>
+                        </div>
+
+                        <div class="cal-section">
+                            <div class="cal-section-head">
+                                <h4>Task Deadlines</h4>
+                                <span><?= count($tasksForSelectedDate) ?> due</span>
+                            </div>
+
+                    <?php if (count($tasksForSelectedDate) > 0) {
                         $redirectPage = ($_SESSION['role'] == 'admin') ? 'tasks.php' : 'my_task.php';
                     ?>
-                        <?php foreach ($tasksForSelectedDate as $task) { 
+                        <?php foreach ($tasksForSelectedDate as $task) {
                              $badgeClass = "badge-pending";
                              $statusDisplay = str_replace('_',' ',$task['status']);
                              
@@ -730,12 +1290,203 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             <?php } ?>
                         </div>
                     <?php } ?>
+                        </div>
                     </div>
                 </div>
 
             </div>
         </div>
     </div>
+
+    <?php if ($calendarCanCreateMeeting) { ?>
+    <div class="cal-modal-shell" id="calendarMeetingModal" aria-hidden="true">
+        <div class="cal-modal-card" role="dialog" aria-modal="true" aria-labelledby="calendarMeetingModalTitle">
+            <div class="cal-modal-head">
+                <div>
+                    <h3 id="calendarMeetingModalTitle">Create Meeting</h3>
+                    <p>Pick the selected calendar date, add the meeting title and time, and TaskFlow will create a Google Meet-backed event for you.</p>
+                </div>
+                <button type="button" class="cal-modal-close" id="calendarMeetingCloseBtn" aria-label="Close meeting form">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <form class="cal-modal-form" method="post" action="app/google-calendar-meeting.php">
+                <?= csrf_field('calendar_meeting_form') ?>
+                <div class="cal-form-grid">
+                    <div class="cal-form-field full">
+                        <label for="calendarMeetingTitle">Meeting Name</label>
+                        <input type="text" id="calendarMeetingTitle" name="title" maxlength="255" placeholder="Weekly project sync" required>
+                    </div>
+                    <div class="cal-form-field">
+                        <label for="calendarMeetingDate">Date</label>
+                        <input type="date" id="calendarMeetingDate" name="meeting_date" value="<?= htmlspecialchars($currentDate, ENT_QUOTES) ?>" required>
+                    </div>
+                    <div class="cal-form-field">
+                        <label for="calendarMeetingTimezone">Timezone</label>
+                        <input type="text" id="calendarMeetingTimezone" name="timezone" value="Asia/Manila" required>
+                    </div>
+                    <?php if ($_SESSION['role'] === 'admin') { ?>
+                        <div class="cal-form-field">
+                            <label for="calendarMeetingAudience">Audience</label>
+                            <select id="calendarMeetingAudience" name="audience_type">
+                                <option value="everyone">Everyone</option>
+                                <option value="group">Specific Group</option>
+                                <option value="task">Specific Task</option>
+                            </select>
+                        </div>
+                        <div class="cal-form-field" id="calendarMeetingGroupField" style="display:none;">
+                            <label for="calendarMeetingGroup">Group</label>
+                            <select id="calendarMeetingGroup" name="group_id">
+                                <option value="">Select a group</option>
+                                <?php foreach ($calendarGroups as $groupRow) { ?>
+                                    <option value="<?= (int)$groupRow['id'] ?>"><?= htmlspecialchars((string)($groupRow['name'] ?? 'Group')) ?></option>
+                                <?php } ?>
+                            </select>
+                        </div>
+                        <div class="cal-form-field" id="calendarMeetingTaskField" style="display:none;">
+                            <label for="calendarMeetingTask">Task</label>
+                            <select id="calendarMeetingTask" name="task_id">
+                                <option value="">Select a task</option>
+                                <?php foreach ($calendarMeetingTaskOptions as $taskOption) { ?>
+                                    <option value="<?= (int)$taskOption['id'] ?>"><?= htmlspecialchars((string)($taskOption['title'] ?? 'Task')) ?></option>
+                                <?php } ?>
+                            </select>
+                        </div>
+                    <?php } else { ?>
+                        <input type="hidden" name="audience_type" value="task">
+                        <div class="cal-form-field">
+                            <label for="calendarMeetingTask">Task</label>
+                            <select id="calendarMeetingTask" name="task_id" required>
+                                <option value="">Select one of your led tasks</option>
+                                <?php foreach ($calendarMeetingTaskOptions as $taskOption) { ?>
+                                    <option value="<?= (int)$taskOption['id'] ?>"><?= htmlspecialchars((string)($taskOption['title'] ?? 'Task')) ?></option>
+                                <?php } ?>
+                            </select>
+                        </div>
+                    <?php } ?>
+                    <div class="cal-form-field">
+                        <label for="calendarMeetingStart">Start Time</label>
+                        <input type="time" id="calendarMeetingStart" name="start_time" required>
+                    </div>
+                    <div class="cal-form-field">
+                        <label for="calendarMeetingEnd">End Time</label>
+                        <input type="time" id="calendarMeetingEnd" name="end_time" required>
+                    </div>
+                    <div class="cal-form-field full">
+                        <label for="calendarMeetingDescription">Description</label>
+                        <textarea id="calendarMeetingDescription" name="description" placeholder="Agenda, reminders, or a short note for the team."></textarea>
+                    </div>
+                </div>
+                <div class="cal-form-help">
+                    <?php if ($_SESSION['role'] === 'admin') { ?>
+                        Google Meet links are created through Google Calendar. Admins can target the whole workspace, one group, or one task team.
+                    <?php } else { ?>
+                        Leaders create meetings for one of their led tasks. Only the members assigned to that task, plus the leader and admins, will see the meeting in TaskFlow.
+                    <?php } ?>
+                </div>
+                <div class="cal-modal-actions">
+                    <button type="button" class="cal-action-btn secondary" id="calendarMeetingCancelBtn">Cancel</button>
+                    <button type="submit" class="cal-action-btn">
+                        <i class="fa fa-video-camera"></i> Create in Google Meet
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var modal = document.getElementById('calendarMeetingModal');
+            var closeBtn = document.getElementById('calendarMeetingCloseBtn');
+            var cancelBtn = document.getElementById('calendarMeetingCancelBtn');
+            var dateInput = document.getElementById('calendarMeetingDate');
+            var audienceInput = document.getElementById('calendarMeetingAudience');
+            var groupField = document.getElementById('calendarMeetingGroupField');
+            var groupSelect = document.getElementById('calendarMeetingGroup');
+            var taskField = document.getElementById('calendarMeetingTaskField');
+            var taskSelect = document.getElementById('calendarMeetingTask');
+            var openButtons = document.querySelectorAll('[data-meeting-date]');
+
+            function openMeetingModal(dateValue) {
+                if (!modal) {
+                    return;
+                }
+
+                if (dateInput && dateValue) {
+                    dateInput.value = dateValue;
+                }
+
+                modal.classList.add('is-open');
+                modal.setAttribute('aria-hidden', 'false');
+            }
+
+            function closeMeetingModal() {
+                if (!modal) {
+                    return;
+                }
+
+                modal.classList.remove('is-open');
+                modal.setAttribute('aria-hidden', 'true');
+            }
+
+            function syncAudienceField() {
+                var audienceValue = audienceInput ? audienceInput.value : 'task';
+                var isGroup = audienceValue === 'group';
+                var isTask = audienceValue === 'task';
+
+                if (groupField) {
+                    groupField.style.display = isGroup ? 'flex' : 'none';
+                }
+                if (groupSelect) {
+                    groupSelect.required = isGroup;
+                    if (!isGroup) {
+                        groupSelect.value = '';
+                    }
+                }
+
+                if (taskField) {
+                    taskField.style.display = isTask ? 'flex' : 'none';
+                }
+                if (taskSelect) {
+                    taskSelect.required = isTask;
+                    if (!isTask && audienceInput) {
+                        taskSelect.value = '';
+                    }
+                }
+            }
+
+            openButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    openMeetingModal(button.getAttribute('data-meeting-date') || '');
+                });
+            });
+
+            if (audienceInput) {
+                audienceInput.addEventListener('change', syncAudienceField);
+            }
+            syncAudienceField();
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeMeetingModal);
+            }
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', closeMeetingModal);
+            }
+            if (modal) {
+                modal.addEventListener('click', function (event) {
+                    if (event.target === modal) {
+                        closeMeetingModal();
+                    }
+                });
+            }
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    closeMeetingModal();
+                }
+            });
+        })();
+    </script>
+    <?php } ?>
 
 </body>
 </html>

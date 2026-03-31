@@ -899,6 +899,95 @@ function get_subtasks_by_member($pdo, $member_id)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+if (!function_exists('get_calendar_subtasks_visible_to_user')) {
+    function get_calendar_subtasks_visible_to_user($pdo, $userId, $sessionRole = 'employee', $startDate = null, $endDate = null)
+    {
+        subtask_ensure_schema($pdo);
+
+        $userId = (int)$userId;
+        $sessionRole = strtolower(trim((string)$sessionRole));
+        $hasTimelinePhase = tenant_column_exists($pdo, 'subtasks', 'timeline_phase_id');
+        $hasTimelinePhaseTable = tenant_table_exists($pdo, 'project_timeline_phases');
+
+        if ($hasTimelinePhase && $hasTimelinePhaseTable) {
+            $sql = "SELECT s.*,
+                           t.title AS task_title,
+                           COALESCE(u.full_name, 'Unassigned member') AS member_name,
+                           pp.name AS timeline_phase_name,
+                           COALESCE(pp.phase_type, 'standard') AS timeline_phase_type
+                    FROM subtasks s
+                    JOIN tasks t ON t.id = s.task_id
+                    LEFT JOIN users u ON u.id = s.member_id
+                    LEFT JOIN project_timeline_phases pp ON pp.id = s.timeline_phase_id
+                    WHERE 1=1";
+        } elseif ($hasTimelinePhase) {
+            $sql = "SELECT s.*,
+                           t.title AS task_title,
+                           COALESCE(u.full_name, 'Unassigned member') AS member_name,
+                           NULL AS timeline_phase_name,
+                           'standard' AS timeline_phase_type
+                    FROM subtasks s
+                    JOIN tasks t ON t.id = s.task_id
+                    LEFT JOIN users u ON u.id = s.member_id
+                    WHERE 1=1";
+        } else {
+            $sql = "SELECT s.*,
+                           t.title AS task_title,
+                           COALESCE(u.full_name, 'Unassigned member') AS member_name,
+                           NULL AS timeline_phase_id,
+                           NULL AS timeline_phase_name,
+                           'standard' AS timeline_phase_type
+                    FROM subtasks s
+                    JOIN tasks t ON t.id = s.task_id
+                    LEFT JOIN users u ON u.id = s.member_id
+                    WHERE 1=1";
+        }
+
+        $params = [];
+        if ($sessionRole !== 'admin') {
+            $leaderScope = tenant_get_scope($pdo, 'task_assignees', 'leader_ta');
+            $sql .= " AND (
+                        s.member_id = ?
+                        OR EXISTS (
+                            SELECT 1
+                            FROM task_assignees leader_ta
+                            WHERE leader_ta.task_id = s.task_id
+                              AND leader_ta.user_id = ?
+                              AND leader_ta.role = 'leader'" . $leaderScope['sql'] . "
+                        )
+                    )";
+            $params[] = $userId;
+            $params[] = $userId;
+            $params = array_merge($params, $leaderScope['params']);
+        }
+
+        $startDate = subtask_normalize_date_ymd($startDate);
+        $endDate = subtask_normalize_date_ymd($endDate);
+        if ($startDate !== null && $endDate !== null) {
+            $sql .= " AND s.due_date BETWEEN ? AND ?";
+            $params[] = $startDate;
+            $params[] = $endDate;
+        } elseif ($startDate !== null) {
+            $sql .= " AND s.due_date >= ?";
+            $params[] = $startDate;
+        } elseif ($endDate !== null) {
+            $sql .= " AND s.due_date <= ?";
+            $params[] = $endDate;
+        }
+
+        $subtaskScope = tenant_get_scope($pdo, 'subtasks', 's');
+        $taskScope = tenant_get_scope($pdo, 'tasks', 't');
+        $sql .= $subtaskScope['sql'] . $taskScope['sql'];
+        $params = array_merge($params, $subtaskScope['params'], $taskScope['params']);
+        $sql .= " ORDER BY s.due_date ASC, s.id ASC";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return is_array($rows) ? $rows : [];
+    }
+}
+
 function update_subtask_submission($pdo, $id, $file_path, $note = null)
 {
     $sql = "UPDATE subtasks SET submission_file = ?, submission_note = ?, status = 'submitted', updated_at = NOW() WHERE id = ?";

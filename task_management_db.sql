@@ -1639,6 +1639,72 @@ ALTER TABLE ONLY public.tasks
     ADD CONSTRAINT tasks_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id);
 
 
+CREATE TABLE IF NOT EXISTS public.calendar_meetings (
+    id bigserial PRIMARY KEY,
+    title character varying(255) NOT NULL,
+    description text,
+    meeting_date date NOT NULL,
+    start_time time without time zone NOT NULL,
+    end_time time without time zone NOT NULL,
+    timezone character varying(100) NOT NULL DEFAULT 'Asia/Manila'::character varying,
+    audience_type character varying(20) NOT NULL DEFAULT 'everyone'::character varying,
+    group_id integer,
+    task_id integer,
+    google_event_id character varying(255),
+    google_calendar_url character varying(2048),
+    google_meet_url character varying(2048),
+    google_conference_id character varying(255),
+    created_by integer NOT NULL,
+    organization_id integer,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT calendar_meetings_google_event_key UNIQUE (google_event_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_calendar_meetings_org_date ON public.calendar_meetings USING btree (organization_id, meeting_date);
+CREATE INDEX IF NOT EXISTS idx_calendar_meetings_creator_date ON public.calendar_meetings USING btree (created_by, meeting_date);
+
+ALTER TABLE ONLY public.calendar_meetings
+    DROP CONSTRAINT IF EXISTS calendar_meetings_created_by_fkey;
+
+ALTER TABLE ONLY public.calendar_meetings
+    ADD CONSTRAINT calendar_meetings_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.calendar_meetings
+    DROP CONSTRAINT IF EXISTS calendar_meetings_task_id_fkey;
+
+ALTER TABLE ONLY public.calendar_meetings
+    ADD CONSTRAINT calendar_meetings_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS public.calendar_meeting_email_reminders (
+    id bigserial PRIMARY KEY,
+    meeting_id integer NOT NULL,
+    user_id integer NOT NULL,
+    scheduled_for timestamp without time zone NOT NULL,
+    sent_at timestamp without time zone,
+    error_message text,
+    organization_id integer,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_calendar_meeting_email_reminders_meeting_user ON public.calendar_meeting_email_reminders USING btree (meeting_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_meeting_email_reminders_due ON public.calendar_meeting_email_reminders USING btree (scheduled_for, sent_at);
+CREATE INDEX IF NOT EXISTS idx_calendar_meeting_email_reminders_org ON public.calendar_meeting_email_reminders USING btree (organization_id);
+
+ALTER TABLE ONLY public.calendar_meeting_email_reminders
+    DROP CONSTRAINT IF EXISTS calendar_meeting_email_reminders_meeting_id_fkey;
+
+ALTER TABLE ONLY public.calendar_meeting_email_reminders
+    ADD CONSTRAINT calendar_meeting_email_reminders_meeting_id_fkey FOREIGN KEY (meeting_id) REFERENCES public.calendar_meetings(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.calendar_meeting_email_reminders
+    DROP CONSTRAINT IF EXISTS calendar_meeting_email_reminders_user_id_fkey;
+
+ALTER TABLE ONLY public.calendar_meeting_email_reminders
+    ADD CONSTRAINT calendar_meeting_email_reminders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
 -- Completed on 2026-02-13 10:53:26
 
 --

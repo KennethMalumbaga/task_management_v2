@@ -36,6 +36,49 @@ if (!function_exists('google_workspace_scopes')) {
     }
 }
 
+if (!function_exists('google_workspace_scope_values')) {
+    function google_workspace_scope_values(...$scopeSets)
+    {
+        $values = [];
+        foreach ($scopeSets as $scopeSet) {
+            if (is_array($scopeSet)) {
+                $scopeSet = implode(' ', array_map(static function ($value) {
+                    return trim((string)$value);
+                }, $scopeSet));
+            }
+
+            foreach (preg_split('/\s+/', trim((string)$scopeSet)) as $scope) {
+                $scope = trim((string)$scope);
+                if ($scope !== '') {
+                    $values[$scope] = true;
+                }
+            }
+        }
+
+        return array_keys($values);
+    }
+}
+
+if (!function_exists('google_workspace_scope_merge')) {
+    function google_workspace_scope_merge(...$scopeSets)
+    {
+        return implode(' ', google_workspace_scope_values(...$scopeSets));
+    }
+}
+
+if (!function_exists('google_workspace_scope_contains')) {
+    function google_workspace_scope_contains($scopeSet, $requiredScope)
+    {
+        $requiredScope = trim((string)$requiredScope);
+        if ($requiredScope === '') {
+            return true;
+        }
+
+        $values = google_workspace_scope_values($scopeSet);
+        return in_array($requiredScope, $values, true);
+    }
+}
+
 if (!function_exists('google_workspace_supported_file_types')) {
     function google_workspace_supported_file_types()
     {
@@ -186,11 +229,13 @@ if (!function_exists('google_workspace_api_error_message')) {
         ) {
             if (strpos($rawLower, 'docs') !== false) {
                 $message .= ' Enable the Google Docs API in Google Cloud, then try again.';
+            } elseif (strpos($rawLower, 'calendar') !== false) {
+                $message .= ' Enable the Google Calendar API in Google Cloud, then try again.';
             } else {
                 $message .= ' Enable the Google Drive API in Google Cloud, then try again.';
             }
         } elseif ($status === 403 && strpos($rawLower, 'insufficient') !== false) {
-            $message .= ' Check that the OAuth consent screen includes the requested Google Drive scope.';
+            $message .= ' Check that the OAuth consent screen includes the requested Google API scope.';
         }
 
         return trim($message);
