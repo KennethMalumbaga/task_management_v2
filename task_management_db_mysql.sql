@@ -160,6 +160,7 @@ CREATE TABLE tasks (
     status varchar(20) DEFAULT 'pending',
     submission_file varchar(255),
     template_file varchar(255),
+    google_doc_url varchar(2048),
     review_comment text,
     reviewed_by int,
     reviewed_at timestamp,

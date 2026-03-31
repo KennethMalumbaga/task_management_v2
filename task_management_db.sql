@@ -634,6 +634,7 @@ CREATE TABLE public.tasks (
     status text DEFAULT 'pending'::text,
     submission_file character varying(255),
     template_file character varying(255),
+    google_doc_url character varying(2048),
     review_comment text,
     reviewed_by integer,
     reviewed_at timestamp without time zone,
@@ -1623,4 +1624,3 @@ ALTER TABLE ONLY public.tasks
 --
 
 \unrestrict XZYYkgP6DmaXt0SIzIIkaaGyrS3BVAaLTb3kUiOaxfKjAkkvET7L8YNERCpKFmF
-
