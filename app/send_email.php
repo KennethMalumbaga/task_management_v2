@@ -10,36 +10,9 @@ require '../lib/PHPMailer/src/SMTP.php';
 
 include "mail_config.php";
 
-if (!function_exists('tm_mail_is_railway_runtime')) {
-    function tm_mail_is_railway_runtime()
-    {
-        $env = getenv('RAILWAY_ENVIRONMENT');
-        return $env !== false && trim((string)$env) !== '';
-    }
-}
-
-if (!function_exists('tm_mail_should_use_resend')) {
-    function tm_mail_should_use_resend()
-    {
-        $driver = strtolower(trim((string)MAIL_DRIVER));
-        if ($driver === 'smtp') {
-            return false;
-        }
-        if ($driver === 'resend') {
-            return RESEND_API_KEY !== '';
-        }
-
-        return tm_mail_is_railway_runtime() && RESEND_API_KEY !== '';
-    }
-}
-
 if (!function_exists('tm_mail_missing_config_message')) {
     function tm_mail_missing_config_message()
     {
-        if (tm_mail_should_use_resend()) {
-            return 'Mail not configured: set RESEND_API_KEY environment variable for Railway email delivery.';
-        }
-
         return 'Mail not configured: set MAIL_USERNAME and MAIL_PASSWORD environment variables.';
     }
 }
@@ -47,144 +20,7 @@ if (!function_exists('tm_mail_missing_config_message')) {
 if (!function_exists('tm_mail_is_configured')) {
     function tm_mail_is_configured()
     {
-        if (tm_mail_should_use_resend()) {
-            return RESEND_API_KEY !== '';
-        }
-
         return MAIL_USERNAME !== '' && MAIL_PASSWORD !== '';
-    }
-}
-
-if (!function_exists('tm_mail_build_from_header')) {
-    function tm_mail_build_from_header()
-    {
-        $custom = trim((string)RESEND_FROM_ADDRESS);
-        if ($custom !== '') {
-            return $custom;
-        }
-
-        $name = trim((string)MAIL_FROM_NAME);
-        if ($name === '') {
-            return 'onboarding@resend.dev';
-        }
-
-        return sprintf('%s <%s>', $name, 'onboarding@resend.dev');
-    }
-}
-
-if (!function_exists('tm_mail_extract_error_message')) {
-    function tm_mail_extract_error_message($responseBody, $statusCode = 0)
-    {
-        $responseBody = trim((string)$responseBody);
-        if ($responseBody !== '') {
-            $decoded = json_decode($responseBody, true);
-            if (is_array($decoded)) {
-                foreach (['message', 'error'] as $key) {
-                    if (!empty($decoded[$key]) && is_string($decoded[$key])) {
-                        return $decoded[$key];
-                    }
-                }
-            }
-        }
-
-        if ($responseBody !== '') {
-            return $responseBody;
-        }
-
-        if ($statusCode > 0) {
-            return 'HTTP ' . $statusCode;
-        }
-
-        return 'Unknown email transport error.';
-    }
-}
-
-if (!function_exists('tm_mail_resolve_login_verification_recipient')) {
-    function tm_mail_resolve_login_verification_recipient($toEmail)
-    {
-        $toEmail = trim((string)$toEmail);
-        $override = trim((string)RESEND_TEST_TO);
-        if ($override === '') {
-            return $toEmail;
-        }
-        if (!tm_mail_is_railway_runtime() || !tm_mail_should_use_resend()) {
-            return $toEmail;
-        }
-
-        error_log("Verification email test override active: sending to {$override} instead of {$toEmail}");
-        return $override;
-    }
-}
-
-if (!function_exists('tm_mail_send_via_resend')) {
-    function tm_mail_send_via_resend($toEmail, $subject, $htmlBody, $textBody, $errorPrefix)
-    {
-        $payload = [
-            'from' => tm_mail_build_from_header(),
-            'to' => [trim((string)$toEmail)],
-            'subject' => $subject,
-            'html' => $htmlBody,
-            'text' => $textBody,
-        ];
-
-        $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if ($body === false) {
-            error_log($errorPrefix . ': Failed to encode Resend payload.');
-            return false;
-        }
-
-        $responseBody = '';
-        $statusCode = 0;
-
-        if (function_exists('curl_init')) {
-            $ch = curl_init('https://api.resend.com/emails');
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer ' . RESEND_API_KEY,
-                    'Content-Type: application/json',
-                ],
-                CURLOPT_POSTFIELDS => $body,
-                CURLOPT_TIMEOUT => 30,
-            ]);
-
-            $responseBody = (string)curl_exec($ch);
-            if ($responseBody === '' && curl_errno($ch)) {
-                error_log($errorPrefix . ': ' . curl_error($ch));
-                curl_close($ch);
-                return false;
-            }
-
-            $statusCode = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-            curl_close($ch);
-        } else {
-            $context = stream_context_create([
-                'http' => [
-                    'method' => 'POST',
-                    'header' => implode("\r\n", [
-                        'Authorization: Bearer ' . RESEND_API_KEY,
-                        'Content-Type: application/json',
-                    ]),
-                    'content' => $body,
-                    'timeout' => 30,
-                    'ignore_errors' => true,
-                ],
-            ]);
-
-            $responseBody = (string)file_get_contents('https://api.resend.com/emails', false, $context);
-            $headers = $http_response_header ?? [];
-            if (isset($headers[0]) && preg_match('/\s(\d{3})\s/', (string)$headers[0], $matches)) {
-                $statusCode = (int)$matches[1];
-            }
-        }
-
-        if ($statusCode >= 200 && $statusCode < 300) {
-            return true;
-        }
-
-        error_log($errorPrefix . ': ' . tm_mail_extract_error_message($responseBody, $statusCode));
-        return false;
     }
 }
 
@@ -225,10 +61,6 @@ if (!function_exists('tm_send_app_mail')) {
         if (!tm_mail_is_configured()) {
             error_log(tm_mail_missing_config_message());
             return false;
-        }
-
-        if (tm_mail_should_use_resend()) {
-            return tm_mail_send_via_resend($toEmail, $subject, $htmlBody, $textBody, $errorPrefix);
         }
 
         return tm_mail_send_via_smtp($toEmail, $toName, $subject, $htmlBody, $textBody, $errorPrefix);
@@ -312,7 +144,6 @@ function send_workspace_invite_email($to_email, $full_name, $workspace_name, $to
 }
 
 function send_login_verification_code_email($to_email, $full_name, $code) {
-    $recipientEmail = tm_mail_resolve_login_verification_recipient($to_email);
     $htmlBody = "
         <h2>Login Verification</h2>
         <p>Hello {$full_name},</p>
@@ -326,7 +157,7 @@ function send_login_verification_code_email($to_email, $full_name, $code) {
     $textBody = "Hello {$full_name}. Your TaskFlow verification code is {$code}. It expires in 10 minutes.";
 
     return tm_send_app_mail(
-        $recipientEmail,
+        $to_email,
         $full_name,
         'Your TaskFlow verification code',
         $htmlBody,
