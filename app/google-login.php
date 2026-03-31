@@ -3,6 +3,7 @@ session_start();
 
 require_once "../DB_connection.php";
 require_once "../inc/tenant.php";
+require_once "../inc/csrf.php";
 require_once __DIR__ . "/helpers/google_auth.php";
 require_once __DIR__ . "/model/user.php";
 
@@ -20,7 +21,10 @@ if (!google_auth_is_enabled()) {
     google_login_redirect("Google login is not configured yet.");
 }
 
-if (!google_auth_verify_gsi_csrf($_POST, $_COOKIE)) {
+if (
+    !google_auth_verify_gsi_csrf($_POST, $_COOKIE)
+    && !csrf_verify('google_login_init_form', $_POST['csrf_token'] ?? null, true)
+) {
     google_login_redirect("Google login request could not be verified.");
 }
 

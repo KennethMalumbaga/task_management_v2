@@ -30,7 +30,6 @@ $verificationError = isset($_GET['verify_error']) ? trim((string)$_GET['verify_e
 $verificationSuccess = isset($_GET['verify_success']) ? trim((string)$_GET['verify_success']) : '';
 $googleClientId = trim((string)(getenv('GOOGLE_CLIENT_ID') ?: ''));
 $googleLoginEnabled = $googleClientId !== '';
-$googleLoginUri = APP_URL . '/app/google-login.php';
 ?>
 <!DOCTYPE html>
 <html>
@@ -330,21 +329,12 @@ $googleLoginUri = APP_URL . '/app/google-login.php';
 
                 <?php if ($googleLoginEnabled) { ?>
                     <div class="auth-social-divider"><span>or</span></div>
-                    <div id="g_id_onload"
-                         data-client_id="<?= htmlspecialchars($googleClientId, ENT_QUOTES) ?>"
-                         data-login_uri="<?= htmlspecialchars($googleLoginUri, ENT_QUOTES) ?>"
-                         data-context="signin"
-                         data-auto_prompt="false"
-                         data-ux_mode="redirect"></div>
+                    <form method="POST" action="app/google-login.php" id="google-login-init-form">
+                        <?= csrf_field('google_login_init_form') ?>
+                        <input type="hidden" name="credential" id="google_login_credential" value="">
+                    </form>
                     <div class="google-login-shell">
-                        <div class="g_id_signin"
-                             data-type="standard"
-                             data-theme="outline"
-                             data-size="large"
-                             data-shape="rectangular"
-                             data-text="signin_with"
-                             data-logo_alignment="left"
-                             data-width="320"></div>
+                        <div id="google-login-button"></div>
                     </div>
                     <p class="google-login-note">Use the same Gmail or Google Workspace email address already registered in this system.</p>
                 <?php } ?>
@@ -520,6 +510,43 @@ $googleLoginUri = APP_URL . '/app/google-login.php';
       })();
       </script>
       <?php if ($googleLoginEnabled) { ?>
+      <script>
+      window.handleGoogleLoginResponse = function (response) {
+          var credentialInput = document.getElementById('google_login_credential');
+          var form = document.getElementById('google-login-init-form');
+          if (!credentialInput || !form || !response || !response.credential) {
+              return;
+          }
+          credentialInput.value = response.credential;
+          form.submit();
+      };
+
+      window.onload = (function (previousOnload) {
+          return function () {
+              if (typeof previousOnload === 'function') {
+                  previousOnload();
+              }
+              if (!window.google || !google.accounts || !google.accounts.id) {
+                  return;
+              }
+              google.accounts.id.initialize({
+                  client_id: <?= json_encode($googleClientId) ?>,
+                  callback: window.handleGoogleLoginResponse
+              });
+              google.accounts.id.renderButton(
+                  document.getElementById('google-login-button'),
+                  {
+                      theme: 'outline',
+                      size: 'large',
+                      type: 'standard',
+                      text: 'signin_with',
+                      shape: 'rectangular',
+                      width: 320
+                  }
+              );
+          };
+      })(window.onload);
+      </script>
       <script src="https://accounts.google.com/gsi/client" async defer></script>
       <?php } ?>
 </body>
