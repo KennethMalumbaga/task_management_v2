@@ -1,5 +1,29 @@
 <?php
 
+if (!function_exists('login_verification_truthy')) {
+    function login_verification_truthy($value)
+    {
+        if ($value === false || $value === null) {
+            return false;
+        }
+
+        $value = strtolower(trim((string)$value));
+        return in_array($value, ['1', 'true', 'yes', 'on'], true);
+    }
+}
+
+if (!function_exists('login_verification_is_temporarily_disabled')) {
+    function login_verification_is_temporarily_disabled()
+    {
+        $railwayEnv = getenv('RAILWAY_ENVIRONMENT');
+        if ($railwayEnv === false || trim((string)$railwayEnv) === '') {
+            return false;
+        }
+
+        return login_verification_truthy(getenv('DISABLE_LOGIN_VERIFICATION_ON_RAILWAY'));
+    }
+}
+
 if (!function_exists('login_verification_ensure_table')) {
     function login_verification_ensure_table($pdo)
     {
@@ -100,6 +124,10 @@ if (!function_exists('login_verification_mark_required')) {
 if (!function_exists('login_verification_is_required')) {
     function login_verification_is_required($pdo, $userId)
     {
+        if (login_verification_is_temporarily_disabled()) {
+            return false;
+        }
+
         $userId = (int)$userId;
         if ($userId <= 0) {
             return false;

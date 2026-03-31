@@ -13,6 +13,12 @@ function verify_redirect($message, $isError = true)
     exit();
 }
 
+if (login_verification_is_temporarily_disabled()) {
+    unset($_SESSION['pending_login_verification']);
+    header("Location: ../login.php?success=" . urlencode("Login verification is temporarily disabled on Railway. Please login again."));
+    exit();
+}
+
 if (!isset($_SESSION['pending_login_verification']) || !is_array($_SESSION['pending_login_verification'])) {
     header("Location: ../login.php?error=" . urlencode("Verification session expired. Please login again."));
     exit();
