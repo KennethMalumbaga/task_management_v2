@@ -108,6 +108,13 @@ if (!function_exists('subtask_google_doc_seed_lines')) {
     }
 }
 
+if (!function_exists('subtask_google_workspace_file_type')) {
+    function subtask_google_workspace_file_type(array $context)
+    {
+        return subtask_get_workspace_phase_type($context);
+    }
+}
+
 if (!function_exists('subtask_google_doc_create_and_store')) {
     function subtask_google_doc_create_and_store($pdo, array $context, $accessToken)
     {
@@ -121,34 +128,40 @@ if (!function_exists('subtask_google_doc_create_and_store')) {
             ];
         }
 
-        $document = google_workspace_create_document(
+        $fileType = subtask_google_workspace_file_type($context);
+        $workspaceMeta = subtask_google_workspace_meta($fileType);
+        $document = google_workspace_create_file(
             $accessToken,
             google_workspace_build_subtask_doc_title(
                 $context['task_title'] ?? '',
                 $context['timeline_phase_name'] ?? '',
                 $context['member_name'] ?? ''
-            )
+            ),
+            $fileType
         );
 
         if (!$document['ok']) {
             return [
                 'ok' => false,
-                'error' => (string)($document['error'] ?? 'Unable to create Google Doc.'),
+                'error' => (string)($document['error'] ?? ('Unable to create ' . $workspaceMeta['item_label'] . '.')),
             ];
         }
 
-        $doc = (array)($document['document'] ?? []);
+        $doc = (array)($document['file'] ?? []);
         $docId = trim((string)($doc['id'] ?? ''));
         $docUrl = trim((string)($doc['webViewLink'] ?? ''));
         if ($docId === '' || $docUrl === '') {
             return [
                 'ok' => false,
-                'error' => 'Google Doc was created but the returned link was incomplete.',
+                'error' => $workspaceMeta['item_label'] . ' was created but the returned link was incomplete.',
             ];
         }
 
-        google_workspace_seed_document_content($accessToken, $docId, subtask_google_doc_seed_lines($context));
-        google_workspace_share_document_with_emails(
+        if ($fileType === 'document') {
+            google_workspace_seed_document_content($accessToken, $docId, subtask_google_doc_seed_lines($context));
+        }
+
+        google_workspace_share_file_with_emails(
             $accessToken,
             $docId,
             subtask_google_doc_collect_share_emails($pdo, (int)($context['task_id'] ?? 0))
@@ -157,7 +170,7 @@ if (!function_exists('subtask_google_doc_create_and_store')) {
         if (!subtask_attach_google_doc($pdo, (int)($context['id'] ?? 0), $docId, $docUrl)) {
             return [
                 'ok' => false,
-                'error' => 'Google Doc was created, but TaskFlow could not save the link.',
+                'error' => $workspaceMeta['item_label'] . ' was created, but TaskFlow could not save the link.',
             ];
         }
 

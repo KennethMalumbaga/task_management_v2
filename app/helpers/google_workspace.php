@@ -36,6 +36,50 @@ if (!function_exists('google_workspace_scopes')) {
     }
 }
 
+if (!function_exists('google_workspace_supported_file_types')) {
+    function google_workspace_supported_file_types()
+    {
+        return [
+            'document' => [
+                'label' => 'Google Docs',
+                'item_label' => 'Google Doc',
+                'mime_type' => 'application/vnd.google-apps.document',
+                'fallback_url' => 'https://docs.google.com/document/d/%s/edit',
+            ],
+            'sheet' => [
+                'label' => 'Google Sheets',
+                'item_label' => 'Google Sheet',
+                'mime_type' => 'application/vnd.google-apps.spreadsheet',
+                'fallback_url' => 'https://docs.google.com/spreadsheets/d/%s/edit',
+            ],
+            'slides' => [
+                'label' => 'Google Slides',
+                'item_label' => 'Google Slides deck',
+                'mime_type' => 'application/vnd.google-apps.presentation',
+                'fallback_url' => 'https://docs.google.com/presentation/d/%s/edit',
+            ],
+        ];
+    }
+}
+
+if (!function_exists('google_workspace_normalize_file_type')) {
+    function google_workspace_normalize_file_type($fileType)
+    {
+        $fileType = strtolower(trim((string)$fileType));
+        $supported = google_workspace_supported_file_types();
+        return array_key_exists($fileType, $supported) ? $fileType : 'document';
+    }
+}
+
+if (!function_exists('google_workspace_file_type_meta')) {
+    function google_workspace_file_type_meta($fileType)
+    {
+        $supported = google_workspace_supported_file_types();
+        $normalized = google_workspace_normalize_file_type($fileType);
+        return $supported[$normalized];
+    }
+}
+
 if (!function_exists('google_workspace_build_auth_url')) {
     function google_workspace_build_auth_url($state, $forceConsent = false)
     {
@@ -250,12 +294,13 @@ if (!function_exists('google_workspace_fetch_userinfo')) {
     }
 }
 
-if (!function_exists('google_workspace_create_document')) {
-    function google_workspace_create_document($accessToken, $title)
+if (!function_exists('google_workspace_create_file')) {
+    function google_workspace_create_file($accessToken, $title, $fileType = 'document')
     {
+        $typeMeta = google_workspace_file_type_meta($fileType);
         $title = trim((string)$title);
         if ($title === '') {
-            $title = 'TaskFlow Document';
+            $title = 'TaskFlow ' . $typeMeta['item_label'];
         }
 
         $response = google_workspace_http_request(
@@ -267,7 +312,7 @@ if (!function_exists('google_workspace_create_document')) {
             ],
             json_encode([
                 'name' => $title,
-                'mimeType' => 'application/vnd.google-apps.document',
+                'mimeType' => $typeMeta['mime_type'],
             ]),
             20
         );
@@ -275,28 +320,40 @@ if (!function_exists('google_workspace_create_document')) {
         if (!$response['ok']) {
             return [
                 'ok' => false,
-                'document' => null,
-                'error' => google_workspace_api_error_message($response, 'Unable to create Google Doc.'),
+                'file' => null,
+                'error' => google_workspace_api_error_message($response, 'Unable to create ' . $typeMeta['item_label'] . '.'),
             ];
         }
 
-        $doc = is_array($response['body']) ? $response['body'] : [];
-        if (empty($doc['id'])) {
+        $file = is_array($response['body']) ? $response['body'] : [];
+        if (empty($file['id'])) {
             return [
                 'ok' => false,
-                'document' => null,
-                'error' => 'Google did not return a document id.',
+                'file' => null,
+                'error' => 'Google did not return a file id.',
             ];
         }
 
-        if (empty($doc['webViewLink'])) {
-            $doc['webViewLink'] = 'https://docs.google.com/document/d/' . rawurlencode((string)$doc['id']) . '/edit';
+        if (empty($file['webViewLink'])) {
+            $file['webViewLink'] = sprintf($typeMeta['fallback_url'], rawurlencode((string)$file['id']));
         }
 
         return [
             'ok' => true,
-            'document' => $doc,
+            'file' => $file,
             'error' => '',
+        ];
+    }
+}
+
+if (!function_exists('google_workspace_create_document')) {
+    function google_workspace_create_document($accessToken, $title)
+    {
+        $result = google_workspace_create_file($accessToken, $title, 'document');
+        return [
+            'ok' => (bool)($result['ok'] ?? false),
+            'document' => (array)($result['file'] ?? []),
+            'error' => (string)($result['error'] ?? ''),
         ];
     }
 }
@@ -378,6 +435,13 @@ if (!function_exists('google_workspace_share_document_with_emails')) {
         }
 
         return $shared;
+    }
+}
+
+if (!function_exists('google_workspace_share_file_with_emails')) {
+    function google_workspace_share_file_with_emails($accessToken, $fileId, array $emails)
+    {
+        return google_workspace_share_document_with_emails($accessToken, $fileId, $emails);
     }
 }
 

@@ -224,7 +224,7 @@ if (!function_exists('timeline_normalize_phase_type')) {
     function timeline_normalize_phase_type($phaseType)
     {
         $phaseType = strtolower(trim((string)$phaseType));
-        return in_array($phaseType, ['standard', 'document'], true) ? $phaseType : 'standard';
+        return in_array($phaseType, ['standard', 'document', 'sheet', 'slides'], true) ? $phaseType : 'standard';
     }
 }
 

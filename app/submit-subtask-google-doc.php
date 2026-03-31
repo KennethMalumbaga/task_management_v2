@@ -23,19 +23,21 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] === "employee") || (isset($_S
         exit();
     }
 
-    if (!subtask_is_document_phase($subtask)) {
-        header("Location: ../my_task.php?error=" . urlencode("This subtask is not configured as a document phase.") . "&open_task=" . $subtask['task_id']);
+    if (!subtask_is_google_workspace_phase($subtask)) {
+        header("Location: ../my_task.php?error=" . urlencode("This subtask is not configured as a Google Workspace phase.") . "&open_task=" . $subtask['task_id']);
         exit();
     }
 
+    $workspaceMeta = subtask_google_workspace_meta($subtask);
+
     if ((int)($subtask['member_id'] ?? 0) !== (int)$_SESSION['id']) {
-        header("Location: ../my_task.php?error=" . urlencode("Only the assigned member can submit this Google Doc.") . "&open_task=" . $subtask['task_id']);
+        header("Location: ../my_task.php?error=" . urlencode("Only the assigned member can submit this " . $workspaceMeta['item_label'] . ".") . "&open_task=" . $subtask['task_id']);
         exit();
     }
 
     $googleDocUrl = trim((string)($subtask['google_doc_url'] ?? ''));
     if ($googleDocUrl === '') {
-        header("Location: ../my_task.php?error=" . urlencode("Create the Google Doc first before submitting this phase.") . "&open_task=" . $subtask['task_id']);
+        header("Location: ../my_task.php?error=" . urlencode("Create the " . $workspaceMeta['item_label'] . " first before submitting this phase.") . "&open_task=" . $subtask['task_id']);
         exit();
     }
 
@@ -57,12 +59,12 @@ if ((isset($_SESSION['role']) && $_SESSION['role'] === "employee") || (isset($_S
     if ($assignees != 0) {
         foreach ($assignees as $a) {
             if ($a['role'] == 'leader' && (int)$a['user_id'] !== (int)$_SESSION['id']) {
-                insert_notification($pdo, ["Google Doc submitted by " . $submitterName, $a['user_id'], 'Subtask Submitted', $subtask['task_id']]);
+                insert_notification($pdo, [$workspaceMeta['submitted_notification_label'] . " submitted by " . $submitterName, $a['user_id'], 'Subtask Submitted', $subtask['task_id']]);
             }
         }
     }
 
-    header("Location: ../my_task.php?success=" . urlencode("Google Doc submitted successfully") . "&open_task=" . $subtask['task_id']);
+    header("Location: ../my_task.php?success=" . urlencode($workspaceMeta['submitted_notice']) . "&open_task=" . $subtask['task_id']);
     exit();
 }
 

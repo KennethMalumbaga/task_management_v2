@@ -768,8 +768,120 @@ if (!function_exists('subtask_attach_google_doc')) {
 if (!function_exists('subtask_is_document_phase')) {
     function subtask_is_document_phase($subtaskRow)
     {
+        return subtask_get_workspace_phase_type($subtaskRow) === 'document';
+    }
+}
+
+if (!function_exists('subtask_get_workspace_phase_type')) {
+    function subtask_get_workspace_phase_type($subtaskRow)
+    {
         $phaseType = strtolower(trim((string)($subtaskRow['timeline_phase_type'] ?? 'standard')));
-        return $phaseType === 'document';
+        return in_array($phaseType, ['document', 'sheet', 'slides'], true) ? $phaseType : 'standard';
+    }
+}
+
+if (!function_exists('subtask_is_google_workspace_phase')) {
+    function subtask_is_google_workspace_phase($subtaskRow)
+    {
+        return subtask_get_workspace_phase_type($subtaskRow) !== 'standard';
+    }
+}
+
+if (!function_exists('subtask_google_workspace_meta')) {
+    function subtask_google_workspace_meta($subtaskRowOrType)
+    {
+        $type = is_array($subtaskRowOrType)
+            ? subtask_get_workspace_phase_type($subtaskRowOrType)
+            : subtask_get_workspace_phase_type(['timeline_phase_type' => $subtaskRowOrType]);
+
+        $meta = [
+            'standard' => [
+                'type' => 'standard',
+                'phase_label' => 'Standard Phase',
+                'workspace_title' => 'Google Workspace',
+                'workspace_heading' => 'Google Workspace',
+                'item_label' => 'Google file',
+                'create_label' => 'Create in Google Workspace',
+                'open_label' => 'Open Google File',
+                'submit_label' => 'Submit Google File',
+                'create_help' => 'Create the working file in Google Workspace for this phase.',
+                'saved_help' => 'This file is saved to this phase and can be reopened anytime.',
+                'waiting_help' => 'The assigned member can create the Google Workspace file for this phase.',
+                'submit_help' => 'Add notes for the leader before submitting this Google Workspace file...',
+                'submitted_notice' => 'Google file submitted successfully',
+                'submitted_notification_label' => 'Google file',
+                'icon' => 'fa-google',
+                'phase_icon' => 'fa-file-o',
+                'accent_bg' => '#F8FAFC',
+                'accent_border' => '#CBD5E1',
+                'accent_color' => '#334155',
+            ],
+            'document' => [
+                'type' => 'document',
+                'phase_label' => 'Document Phase',
+                'workspace_title' => 'Google Docs Workspace',
+                'workspace_heading' => 'Google Docs Workspace',
+                'item_label' => 'Google Doc',
+                'create_label' => 'Create in Google Docs',
+                'open_label' => 'Open Google Doc',
+                'submit_label' => 'Submit Google Doc',
+                'create_help' => 'Create the working document in Google Docs for this phase.',
+                'saved_help' => 'This document is saved to this phase and can be reopened anytime.',
+                'waiting_help' => 'The assigned member can create the Google Doc for this phase.',
+                'submit_help' => 'Add notes for the leader before submitting this Google Doc...',
+                'submitted_notice' => 'Google Doc submitted successfully',
+                'submitted_notification_label' => 'Google Doc',
+                'icon' => 'fa-google',
+                'phase_icon' => 'fa-file-text-o',
+                'accent_bg' => '#EFF6FF',
+                'accent_border' => '#BFDBFE',
+                'accent_color' => '#1D4ED8',
+            ],
+            'sheet' => [
+                'type' => 'sheet',
+                'phase_label' => 'Spreadsheet Phase',
+                'workspace_title' => 'Google Sheets Workspace',
+                'workspace_heading' => 'Google Sheets Workspace',
+                'item_label' => 'Google Sheet',
+                'create_label' => 'Create in Google Sheets',
+                'open_label' => 'Open Google Sheet',
+                'submit_label' => 'Submit Google Sheet',
+                'create_help' => 'Create the working spreadsheet in Google Sheets for this phase.',
+                'saved_help' => 'This spreadsheet is saved to this phase and can be reopened anytime.',
+                'waiting_help' => 'The assigned member can create the Google Sheet for this phase.',
+                'submit_help' => 'Add notes for the leader before submitting this Google Sheet...',
+                'submitted_notice' => 'Google Sheet submitted successfully',
+                'submitted_notification_label' => 'Google Sheet',
+                'icon' => 'fa-google',
+                'phase_icon' => 'fa-table',
+                'accent_bg' => '#ECFDF5',
+                'accent_border' => '#A7F3D0',
+                'accent_color' => '#047857',
+            ],
+            'slides' => [
+                'type' => 'slides',
+                'phase_label' => 'Slides Phase',
+                'workspace_title' => 'Google Slides Workspace',
+                'workspace_heading' => 'Google Slides Workspace',
+                'item_label' => 'Google Slides deck',
+                'create_label' => 'Create in Google Slides',
+                'open_label' => 'Open Google Slides',
+                'submit_label' => 'Submit Google Slides',
+                'create_help' => 'Create the working presentation in Google Slides for this phase.',
+                'saved_help' => 'This presentation is saved to this phase and can be reopened anytime.',
+                'waiting_help' => 'The assigned member can create the Google Slides deck for this phase.',
+                'submit_help' => 'Add notes for the leader before submitting this Google Slides deck...',
+                'submitted_notice' => 'Google Slides submitted successfully',
+                'submitted_notification_label' => 'Google Slides deck',
+                'icon' => 'fa-google',
+                'phase_icon' => 'fa-clone',
+                'accent_bg' => '#FFF7ED',
+                'accent_border' => '#FDBA74',
+                'accent_color' => '#C2410C',
+            ],
+        ];
+
+        return $meta[$type] ?? $meta['standard'];
     }
 }
 

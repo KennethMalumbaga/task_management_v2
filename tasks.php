@@ -994,6 +994,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                     ?>
                     <div class="subtask-card" style="padding: 12px; margin-bottom: 8px;">
                         <?php
+                            $adminWorkspaceMeta = subtask_google_workspace_meta($sub);
                             $adminSubtaskGoogleDocUrl = trim((string)($sub['google_doc_url'] ?? ''));
                             $adminSubtaskSubmissionFile = trim((string)($sub['submission_file'] ?? ''));
                             $adminSubtaskHasGoogleDocSubmission = $adminSubtaskGoogleDocUrl !== ''
@@ -1011,7 +1012,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         <?php if(!empty($sub['submission_file'])) { ?>
                             <div style="font-size: 12px; margin-top: 5px;">
                                 <a href="<?=$sub['submission_file']?>" target="_blank" style="color: var(--primary);">
-                                    <?= $adminSubtaskHasGoogleDocSubmission ? 'Open Google Doc' : 'View File' ?>
+                                    <?= $adminSubtaskHasGoogleDocSubmission ? htmlspecialchars($adminWorkspaceMeta['open_label']) : 'View File' ?>
                                 </a>
                             </div>
                         <?php } ?>

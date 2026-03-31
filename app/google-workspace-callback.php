@@ -48,7 +48,7 @@ if ($createdAt <= 0 || (time() - $createdAt) > 1800) {
 
 if (!google_workspace_is_enabled()) {
     unset($_SESSION['pending_google_workspace']);
-    google_workspace_callback_redirect($taskId, "Google Docs integration is not configured yet.");
+    google_workspace_callback_redirect($taskId, "Google Workspace integration is not configured yet.");
 }
 
 $expectedState = trim((string)($pending['state'] ?? ''));

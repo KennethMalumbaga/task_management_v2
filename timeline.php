@@ -132,6 +132,8 @@ $timelineUserId = (int)($_SESSION['id'] ?? 0);
                 <select class="tlp-select" id="tlpPhaseTypeInput">
                     <option value="standard">Standard Work</option>
                     <option value="document">Document in Google Docs</option>
+                    <option value="sheet">Spreadsheet in Google Sheets</option>
+                    <option value="slides">Presentation in Google Slides</option>
                 </select>
             </div>
             <div class="tlp-form-row">

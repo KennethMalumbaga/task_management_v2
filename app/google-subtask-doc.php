@@ -67,7 +67,7 @@ function google_subtask_doc_store_pending($subtaskId, $taskId, $userId)
 function google_subtask_doc_start_oauth($subtaskId, $taskId, $userId, $forceConsent = false)
 {
     if (!google_workspace_is_enabled()) {
-        google_subtask_doc_redirect($taskId, "Google Docs integration is not configured yet.");
+        google_subtask_doc_redirect($taskId, "Google Workspace integration is not configured yet.");
     }
 
     $state = google_subtask_doc_store_pending($subtaskId, $taskId, $userId);
@@ -96,7 +96,7 @@ function google_subtask_doc_create_from_refresh_token($pdo, $currentUserId, arra
 
     $result = subtask_google_doc_create_and_store($pdo, $context, $accessToken);
     if (!$result['ok']) {
-        google_subtask_doc_redirect((int)$context['task_id'], (string)($result['error'] ?? 'Unable to create Google Doc.'));
+        google_subtask_doc_redirect((int)$context['task_id'], (string)($result['error'] ?? 'Unable to create the Google Workspace file.'));
     }
 
     unset($_SESSION['pending_google_workspace']);
@@ -124,9 +124,9 @@ if (isset($_GET['resume']) && $_GET['resume'] === '1') {
         unset($_SESSION['pending_google_workspace']);
         google_subtask_doc_redirect((int)($pending['task_id'] ?? 0), "Subtask not found.");
     }
-    if (!subtask_is_document_phase($context)) {
+    if (!subtask_is_google_workspace_phase($context)) {
         unset($_SESSION['pending_google_workspace']);
-        google_subtask_doc_redirect((int)$context['task_id'], "This phase is not configured as a Google Docs step.");
+        google_subtask_doc_redirect((int)$context['task_id'], "This phase is not configured as a Google Workspace step.");
     }
     if ((int)($context['member_id'] ?? 0) !== $currentUserId) {
         unset($_SESSION['pending_google_workspace']);
@@ -156,8 +156,8 @@ if (!$context) {
     google_subtask_doc_redirect(0, "Subtask not found.");
 }
 
-if (!subtask_is_document_phase($context)) {
-    google_subtask_doc_redirect((int)$context['task_id'], "This phase is not configured as a Google Docs step.");
+if (!subtask_is_google_workspace_phase($context)) {
+    google_subtask_doc_redirect((int)$context['task_id'], "This phase is not configured as a Google Workspace step.");
 }
 
 if ((int)($context['member_id'] ?? 0) !== $currentUserId) {
