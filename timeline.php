@@ -127,6 +127,13 @@ $timelineUserId = (int)($_SESSION['id'] ?? 0);
                 <label class="tlp-form-label">Description</label>
                 <textarea class="tlp-textarea" id="tlpPhaseDescInput" placeholder="Describe this phase"></textarea>
             </div>
+            <div class="tlp-form-group">
+                <label class="tlp-form-label">Phase Type</label>
+                <select class="tlp-select" id="tlpPhaseTypeInput">
+                    <option value="standard">Standard Work</option>
+                    <option value="document">Document in Google Docs</option>
+                </select>
+            </div>
             <div class="tlp-form-row">
                 <div class="tlp-form-group">
                     <label class="tlp-form-label">Start Day</label>

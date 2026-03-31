@@ -132,6 +132,8 @@ CREATE TABLE subtasks (
     updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
     submission_note text,
     score smallint,
+    google_doc_id varchar(255),
+    google_doc_url varchar(2048),
     CONSTRAINT subtasks_score_check CHECK (((score >= 1) AND (score <= 5))),
     CONSTRAINT subtasks_status_check CHECK ((status IN ('pending', 'submitted', 'completed', 'revise'))),
     CONSTRAINT subtasks_pkey PRIMARY KEY (id)
@@ -193,6 +195,21 @@ CREATE TABLE users (
     bio text,
     CONSTRAINT users_role_check CHECK ((role  IN ('admin', 'employee'))),
     CONSTRAINT users_pkey PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE user_google_oauth_tokens (
+    id int NOT NULL AUTO_INCREMENT,
+    user_id int NOT NULL,
+    google_sub varchar(255) DEFAULT NULL,
+    google_email varchar(255) DEFAULT NULL,
+    refresh_token text NOT NULL,
+    scope text,
+    organization_id int DEFAULT NULL,
+    created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT user_google_oauth_tokens_pkey PRIMARY KEY (id),
+    UNIQUE KEY uniq_user_google_oauth_tokens_user (user_id),
+    KEY idx_user_google_oauth_tokens_org_user (organization_id, user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO chats (chat_id, sender_id, receiver_id, message, opened, created_at) VALUES ('1', '1', '11', 'bruh', 1, '2026-02-12 00:08:34.221095');

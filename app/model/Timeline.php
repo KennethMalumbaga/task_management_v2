@@ -61,6 +61,7 @@ if (!function_exists('timeline_ensure_schema')) {
                     timeline_task_id INT NOT NULL,
                     name VARCHAR(150) NOT NULL,
                     description TEXT DEFAULT NULL,
+                    phase_type VARCHAR(30) NOT NULL DEFAULT 'standard',
                     icon VARCHAR(40) NOT NULL DEFAULT 'fa-circle',
                     color VARCHAR(7) NOT NULL DEFAULT '#6C3CE1',
                     start_day INT NOT NULL DEFAULT 1,
@@ -107,6 +108,7 @@ if (!function_exists('timeline_ensure_schema')) {
                     timeline_task_id INT NOT NULL REFERENCES project_timeline_tasks(id) ON DELETE CASCADE,
                     name VARCHAR(150) NOT NULL,
                     description TEXT NULL,
+                    phase_type VARCHAR(30) NOT NULL DEFAULT 'standard',
                     icon VARCHAR(40) NOT NULL DEFAULT 'fa-circle',
                     color VARCHAR(7) NOT NULL DEFAULT '#6C3CE1',
                     start_day INT NOT NULL DEFAULT 1,
@@ -126,6 +128,18 @@ if (!function_exists('timeline_ensure_schema')) {
                 "CREATE INDEX IF NOT EXISTS idx_project_timeline_phases_org_task
                  ON project_timeline_phases (organization_id, timeline_task_id)"
             );
+        }
+
+        try {
+            if (!timeline_column_exists($pdo, 'project_timeline_phases', 'phase_type')) {
+                if ($driver === 'mysql') {
+                    $pdo->exec("ALTER TABLE project_timeline_phases ADD COLUMN phase_type VARCHAR(30) NOT NULL DEFAULT 'standard' AFTER description");
+                } else {
+                    $pdo->exec("ALTER TABLE project_timeline_phases ADD COLUMN phase_type VARCHAR(30) NOT NULL DEFAULT 'standard'");
+                }
+            }
+        } catch (Throwable $e) {
+            // Keep legacy timeline flows working if the schema cannot be upgraded here.
         }
 
         $alreadyEnsured = true;
@@ -203,6 +217,14 @@ if (!function_exists('timeline_sanitize_color_hex')) {
             return strtoupper($color);
         }
         return '#6C3CE1';
+    }
+}
+
+if (!function_exists('timeline_normalize_phase_type')) {
+    function timeline_normalize_phase_type($phaseType)
+    {
+        $phaseType = strtolower(trim((string)$phaseType));
+        return in_array($phaseType, ['standard', 'document'], true) ? $phaseType : 'standard';
     }
 }
 
@@ -490,7 +512,7 @@ if (!function_exists('timeline_fetch_timeline_task_rows')) {
         }
 
         $placeholders = implode(',', array_fill(0, count($taskIds), '?'));
-        $sql = "SELECT pp.id, pp.timeline_task_id, pp.name, pp.description, pp.icon, pp.color,
+        $sql = "SELECT pp.id, pp.timeline_task_id, pp.name, pp.description, pp.phase_type, pp.icon, pp.color,
                        pp.start_day, pp.duration_days, pp.sort_order
                 FROM project_timeline_phases pp
                 WHERE pp.timeline_task_id IN ($placeholders)";
@@ -523,6 +545,7 @@ if (!function_exists('timeline_fetch_timeline_task_rows')) {
                 'id' => $phaseId,
                 'name' => (string)$phaseRow['name'],
                 'description' => trim((string)($phaseRow['description'] ?? '')),
+                'phase_type' => timeline_normalize_phase_type($phaseRow['phase_type'] ?? 'standard'),
                 'icon' => timeline_sanitize_icon_class($phaseRow['icon'] ?? 'fa-circle'),
                 'color' => timeline_sanitize_color_hex($phaseRow['color'] ?? '#6C3CE1'),
                 'start_day' => max(1, (int)$phaseRow['start_day']),
@@ -1000,13 +1023,14 @@ if (!function_exists('timeline_delete_task_lane')) {
 }
 
 if (!function_exists('timeline_save_phase')) {
-    function timeline_save_phase($pdo, $timelineTaskId, $phaseId, $name, $description, $icon, $color, $startDay, $durationDays, $actorUserId)
+    function timeline_save_phase($pdo, $timelineTaskId, $phaseId, $name, $description, $phaseType, $icon, $color, $startDay, $durationDays, $actorUserId)
     {
         $timelineTaskId = (int)$timelineTaskId;
         $phaseId = (int)$phaseId;
         $actorUserId = (int)$actorUserId;
         $name = trim((string)$name);
         $description = trim((string)$description);
+        $phaseType = timeline_normalize_phase_type($phaseType);
         $icon = timeline_sanitize_icon_class($icon);
         $color = timeline_sanitize_color_hex($color);
         $startDay = max(1, min(365, (int)$startDay));
@@ -1041,12 +1065,12 @@ if (!function_exists('timeline_save_phase')) {
             }
 
             $sql = "UPDATE project_timeline_phases
-                    SET name = ?, description = ?, icon = ?, color = ?, start_day = ?, duration_days = ?
+                    SET name = ?, description = ?, phase_type = ?, icon = ?, color = ?, start_day = ?, duration_days = ?
                     WHERE id = ?";
             [$sql, $params] = timeline_append_scope(
                 $pdo,
                 $sql,
-                [substr($name, 0, 150), $description, $icon, $color, $startDay, $durationDays, $phaseId],
+                [substr($name, 0, 150), $description, $phaseType, $icon, $color, $startDay, $durationDays, $phaseId],
                 'project_timeline_phases'
             );
             $stmt = $pdo->prepare($sql);
@@ -1067,13 +1091,14 @@ if (!function_exists('timeline_save_phase')) {
 
         $stmt = $pdo->prepare(
             "INSERT INTO project_timeline_phases
-             (timeline_task_id, name, description, icon, color, start_day, duration_days, sort_order, created_by, organization_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+             (timeline_task_id, name, description, phase_type, icon, color, start_day, duration_days, sort_order, created_by, organization_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $timelineTaskId,
             substr($name, 0, 150),
             $description,
+            $phaseType,
             $icon,
             $color,
             $startDay,

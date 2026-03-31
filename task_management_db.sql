@@ -542,6 +542,8 @@ CREATE TABLE public.subtasks (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     submission_note text,
     score smallint,
+    google_doc_id character varying(255),
+    google_doc_url character varying(2048),
     CONSTRAINT subtasks_score_check CHECK (((score >= 1) AND (score <= 5))),
     CONSTRAINT subtasks_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('submitted'::character varying)::text, ('completed'::character varying)::text, ('revise'::character varying)::text])))
 );
@@ -701,7 +703,24 @@ CREATE TABLE public.users (
 );
 
 
+CREATE TABLE public.user_google_oauth_tokens (
+    id integer NOT NULL,
+    user_id integer NOT NULL,
+    google_sub character varying(255),
+    google_email character varying(255),
+    refresh_token text NOT NULL,
+    scope text,
+    organization_id integer,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
 ALTER TABLE public.users OWNER TO postgres;
+
+ALTER TABLE public.user_google_oauth_tokens OWNER TO postgres;
+
+CREATE INDEX public.idx_user_google_oauth_tokens_org_user ON public.user_google_oauth_tokens USING btree (organization_id, user_id);
 
 --
 -- TOC entry 248 (class 1259 OID 17633)

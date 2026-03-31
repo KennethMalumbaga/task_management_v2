@@ -1024,6 +1024,19 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div style="margin-bottom: 24px;">
                         <?php if (!empty($subtasks)) { 
                             foreach($subtasks as $sub) { 
+                                $subtaskIsDocument = subtask_is_document_phase($sub);
+                                $subtaskGoogleDocUrl = trim((string)($sub['google_doc_url'] ?? ''));
+                                $subtaskStatusValue = strtolower(trim((string)($sub['status'] ?? 'pending')));
+                                $subtaskCanCreateDoc = $subtaskIsDocument
+                                    && (int)($sub['member_id'] ?? 0) === (int)$_SESSION['id']
+                                    && $subtaskGoogleDocUrl === '';
+                                $subtaskCanSubmitDoc = $subtaskIsDocument
+                                    && (int)($sub['member_id'] ?? 0) === (int)$_SESSION['id']
+                                    && $subtaskGoogleDocUrl !== ''
+                                    && in_array($subtaskStatusValue, ['pending', 'in_progress', 'revise', 'rejected'], true);
+                                $subtaskHasGoogleDocSubmission = $subtaskGoogleDocUrl !== ''
+                                    && trim((string)($sub['submission_file'] ?? '')) !== ''
+                                    && trim((string)$sub['submission_file']) === $subtaskGoogleDocUrl;
                                 $subStatusClass = "pending";
                                 if ($sub['status'] == 'in_progress') $subStatusClass = "in_progress";
                                 if ($sub['status'] == 'completed') $subStatusClass = "completed";
@@ -1043,6 +1056,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                             <i class="fa fa-flag"></i> Phase: <?= htmlspecialchars((string)$sub['timeline_phase_name']) ?>
                                         </div>
                                     <?php } ?>
+                                    <?php if ($subtaskIsDocument) { ?>
+                                        <div class="subtask-phase" style="margin-top: 6px;">
+                                            <i class="fa fa-file-text-o"></i> Document Phase
+                                        </div>
+                                    <?php } ?>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <?php if (!empty($sub['score'])) { ?>
@@ -1053,6 +1071,38 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <span class="badge-v2 <?=$subStatusClass?>"><?= str_replace('_',' ', $sub['status']) ?></span>
                                 </div>
                             </div>
+
+                            <?php if ($subtaskIsDocument) { ?>
+                                <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                                    <div style="font-size: 12px; font-weight: 600; color: #1D4ED8; margin-bottom: 8px;">
+                                        <i class="fa fa-google"></i> Google Docs Workspace
+                                    </div>
+
+                                    <?php if ($subtaskGoogleDocUrl !== '') { ?>
+                                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
+                                            <a href="<?= htmlspecialchars($subtaskGoogleDocUrl) ?>" target="_blank" rel="noopener noreferrer" class="btn-v2 btn-white" style="border-color: #BFDBFE; color: #1D4ED8;">
+                                                <i class="fa fa-external-link"></i> Open Google Doc
+                                            </a>
+                                            <span style="font-size: 12px; color: #475569;">This document is saved to this phase and can be reopened anytime.</span>
+                                        </div>
+                                    <?php } elseif ($subtaskCanCreateDoc) { ?>
+                                        <div style="font-size: 13px; color: #334155; margin-bottom: 10px;">
+                                            Create the working document in Google Docs for this phase.
+                                        </div>
+                                        <form action="app/google-subtask-doc.php" method="POST" style="display: inline-flex;">
+                                            <?= csrf_field('google_subtask_doc_form') ?>
+                                            <input type="hidden" name="subtask_id" value="<?= (int)$sub['id'] ?>">
+                                            <button type="submit" class="btn-v2 btn-indigo">
+                                                <i class="fa fa-google"></i> Create in Google Docs
+                                            </button>
+                                        </form>
+                                    <?php } else { ?>
+                                        <div style="font-size: 12px; color: #475569;">
+                                            The assigned member can create the Google Doc for this phase.
+                                        </div>
+                                    <?php } ?>
+                                </div>
+                            <?php } ?>
 
                              <!-- Submission View -->
                              <?php if(!empty($sub['submission_file']) || $sub['status'] == 'submitted' || $sub['status'] == 'completed') { ?>
@@ -1065,7 +1115,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <?php } ?>
                                     <div style="margin-top: 4px;">
                                         <?php if($sub['submission_file']) { ?>
-                                            <a href="<?=$sub['submission_file']?>" target="_blank" style="color: var(--primary); font-size: 13px;"><i class="fa fa-paperclip"></i> View File</a>
+                                            <a href="<?=$sub['submission_file']?>" target="_blank" style="color: var(--primary); font-size: 13px;">
+                                                <i class="fa <?=$subtaskHasGoogleDocSubmission ? 'fa-google' : 'fa-paperclip'?>"></i>
+                                                <?= $subtaskHasGoogleDocSubmission ? 'Open Google Doc' : 'View File' ?>
+                                            </a>
                                         <?php } else { ?>
                                             <span style="font-size: 13px; color: #6B7280;">Submitted (No file)</span>
                                         <?php } ?>
@@ -1129,7 +1182,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                              <?php } ?>
 
                              <!-- Actions for Member (Submit) -->
-                              <?php if($_SESSION['id'] == $sub['member_id'] && ($sub['status'] == 'pending' || $sub['status'] == 'in_progress' || $sub['status'] == 'revise')) { ?>
+                              <?php if($_SESSION['id'] == $sub['member_id'] && !$subtaskIsDocument && ($sub['status'] == 'pending' || $sub['status'] == 'in_progress' || $sub['status'] == 'revise')) { ?>
                                 <div class="subtask-submit-section">
                                     <form action="app/update-subtask-submission.php" method="POST" enctype="multipart/form-data">
                                         <?= csrf_field('update_subtask_submission_form') ?>
@@ -1143,6 +1196,28 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                             <input type="file" name="submission_file" class="form-input-v2 subtask-file-input" required>
                                             <div class="subtask-upload-hint">(up to 50MB)</div>
                                             <button class="btn-v2 btn-indigo">Submit</button>
+                                        </div>
+                                    </form>
+                                </div>
+                              <?php } ?>
+
+                              <?php if ($subtaskCanSubmitDoc) { ?>
+                                <div class="subtask-submit-section">
+                                    <form action="app/submit-subtask-google-doc.php" method="POST">
+                                        <?= csrf_field('submit_subtask_google_doc_form') ?>
+                                        <input type="hidden" name="id" value="<?= (int)$sub['id'] ?>">
+
+                                        <div style="margin-bottom: 10px;">
+                                            <textarea name="submission_note" class="form-input-v2 subtask-note-input" rows="2" placeholder="Add notes for the leader before submitting this Google Doc..."></textarea>
+                                        </div>
+
+                                        <div class="subtask-upload-row">
+                                            <a href="<?= htmlspecialchars($subtaskGoogleDocUrl) ?>" target="_blank" rel="noopener noreferrer" class="btn-v2 btn-white" style="border-color:#BFDBFE;color:#1D4ED8;">
+                                                <i class="fa fa-google"></i> Open Doc
+                                            </a>
+                                            <button class="btn-v2 btn-green" type="submit">
+                                                <i class="fa fa-paper-plane"></i> Submit Google Doc
+                                            </button>
                                         </div>
                                     </form>
                                 </div>

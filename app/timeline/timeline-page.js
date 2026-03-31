@@ -80,6 +80,7 @@
         phaseModalTitle: document.getElementById('tlpPhaseModalTitle'),
         phaseNameInput: document.getElementById('tlpPhaseNameInput'),
         phaseDescInput: document.getElementById('tlpPhaseDescInput'),
+        phaseTypeInput: document.getElementById('tlpPhaseTypeInput'),
         phaseStartInput: document.getElementById('tlpPhaseStartInput'),
         phaseDurationInput: document.getElementById('tlpPhaseDurationInput'),
         phaseGuideCount: document.getElementById('tlpPhaseGuideCount'),
@@ -781,6 +782,8 @@
                 var color = normalizeColor(phase.color);
                 var icon = normalizeIcon(phase.icon || 'fa-circle');
                 var phaseDescription = String(phase.description || '').trim();
+                var phaseType = String(phase.phase_type || 'standard').toLowerCase() === 'document' ? 'document' : 'standard';
+                var phaseTypeLabel = phaseType === 'document' ? 'Google Doc' : 'Standard';
                 var showName = widthPct > 7;
                 var resizeHandles = canEdit
                     ? '<span class="tlp-phase-resize-handle left" aria-hidden="true"></span><span class="tlp-phase-resize-handle right" aria-hidden="true"></span>'
@@ -791,6 +794,7 @@
                     ' data-phase-id="' + phaseId + '"' +
                     ' data-phase-name="' + escapeHtml(phase.name || '') + '"' +
                     ' data-phase-desc="' + escapeHtml(phaseDescription) + '"' +
+                    ' data-phase-type="' + escapeHtml(phaseType) + '"' +
                     ' data-phase-icon="' + escapeHtml(icon) + '"' +
                     ' data-phase-color="' + escapeHtml(color) + '"' +
                     ' data-phase-start="' + start + '"' +
@@ -830,6 +834,9 @@
                                 '<span class="tlp-phase-name">' + escapeHtml(phase.name || 'Phase') + '</span>' +
                                 '<span class="tlp-phase-desc">' + escapeHtml(phaseDescription || 'No description') + '</span>' +
                                 '<span class="tlp-phase-desc" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">' +
+                                    '<span style="padding:2px 8px;border-radius:999px;background:' + (phaseType === 'document' ? '#EFF6FF' : '#F3F4F6') + ';color:' + (phaseType === 'document' ? '#1D4ED8' : '#4B5563') + ';font-size:11px;font-weight:600;">' +
+                                        escapeHtml(phaseTypeLabel) +
+                                    '</span>' +
                                     '<span style="padding:2px 8px;border-radius:999px;background:' + trackingMeta.bg + ';color:' + trackingMeta.color + ';font-size:11px;font-weight:600;">' +
                                         escapeHtml(trackingMeta.label) +
                                     '</span>' +
@@ -1185,6 +1192,7 @@
             : '<i class="fa fa-calendar"></i> Add Phase';
         el.phaseNameInput.value = phasePayload && phasePayload.name ? phasePayload.name : '';
         el.phaseDescInput.value = phasePayload && phasePayload.description ? phasePayload.description : '';
+        el.phaseTypeInput.value = phasePayload && phasePayload.phaseType === 'document' ? 'document' : 'standard';
         el.phaseStartInput.value = String(normalizedStart);
         el.phaseStartInput.max = String(state.phaseDayLimit);
         el.phaseDurationInput.value = String(normalizedDuration);
@@ -1247,6 +1255,7 @@
         var taskId = Number(state.phaseModalTaskId || 0);
         var name = String(el.phaseNameInput.value || '').trim();
         var description = String(el.phaseDescInput.value || '').trim();
+        var phaseType = String(el.phaseTypeInput.value || 'standard').toLowerCase() === 'document' ? 'document' : 'standard';
         var dayLimit = clampNumber(state.phaseDayLimit, 1, 365, 365);
         var startDay = clampNumber(el.phaseStartInput.value, 1, dayLimit, 1);
         var maxDuration = Math.max(1, (dayLimit - startDay) + 1);
@@ -1272,6 +1281,7 @@
                 timeline_task_id: taskId,
                 name: name,
                 description: description,
+                phase_type: phaseType,
                 icon: state.selectedIcon,
                 color: state.selectedColor,
                 start_day: startDay,
@@ -1339,6 +1349,7 @@
             phaseId: Number(dataset.phaseId || 0),
             name: String(dataset.phaseName || ''),
             description: String(dataset.phaseDesc || ''),
+            phaseType: String(dataset.phaseType || 'standard'),
             icon: String(dataset.phaseIcon || 'fa-circle'),
             color: String(dataset.phaseColor || '#6C3CE1'),
             startDay: clampNumber(dataset.phaseStart, 1, 365, 1),
@@ -1376,6 +1387,7 @@
             taskId: taskId,
             phaseName: String(bar.dataset.phaseName || 'Phase').trim() || 'Phase',
             phaseDesc: String(bar.dataset.phaseDesc || ''),
+            phaseType: String(bar.dataset.phaseType || 'standard').toLowerCase() === 'document' ? 'document' : 'standard',
             phaseIcon: normalizeIcon(bar.dataset.phaseIcon || 'fa-circle'),
             phaseColor: normalizeColor(bar.dataset.phaseColor || '#6C3CE1'),
             initialStartDay: startDay,
@@ -1507,6 +1519,7 @@
             timeline_task_id: drag.taskId,
             name: drag.phaseName,
             description: drag.phaseDesc,
+            phase_type: drag.phaseType,
             icon: drag.phaseIcon,
             color: drag.phaseColor,
             start_day: drag.draftStartDay,

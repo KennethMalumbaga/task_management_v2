@@ -123,6 +123,14 @@ if (!function_exists('subtask_ensure_schema')) {
                 }
             }
 
+            if (!tenant_column_exists($pdo, 'subtasks', 'google_doc_id')) {
+                $pdo->exec("ALTER TABLE subtasks ADD COLUMN google_doc_id VARCHAR(255) NULL");
+            }
+
+            if (!tenant_column_exists($pdo, 'subtasks', 'google_doc_url')) {
+                $pdo->exec("ALTER TABLE subtasks ADD COLUMN google_doc_url VARCHAR(2048) NULL");
+            }
+
             if (!subtask_index_exists($pdo, 'subtasks', 'idx_subtasks_timeline_phase_id')) {
                 if ($driver === 'mysql') {
                     $pdo->exec("CREATE INDEX idx_subtasks_timeline_phase_id ON subtasks (timeline_phase_id)");
@@ -471,7 +479,7 @@ if (!function_exists('subtask_fetch_timeline_phases_for_task_lane')) {
             return [];
         }
 
-        $sql = "SELECT id, timeline_task_id, name, start_day, duration_days
+        $sql = "SELECT id, timeline_task_id, name, phase_type, start_day, duration_days
                 FROM project_timeline_phases
                 WHERE timeline_task_id = ?";
         [$sql, $params] = subtask_append_scope($pdo, $sql, [$timelineTaskId], 'project_timeline_phases');
@@ -697,18 +705,21 @@ function get_subtasks_by_task($pdo, $task_id)
     $hasTimelinePhaseTable = tenant_table_exists($pdo, 'project_timeline_phases');
 
     if ($hasTimelinePhase && $hasTimelinePhaseTable) {
-        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, pp.name AS timeline_phase_name
+        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, pp.name AS timeline_phase_name,
+                       COALESCE(pp.phase_type, 'standard') AS timeline_phase_type
                 FROM subtasks s
                 LEFT JOIN users u ON s.member_id = u.id
                 LEFT JOIN project_timeline_phases pp ON pp.id = s.timeline_phase_id
                 WHERE s.task_id = ?";
     } elseif ($hasTimelinePhase) {
-        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, NULL AS timeline_phase_name
+        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, NULL AS timeline_phase_name,
+                       'standard' AS timeline_phase_type
                 FROM subtasks s
                 LEFT JOIN users u ON s.member_id = u.id
                 WHERE s.task_id = ?";
     } else {
-        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, NULL AS timeline_phase_id, NULL AS timeline_phase_name
+        $sql = "SELECT s.*, COALESCE(u.full_name, 'Unassigned member') as member_name, NULL AS timeline_phase_id,
+                       NULL AS timeline_phase_name, 'standard' AS timeline_phase_type
                 FROM subtasks s
                 LEFT JOIN users u ON s.member_id = u.id
                 WHERE s.task_id = ?";
@@ -729,6 +740,37 @@ function get_subtask_by_id($pdo, $subtask_id)
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+if (!function_exists('subtask_attach_google_doc')) {
+    function subtask_attach_google_doc($pdo, $subtaskId, $googleDocId, $googleDocUrl)
+    {
+        subtask_ensure_schema($pdo);
+
+        $subtaskId = (int)$subtaskId;
+        $googleDocId = trim((string)$googleDocId);
+        $googleDocUrl = trim((string)$googleDocUrl);
+        if ($subtaskId <= 0 || $googleDocId === '' || $googleDocUrl === '') {
+            return false;
+        }
+
+        $sql = "UPDATE subtasks
+                SET google_doc_id = ?, google_doc_url = ?,
+                    status = CASE WHEN status = 'pending' THEN 'in_progress' ELSE status END,
+                    updated_at = NOW()
+                WHERE id = ?";
+        [$sql, $params] = subtask_append_scope($pdo, $sql, [$googleDocId, $googleDocUrl, $subtaskId], 'subtasks');
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute($params);
+    }
+}
+
+if (!function_exists('subtask_is_document_phase')) {
+    function subtask_is_document_phase($subtaskRow)
+    {
+        $phaseType = strtolower(trim((string)($subtaskRow['timeline_phase_type'] ?? 'standard')));
+        return $phaseType === 'document';
+    }
 }
 
 function get_subtasks_by_member($pdo, $member_id)
