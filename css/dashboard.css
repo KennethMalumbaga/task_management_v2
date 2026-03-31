@@ -1254,6 +1254,38 @@ body {
     min-height: 20px;
 }
 
+.password-field-wrap {
+    position: relative;
+}
+
+.password-field-wrap .field-value {
+    padding-right: 44px;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: #6B7280;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    padding: 0;
+}
+
+.password-toggle-btn:hover {
+    color: #374151;
+}
+
+.password-toggle-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(108, 60, 225, 0.15);
+}
+
 .bio-box {
     min-height: 100px;
     line-height: 1.5;
@@ -1683,5 +1715,4 @@ body {
         padding: 12px !important;
     }
 }
-
 

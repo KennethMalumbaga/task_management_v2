@@ -8,34 +8,6 @@ require_once "invite_helpers.php";
 require_once __DIR__ . "/helpers/input.php";
 require_once __DIR__ . "/helpers/password_policy.php";
 
-function generate_temporary_password($length = 10)
-{
-    $length = max(8, (int)$length);
-    $upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    $lower = "abcdefghijkmnopqrstuvwxyz";
-    $digits = "23456789";
-    $symbols = "!@#$%&*";
-    $all = $upper . $lower . $digits . $symbols;
-
-    do {
-        $out = '';
-        $out .= $upper[random_int(0, strlen($upper) - 1)];
-        $out .= $lower[random_int(0, strlen($lower) - 1)];
-        $out .= $digits[random_int(0, strlen($digits) - 1)];
-        $out .= $symbols[random_int(0, strlen($symbols) - 1)];
-
-        for ($i = 4; $i < $length; $i++) {
-            $out .= $all[random_int(0, strlen($all) - 1)];
-        }
-
-        $chars = str_split($out);
-        shuffle($chars);
-        $out = implode('', $chars);
-    } while (!password_meets_policy($out));
-
-    return $out;
-}
-
 if (!isset($_POST['token']) || !isset($_POST['full_name'])) {
     header("Location: ../login.php?error=Invalid invitation request.");
     exit();
@@ -122,24 +94,16 @@ try {
         throw new RuntimeException("This email already has an account. Ask your admin to use password reset.");
     }
 
-    $generatedPassword = null;
-    $mustChangePassword = false;
-    if ($isOpenLink) {
-        $generatedPassword = generate_temporary_password(10);
-        $passwordHash = password_hash($generatedPassword, PASSWORD_DEFAULT);
-        $mustChangePassword = true;
-    } else {
-        if ($password === '' || $confirmPassword === '') {
-            throw new RuntimeException("Password fields are required.");
-        }
-        if (!password_meets_policy($password)) {
-            throw new RuntimeException(password_policy_error());
-        }
-        if ($password !== $confirmPassword) {
-            throw new RuntimeException("Passwords do not match.");
-        }
-        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+    if ($password === '' || $confirmPassword === '') {
+        throw new RuntimeException("Password fields are required.");
     }
+    if (!password_meets_policy($password)) {
+        throw new RuntimeException(password_policy_error());
+    }
+    if ($password !== $confirmPassword) {
+        throw new RuntimeException("Passwords do not match.");
+    }
+    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
     $organizationId = (int)$invite['organization_id'];
 
@@ -152,12 +116,12 @@ try {
         $sql = "INSERT INTO users (full_name, username, password, role, must_change_password, organization_id)
                 VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$fullName, $email, $passwordHash, $role, $mustChangePassword ? "true" : "false", $organizationId]);
+        $stmt->execute([$fullName, $email, $passwordHash, $role, "false", $organizationId]);
     } else {
         $sql = "INSERT INTO users (full_name, username, password, role, must_change_password)
                 VALUES (?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$fullName, $email, $passwordHash, $role, $mustChangePassword ? "true" : "false"]);
+        $stmt->execute([$fullName, $email, $passwordHash, $role, "false"]);
     }
 
     $newUserId = (int)$pdo->lastInsertId();
@@ -182,20 +146,9 @@ try {
     );
     $stmt->execute([$newUserId, $email, $fullName, (int)$invite['id']]);
 
-    if ($isOpenLink) {
-        include_once "send_email.php";
-        if (!send_confirmation_email($email, $fullName, (string)$generatedPassword)) {
-            throw new RuntimeException("Temporary password email could not be sent. Please try again.");
-        }
-    }
-
     $pdo->commit();
 
-    if ($isOpenLink) {
-        $msg = "Account created. A temporary password was sent to your email.";
-    } else {
-        $msg = "Account created successfully. You can now log in.";
-    }
+    $msg = "Account created successfully. You can now log in.";
     header("Location: ../login.php?success=" . urlencode($msg));
     exit();
 } catch (Throwable $e) {

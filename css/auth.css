@@ -92,11 +92,61 @@ body.auth-body {
 /* Right Panel - Form */
 .auth-right {
     flex: 1;
-    padding: 40px;
+    padding: 20px;
     /* Reduced form padding */
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+
+.auth-container-single {
+    max-width: 460px;
+    min-height: 0;
+}
+
+.auth-right-single {
+    flex: none;
+    width: 100%;
+    padding: 32px 48px 40px;
+}
+
+.auth-form-shell {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.auth-form-shell form,
+.auth-form-shell .alert,
+.auth-form-shell .auth-footer,
+.auth-form-shell .auth-info-box,
+.auth-form-shell .auth-card-header,
+.auth-form-shell .auth-helper-text {
+    width: 80%;
+}
+
+.auth-card-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 0 auto 28px;
+    text-align: center;
+}
+
+.auth-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #6C3CE1, #8B5CF6);
+    color: #FFFFFF;
+    font-size: 26px;
+    box-shadow: 0 14px 30px rgba(108, 60, 225, 0.22);
 }
 
 /* Original auth styles adapted */
@@ -126,14 +176,16 @@ body.auth-body {
     font-size: 24px;
     font-weight: 700;
     color: #111827;
-    margin: 0 0 5px 0;
+    margin: 0 0 10px 0;
     text-align: center;
 }
 
 .auth-subtitle {
     font-size: 14px;
     color: #6B7280;
-    margin-bottom: 20px;
+    max-width: 320px;
+    margin: 0 auto;
+    line-height: 1.55;
     text-align: center;
 }
 
@@ -210,6 +262,10 @@ body.auth-body {
     position: relative;
 }
 
+.input-with-icon .form-control {
+    padding-left: 42px;
+}
+
 .input-icon {
     position: absolute;
     left: 15px;
@@ -262,17 +318,25 @@ body.auth-body {
     text-decoration: underline;
 }
 
+.auth-helper-text {
+    margin: -6px auto 20px;
+    font-size: 13px;
+    color: #6B7280;
+    line-height: 1.5;
+}
+
 /* Back Link Style */
 .back-link {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
     color: #4B5563;
     text-decoration: none;
     font-size: 14px;
     font-weight: 500;
-    margin-bottom: 30px;
+    margin-bottom: 36px;
     transition: color 0.2s;
+    align-self: flex-start;
 }
 
 .back-link:hover {
@@ -336,5 +400,8 @@ body.auth-body {
     .auth-right {
         padding: 30px 24px;
     }
-}
 
+    .auth-right-single {
+        padding: 24px;
+    }
+}

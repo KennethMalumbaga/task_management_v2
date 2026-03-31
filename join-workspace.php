@@ -131,7 +131,7 @@ if ($token === '') {
                 </div>
                 <?php if ($isOpenLink) { ?>
                     <div class="auth-info-box">
-                        This is a one-time join link. Enter your work email to create your account.
+                        This is a one-time join link. Enter your work email and create your password to join this workspace.
                     </div>
                 <?php } ?>
 
@@ -166,12 +166,13 @@ if ($token === '') {
                         >
                     </div>
 
-                    <?php if (!$isOpenLink) { ?>
-                        <div class="form-group">
-                            <label class="form-label">Password</label>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <div class="password-field-wrap">
                             <input
                                 type="password"
                                 class="form-control"
+                                id="join_workspace_password"
                                 name="password"
                                 placeholder="At least 8 chars, Aa1!"
                                 minlength="8"
@@ -179,24 +180,29 @@ if ($token === '') {
                                 title="Must be at least 8 characters and include uppercase, lowercase, number, and symbol."
                                 required
                             >
+                            <button type="button" class="password-toggle-btn" data-password-toggle data-target="#join_workspace_password" aria-label="Show password">
+                                <i class="fa fa-eye" aria-hidden="true"></i>
+                            </button>
                         </div>
+                    </div>
 
-                        <div class="form-group">
-                            <label class="form-label">Confirm Password</label>
+                    <div class="form-group">
+                        <label class="form-label">Confirm Password</label>
+                        <div class="password-field-wrap">
                             <input
                                 type="password"
                                 class="form-control"
+                                id="join_workspace_confirm_password"
                                 name="confirm_password"
                                 placeholder="Repeat password"
                                 minlength="8"
                                 required
                             >
+                            <button type="button" class="password-toggle-btn" data-password-toggle data-target="#join_workspace_confirm_password" aria-label="Show password">
+                                <i class="fa fa-eye" aria-hidden="true"></i>
+                            </button>
                         </div>
-                    <?php } else { ?>
-                        <div class="auth-info-box">
-                            After you submit, we will email a temporary password. You will be asked to change it after first login.
-                        </div>
-                    <?php } ?>
+                    </div>
 
                     <button type="submit" class="btn-primary">Join Workspace</button>
                 </form>
@@ -207,5 +213,39 @@ if ($token === '') {
             <?php } ?>
         </div>
     </div>
+
+    <script>
+    (function () {
+        var toggles = document.querySelectorAll('[data-password-toggle]');
+        if (!toggles.length) {
+            return;
+        }
+
+        function updateToggleState(button, input) {
+            var visible = input.type === 'text';
+            button.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+            button.setAttribute('title', visible ? 'Hide password' : 'Show password');
+            var icon = button.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-eye', visible);
+                icon.classList.toggle('fa-eye-slash', !visible);
+            }
+        }
+
+        toggles.forEach(function (button) {
+            var target = button.getAttribute('data-target');
+            var input = target ? document.querySelector(target) : null;
+            if (!input) {
+                return;
+            }
+
+            updateToggleState(button, input);
+            button.addEventListener('click', function () {
+                input.type = input.type === 'password' ? 'text' : 'password';
+                updateToggleState(button, input);
+            });
+        });
+    })();
+    </script>
 </body>
 </html>

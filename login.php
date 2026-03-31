@@ -444,8 +444,8 @@ $verificationSuccess = isset($_GET['verify_success']) ? trim((string)$_GET['veri
               button.setAttribute('title', visible ? 'Hide password' : 'Show password');
               var icon = button.querySelector('i');
               if (icon) {
-                  icon.classList.toggle('fa-eye', !visible);
-                  icon.classList.toggle('fa-eye-slash', visible);
+                  icon.classList.toggle('fa-eye', visible);
+                  icon.classList.toggle('fa-eye-slash', !visible);
               }
           }
 
