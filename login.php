@@ -351,7 +351,7 @@ $googleLoginUri = APP_URL . '/app/google-login.php';
 
                 <div class="auth-footer">
                     Need a workspace? <a href="signup.php" class="auth-link">Create one</a><br>
-                    Got an invite link? Open it and set your password to join your team.
+                    Got an invite link? Open it and join your team with a password or Google.
                 </div>
             </div>
       </div>
