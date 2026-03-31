@@ -124,24 +124,40 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <div class="profile-grid" style="margin-top: 15px;">
                             <div class="profile-field-group">
                                 <label>Old Password</label>
-                                <input type="password" name="password" class="field-value" style="width: 100%; box-sizing: border-box;" placeholder="Current password">
+                                <div class="password-field-wrap">
+                                    <input type="password" id="profile_old_password" name="password" class="field-value" style="width: 100%; box-sizing: border-box;" placeholder="Current password">
+                                    <button type="button" class="password-toggle-btn" data-password-toggle data-target="#profile_old_password" aria-label="Show password">
+                                        <i class="fa fa-eye" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="profile-field-group">
                                 <label>New Password</label>
-                                <input
-                                    type="password"
-                                    name="new_password"
-                                    class="field-value"
-                                    style="width: 100%; box-sizing: border-box;"
-                                    placeholder="New password (min 8, Aa1!)"
-                                    minlength="8"
-                                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}"
-                                    title="Must be at least 8 characters and include uppercase, lowercase, number, and symbol."
-                                >
+                                <div class="password-field-wrap">
+                                    <input
+                                        type="password"
+                                        id="profile_new_password"
+                                        name="new_password"
+                                        class="field-value"
+                                        style="width: 100%; box-sizing: border-box;"
+                                        placeholder="New password (min 8, Aa1!)"
+                                        minlength="8"
+                                        pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}"
+                                        title="Must be at least 8 characters and include uppercase, lowercase, number, and symbol."
+                                    >
+                                    <button type="button" class="password-toggle-btn" data-password-toggle data-target="#profile_new_password" aria-label="Show password">
+                                        <i class="fa fa-eye" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="profile-field-group">
                                 <label>Confirm Password</label>
-                                <input type="password" name="confirm_password" class="field-value" style="width: 100%; box-sizing: border-box;" placeholder="Confirm new password">
+                                <div class="password-field-wrap">
+                                    <input type="password" id="profile_confirm_password" name="confirm_password" class="field-value" style="width: 100%; box-sizing: border-box;" placeholder="Confirm new password">
+                                    <button type="button" class="password-toggle-btn" data-password-toggle data-target="#profile_confirm_password" aria-label="Show password">
+                                        <i class="fa fa-eye" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -169,6 +185,38 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 reader.readAsDataURL(e.files[0]);
             }
         }
+
+        (function () {
+            var toggles = document.querySelectorAll('[data-password-toggle]');
+            if (!toggles.length) {
+                return;
+            }
+
+            function updateToggleState(button, input) {
+                var visible = input.type === 'text';
+                button.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+                button.setAttribute('title', visible ? 'Hide password' : 'Show password');
+                var icon = button.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('fa-eye', visible);
+                    icon.classList.toggle('fa-eye-slash', !visible);
+                }
+            }
+
+            toggles.forEach(function (button) {
+                var target = button.getAttribute('data-target');
+                var input = target ? document.querySelector(target) : null;
+                if (!input) {
+                    return;
+                }
+
+                updateToggleState(button, input);
+                button.addEventListener('click', function () {
+                    input.type = input.type === 'password' ? 'text' : 'password';
+                    updateToggleState(button, input);
+                });
+            });
+        })();
     </script>
 </body>
 </html>

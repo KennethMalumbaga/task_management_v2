@@ -14,6 +14,35 @@ function column_exists($pdo, $table, $column)
     return (bool)$stmt->fetchColumn();
 }
 
+function task_model_ensure_google_doc_column($pdo)
+{
+    static $cache = [];
+
+    $cacheKey = is_object($pdo) ? spl_object_hash($pdo) : 'default';
+    if (array_key_exists($cacheKey, $cache)) {
+        return (bool)$cache[$cacheKey];
+    }
+
+    if (column_exists($pdo, 'tasks', 'google_doc_url')) {
+        $cache[$cacheKey] = true;
+        return true;
+    }
+
+    try {
+        $driver = strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+        if ($driver === 'mysql') {
+            $pdo->exec("ALTER TABLE tasks ADD COLUMN google_doc_url VARCHAR(2048) NULL AFTER template_file");
+        } else {
+            $pdo->exec("ALTER TABLE tasks ADD COLUMN google_doc_url VARCHAR(2048)");
+        }
+    } catch (Throwable $e) {
+        // If the column cannot be added here, the feature remains optional.
+    }
+
+    $cache[$cacheKey] = column_exists($pdo, 'tasks', 'google_doc_url');
+    return (bool)$cache[$cacheKey];
+}
+
 function task_model_append_scope($pdo, $sql, $params, $table, $alias = '', $joinWord = 'AND')
 {
     $scope = tenant_get_scope($pdo, $table, $alias, $joinWord);
@@ -27,34 +56,36 @@ function task_model_append_scope($pdo, $sql, $params, $table, $alias = '', $join
 function insert_task($pdo, $data)
 {
     $has_template_file = column_exists($pdo, 'tasks', 'template_file');
+    $has_google_doc_url = task_model_ensure_google_doc_column($pdo);
     $orgId = tenant_get_current_org_id();
     $has_org = column_exists($pdo, 'tasks', 'organization_id') && $orgId;
 
-    if ($has_template_file && isset($data[4])) {
-        if ($has_org) {
-            $sql = "INSERT INTO tasks
-                    (title, description, assigned_to, due_date, template_file, organization_id)
-                    VALUES (?, ?, ?, ?, ?, ?)";
-            $params = [$data[0], $data[1], $data[2], $data[3], $data[4], $orgId];
-        } else {
-            $sql = "INSERT INTO tasks
-                    (title, description, assigned_to, due_date, template_file)
-                    VALUES (?, ?, ?, ?, ?)";
-            $params = [$data[0], $data[1], $data[2], $data[3], $data[4]];
-        }
-    } else {
-        if ($has_org) {
-            $sql = "INSERT INTO tasks
-                    (title, description, assigned_to, due_date, organization_id)
-                    VALUES (?, ?, ?, ?, ?)";
-            $params = [$data[0], $data[1], $data[2], $data[3], $orgId];
-        } else {
-            $sql = "INSERT INTO tasks
-                    (title, description, assigned_to, due_date)
-                    VALUES (?, ?, ?, ?)";
-            $params = array_slice($data, 0, 4);
-        }
+    $columns = ['title', 'description', 'assigned_to', 'due_date'];
+    $params = [
+        $data['title'],
+        $data['description'],
+        $data['assigned_to'],
+        $data['due_date'],
+    ];
+
+    if ($has_template_file) {
+        $columns[] = 'template_file';
+        $params[] = $data['template_file'] ?? null;
     }
+
+    if ($has_google_doc_url) {
+        $columns[] = 'google_doc_url';
+        $params[] = !empty($data['google_doc_url']) ? $data['google_doc_url'] : null;
+    }
+
+    if ($has_org) {
+        $columns[] = 'organization_id';
+        $params[] = $orgId;
+    }
+
+    $sql = "INSERT INTO tasks
+            (" . implode(', ', $columns) . ")
+            VALUES (" . implode(', ', array_fill(0, count($columns), '?')) . ")";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -73,33 +104,44 @@ function task_title_exists($pdo, $title)
 function update_task($pdo, $data)
 {
     $has_template_file = column_exists($pdo, 'tasks', 'template_file');
+    $has_google_doc_url = task_model_ensure_google_doc_column($pdo);
 
-    if ($has_template_file && count($data) === 9) {
-        $sql = "UPDATE tasks SET
-                    title=?,
-                    description=?,
-                    assigned_to=?,
-                    due_date=?,
-                    status=?,
-                    review_comment=?,
-                    reviewed_by=?,
-                    reviewed_at=NOW(),
-                    template_file=?
-                WHERE id=?";
-    } else {
-        $sql = "UPDATE tasks SET
-                    title=?,
-                    description=?,
-                    assigned_to=?,
-                    due_date=?,
-                    status=?,
-                    review_comment=?,
-                    reviewed_by=?,
-                    reviewed_at=NOW()
-                WHERE id=?";
+    $setClauses = [
+        "title=?",
+        "description=?",
+        "assigned_to=?",
+        "due_date=?",
+        "status=?",
+        "review_comment=?",
+        "reviewed_by=?",
+        "reviewed_at=NOW()",
+    ];
+    $params = [
+        $data['title'],
+        $data['description'],
+        $data['assigned_to'],
+        $data['due_date'],
+        $data['status'],
+        $data['review_comment'],
+        $data['reviewed_by'],
+    ];
+
+    if ($has_template_file) {
+        $setClauses[] = "template_file=?";
+        $params[] = $data['template_file'] ?? null;
     }
 
-    [$sql, $params] = task_model_append_scope($pdo, $sql, $data, 'tasks');
+    if ($has_google_doc_url) {
+        $setClauses[] = "google_doc_url=?";
+        $params[] = !empty($data['google_doc_url']) ? $data['google_doc_url'] : null;
+    }
+
+    $sql = "UPDATE tasks SET
+                    " . implode(",\n                    ", $setClauses) . "
+                WHERE id=?";
+    $params[] = $data['id'];
+
+    [$sql, $params] = task_model_append_scope($pdo, $sql, $params, 'tasks');
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
 }

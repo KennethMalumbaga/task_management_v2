@@ -6,6 +6,7 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
 	include "../DB_connection.php";
     require_once "../inc/csrf.php";
     require_once __DIR__ . "/helpers/input.php";
+    require_once __DIR__ . "/helpers/task_links.php";
 
     $id = validate_input($_POST['id']);
     $submittedToken = $_POST['csrf_token'] ?? null;
@@ -24,6 +25,7 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
 	$due_date = validate_input($_POST['due_date']);
 	$status = validate_input($_POST['status']);
 	$review_comment = isset($_POST['review_comment']) ? validate_input($_POST['review_comment']) : "";
+    $google_doc_url_raw = isset($_POST['google_doc_url']) ? trim((string)$_POST['google_doc_url']) : "";
 
 	if (empty($title)) {
 		$em = "Title is required";
@@ -38,6 +40,12 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
 	    header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
 	    exit();
 	}else {
+       $google_doc_url = task_link_normalize_google_doc_url($google_doc_url_raw);
+       if ($google_doc_url === null) {
+           $em = "Google Docs link must be a valid docs.google.com/document URL.";
+           header("Location: ../tasks.php?error=" . urlencode($em) . "&open_task=" . urlencode((string)$id));
+           exit();
+       }
     
        include "model/Task.php";
        include "model/Notification.php";
@@ -103,7 +111,18 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
 
        // Persist task changes + review info
        $admin_id = $_SESSION['id'];
-       $data = array($title, $description, $assigned_to, $due_date, $status, $review_comment, $admin_id, $template_file_path, $id);
+       $data = [
+           'title' => $title,
+           'description' => $description,
+           'assigned_to' => $assigned_to,
+           'due_date' => $due_date,
+           'status' => $status,
+           'review_comment' => $review_comment,
+           'reviewed_by' => $admin_id,
+           'template_file' => $template_file_path,
+           'google_doc_url' => $google_doc_url,
+           'id' => $id,
+       ];
        update_task($pdo, $data);
 
        // Keep related task_chat group linked and renamed when task title changes.
@@ -147,4 +166,3 @@ if (isset($_POST['id']) && isset($_POST['title']) && isset($_POST['description']
    header("Location: ../login.php?error=$em");
    exit();
 }
-

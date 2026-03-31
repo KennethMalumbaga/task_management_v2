@@ -62,26 +62,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     $bulletinPostsJson = json_encode($bulletinPosts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     $active_users = [];
     if ($_SESSION['role'] === 'admin') {
-        date_default_timezone_set('Asia/Manila');
-        $today = date('Y-m-d');
-        $sql_active = "SELECT a.id AS attendance_id, a.user_id, a.time_in, u.full_name, u.username, u.profile_image
-                       FROM attendance a
-                       INNER JOIN users u ON a.user_id = u.id
-                       WHERE a.att_date = ?
-                         AND a.time_in IS NOT NULL
-                         AND (a.time_out IS NULL OR a.time_out = '00:00:00')
-                         AND u.role = 'employee'";
-        $params_active = [$today];
-        $scope_att = tenant_get_scope($pdo, 'attendance', 'a');
-        $sql_active .= $scope_att['sql'];
-        $params_active = array_merge($params_active, $scope_att['params']);
-        $scope_user = tenant_get_scope($pdo, 'users', 'u');
-        $sql_active .= $scope_user['sql'];
-        $params_active = array_merge($params_active, $scope_user['params']);
-        $sql_active .= " ORDER BY a.time_in DESC";
-        $stmt_active = $pdo->prepare($sql_active);
-        $stmt_active->execute($params_active);
-        $active_users = $stmt_active->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $active_users = get_active_users_with_pause_state($pdo);
     }
 ?>
 <!DOCTYPE html>
@@ -650,23 +631,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             <?php if (!empty($active_users)) { 
                                 foreach ($active_users as $idx => $u) {
                                     $userName = trim((string)($u['full_name'] ?? ''));
-                                    $avatarPath = !empty($u['profile_image']) ? 'uploads/' . $u['profile_image'] : '';
+                                    $avatarPath = user_profile_image_url($u['profile_image'] ?? '');
                                     $timeInRaw = trim((string)($u['time_in'] ?? ''));
                                     $timeInLabel = $timeInRaw !== '' ? date('h:i A', strtotime($timeInRaw)) : '--:--';
-                                    $initials = '';
-                                    if ($userName !== '') {
-                                        $parts = preg_split('/\s+/', $userName);
-                                        foreach ($parts as $part) {
-                                            if ($part === '') continue;
-                                            $initials .= mb_strtoupper(mb_substr($part, 0, 1));
-                                            if (mb_strlen($initials) >= 2) break;
-                                        }
-                                    }
-                                    if ($initials === '') {
-                                        $initials = 'U';
-                                    }
+                                    $isPaused = !empty($u['is_paused']);
+                                    $pauseReason = trim((string)($u['pause_reason'] ?? ''));
+                                    $pauseLabel = $pauseReason !== '' ? $pauseReason : 'Paused';
+                                    $initials = user_display_initials($userName);
                             ?>
-                            <div class="admin-user-row" data-user-id="<?= (int)$u['user_id'] ?>">
+                            <div class="admin-user-row<?= $isPaused ? ' is-paused' : '' ?>" data-user-id="<?= (int)$u['user_id'] ?>" data-user-name="<?= htmlspecialchars($userName) ?>">
                                 <div class="admin-user-rank"><?= $idx + 1 ?></div>
                                 <div class="admin-user-avatar">
                                     <?php if ($avatarPath) { ?>
@@ -674,19 +647,27 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     <?php } else { ?>
                                         <span class="admin-user-avatar-initials"><?= htmlspecialchars($initials) ?></span>
                                     <?php } ?>
-                                    <span class="admin-user-online"></span>
+                                    <span class="admin-user-online<?= $isPaused ? ' is-paused' : '' ?>"></span>
                                 </div>
                                 <div class="admin-user-info">
                                     <div class="admin-user-name"><?= htmlspecialchars($userName) ?></div>
                                     <div class="admin-user-meta">Clocked in at <?= htmlspecialchars($timeInLabel) ?></div>
                                 </div>
                                 <div class="admin-user-actions">
-                                    <button type="button" class="admin-btn admin-btn-clockout admin-clockout-btn" data-user-id="<?= (int)$u['user_id'] ?>" data-user-name="<?= htmlspecialchars($userName) ?>">
-                                        <i class="fa fa-sign-out"></i> Clock Out
-                                    </button>
-                                    <a class="admin-btn admin-btn-capture" href="screenshots.php?open_user_id=<?= (int)$u['user_id'] ?>&user_id=<?= (int)$u['user_id'] ?>">
-                                        View Captures <i class="fa fa-arrow-right"></i>
-                                    </a>
+                                    <?php if ($isPaused) { ?>
+                                        <div class="admin-user-note is-paused" title="<?= htmlspecialchars($pauseLabel) ?>">
+                                            <i class="fa fa-pause"></i>
+                                            <span><?= htmlspecialchars($pauseLabel) ?></span>
+                                        </div>
+                                    <?php } ?>
+                                    <div class="admin-user-action-buttons">
+                                        <button type="button" class="admin-btn admin-btn-clockout admin-clockout-btn" data-user-id="<?= (int)$u['user_id'] ?>" data-user-name="<?= htmlspecialchars($userName) ?>">
+                                            <i class="fa fa-sign-out"></i> Clock Out
+                                        </button>
+                                        <a class="admin-btn admin-btn-capture" href="screenshots.php?open_user_id=<?= (int)$u['user_id'] ?>&user_id=<?= (int)$u['user_id'] ?>">
+                                            View Captures <i class="fa fa-arrow-right"></i>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                             <?php } } else { ?>
@@ -1238,6 +1219,69 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             <div class="admin-clockout-actions">
                 <button type="button" class="admin-btn admin-btn-ghost" id="adminClockOutCancel">Cancel</button>
                 <button type="button" class="admin-btn admin-btn-danger" id="adminClockOutConfirm">Yes, Clock Out</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-user-detail-modal" id="adminUserDetailModal" style="display:none;">
+        <div class="admin-user-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="adminUserDetailTitle">
+            <button type="button" class="admin-clockout-close" id="adminUserDetailClose" aria-label="Close user details">
+                <i class="fa fa-times"></i>
+            </button>
+
+            <div class="admin-user-detail-head">
+                <div class="admin-user-detail-avatar" id="adminUserDetailAvatar">
+                    <img id="adminUserDetailAvatarImage" alt="" hidden>
+                    <span id="adminUserDetailAvatarInitials">U</span>
+                </div>
+                <div class="admin-user-detail-head-copy">
+                    <h3 id="adminUserDetailTitle">User Details</h3>
+                    <p id="adminUserDetailSubtitle"></p>
+                </div>
+            </div>
+
+            <div class="admin-user-detail-content" id="adminUserDetailContent" hidden>
+                <div class="admin-user-detail-grid">
+                    <div class="admin-user-detail-stat">
+                        <span class="admin-user-detail-label">Last Time In</span>
+                        <strong id="adminUserDetailTimeIn">--</strong>
+                    </div>
+                    <div class="admin-user-detail-stat">
+                        <span class="admin-user-detail-label">Last Screenshot</span>
+                        <strong id="adminUserDetailLastScreenshot">No screenshots yet</strong>
+                    </div>
+                    <div class="admin-user-detail-stat">
+                        <span class="admin-user-detail-label">Status</span>
+                        <span class="admin-user-detail-status-chip is-active" id="adminUserDetailStatusChip">Active</span>
+                    </div>
+                </div>
+
+                <div class="admin-user-detail-reason" id="adminUserDetailReasonWrap" hidden>
+                    <span class="admin-user-detail-label">Pause Reason</span>
+                    <div class="admin-user-detail-reason-pill" id="adminUserDetailReason">--</div>
+                </div>
+
+                <div class="admin-user-detail-capture-shell">
+                    <a class="admin-user-detail-capture-preview is-empty" id="adminUserDetailCapturePreviewLink" href="screenshots.php">
+                        <img id="adminUserDetailCapturePreviewImage" alt="Latest screenshot preview" hidden>
+                        <div class="admin-user-detail-capture-empty" id="adminUserDetailCaptureEmpty">
+                            <i class="fa fa-picture-o"></i>
+                            <span>No screenshot available yet.</span>
+                        </div>
+                    </a>
+                    <div class="admin-user-detail-capture-copy">
+                        <div class="admin-user-detail-label">Latest Capture</div>
+                        <strong id="adminUserDetailCaptureTitle">Waiting for first screenshot</strong>
+                        <p id="adminUserDetailCaptureMeta">As soon as a screenshot is captured, it will appear here.</p>
+                    </div>
+                </div>
+
+                <div class="admin-user-detail-actions">
+                    <a class="admin-btn admin-btn-capture" id="adminUserDetailCaptureLink" href="screenshots.php">
+                        View Captures <i class="fa fa-arrow-right"></i>
+                    </a>
+                    <button type="button" class="admin-btn admin-btn-ghost" id="adminUserDetailDone">Close</button>
+                </div>
             </div>
         </div>
     </div>
@@ -3277,14 +3321,38 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         if (!isAdminUser) return;
         var list = document.querySelector('.admin-active-list');
         if (!list) return;
-        var modal = document.getElementById('adminClockOutModal');
-        var modalName = document.getElementById('adminClockOutName');
-        var modalRemark = document.getElementById('adminClockOutRemark');
-        var modalConfirm = document.getElementById('adminClockOutConfirm');
-        var modalCancel = document.getElementById('adminClockOutCancel');
-        var modalClose = document.getElementById('adminClockOutClose');
+
+        var clockoutModal = document.getElementById('adminClockOutModal');
+        var clockoutName = document.getElementById('adminClockOutName');
+        var clockoutRemark = document.getElementById('adminClockOutRemark');
+        var clockoutConfirm = document.getElementById('adminClockOutConfirm');
+        var clockoutCancel = document.getElementById('adminClockOutCancel');
+        var clockoutClose = document.getElementById('adminClockOutClose');
+
+        var detailModal = document.getElementById('adminUserDetailModal');
+        var detailClose = document.getElementById('adminUserDetailClose');
+        var detailDone = document.getElementById('adminUserDetailDone');
+        var detailAvatarImage = document.getElementById('adminUserDetailAvatarImage');
+        var detailAvatarInitials = document.getElementById('adminUserDetailAvatarInitials');
+        var detailTitle = document.getElementById('adminUserDetailTitle');
+        var detailSubtitle = document.getElementById('adminUserDetailSubtitle');
+        var detailContent = document.getElementById('adminUserDetailContent');
+        var detailTimeIn = document.getElementById('adminUserDetailTimeIn');
+        var detailLastScreenshot = document.getElementById('adminUserDetailLastScreenshot');
+        var detailStatusChip = document.getElementById('adminUserDetailStatusChip');
+        var detailReasonWrap = document.getElementById('adminUserDetailReasonWrap');
+        var detailReason = document.getElementById('adminUserDetailReason');
+        var detailCapturePreviewLink = document.getElementById('adminUserDetailCapturePreviewLink');
+        var detailCapturePreviewImage = document.getElementById('adminUserDetailCapturePreviewImage');
+        var detailCaptureEmpty = document.getElementById('adminUserDetailCaptureEmpty');
+        var detailCaptureTitle = document.getElementById('adminUserDetailCaptureTitle');
+        var detailCaptureMeta = document.getElementById('adminUserDetailCaptureMeta');
+        var detailCaptureLink = document.getElementById('adminUserDetailCaptureLink');
+
         var pendingBtn = null;
         var pendingUserId = '';
+        var openDetailUserId = '';
+        var detailRequestToken = 0;
 
         function updateCount(overrideCount) {
             var count = typeof overrideCount === 'number' ? overrideCount : list.querySelectorAll('.admin-user-row').length;
@@ -3294,31 +3362,31 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
         }
 
-        function openModal(btn) {
+        function openClockoutModal(btn) {
             pendingBtn = btn;
             pendingUserId = btn.getAttribute('data-user-id') || '';
-            if (modalName) {
-                modalName.textContent = btn.getAttribute('data-user-name') || 'this user';
+            if (clockoutName) {
+                clockoutName.textContent = btn.getAttribute('data-user-name') || 'this user';
             }
-            if (modalRemark) {
-                modalRemark.value = '';
+            if (clockoutRemark) {
+                clockoutRemark.value = '';
             }
-            if (modal) {
-                modal.style.display = 'flex';
-                if (modalRemark) {
+            if (clockoutModal) {
+                clockoutModal.style.display = 'flex';
+                if (clockoutRemark) {
                     setTimeout(function () {
-                        modalRemark.focus();
+                        clockoutRemark.focus();
                     }, 0);
                 }
             }
         }
 
-        function closeModal() {
-            if (modalRemark) {
-                modalRemark.value = '';
+        function closeClockoutModal() {
+            if (clockoutRemark) {
+                clockoutRemark.value = '';
             }
-            if (modal) {
-                modal.style.display = 'none';
+            if (clockoutModal) {
+                clockoutModal.style.display = 'none';
             }
             pendingBtn = null;
             pendingUserId = '';
@@ -3335,8 +3403,208 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             return pendingBtn;
         }
 
-        function getModalRemark() {
-            return modalRemark ? modalRemark.value.trim() : '';
+        function getClockoutRemark() {
+            return clockoutRemark ? clockoutRemark.value.trim() : '';
+        }
+
+        function resetDetailView() {
+            if (detailAvatarImage) {
+                detailAvatarImage.hidden = true;
+                detailAvatarImage.removeAttribute('src');
+            }
+            if (detailAvatarInitials) {
+                detailAvatarInitials.hidden = false;
+                detailAvatarInitials.textContent = 'U';
+            }
+            if (detailTimeIn) {
+                detailTimeIn.textContent = '--';
+            }
+            if (detailLastScreenshot) {
+                detailLastScreenshot.textContent = 'No screenshots yet';
+            }
+            if (detailStatusChip) {
+                detailStatusChip.textContent = 'Active';
+                detailStatusChip.className = 'admin-user-detail-status-chip is-active';
+            }
+            if (detailReasonWrap) {
+                detailReasonWrap.hidden = true;
+            }
+            if (detailReason) {
+                detailReason.textContent = '--';
+            }
+            if (detailCapturePreviewLink) {
+                detailCapturePreviewLink.href = 'screenshots.php';
+                detailCapturePreviewLink.classList.add('is-empty');
+            }
+            if (detailCapturePreviewImage) {
+                detailCapturePreviewImage.hidden = true;
+                detailCapturePreviewImage.removeAttribute('src');
+            }
+            if (detailCaptureEmpty) {
+                detailCaptureEmpty.hidden = false;
+            }
+            if (detailCaptureTitle) {
+                detailCaptureTitle.textContent = 'Waiting for first screenshot';
+            }
+            if (detailCaptureMeta) {
+                detailCaptureMeta.textContent = 'As soon as a screenshot is captured, it will appear here.';
+            }
+            if (detailCaptureLink) {
+                detailCaptureLink.href = 'screenshots.php';
+            }
+        }
+
+        function setDetailState(message, tone, allowHtml) {
+            var textMessage = message || '';
+            if (allowHtml) {
+                var tempNode = document.createElement('div');
+                tempNode.innerHTML = textMessage;
+                textMessage = tempNode.textContent || tempNode.innerText || '';
+            }
+            if (detailSubtitle) {
+                detailSubtitle.textContent = textMessage;
+            }
+            if (detailContent) {
+                detailContent.hidden = true;
+            }
+        }
+
+        function showDetailContent() {
+            if (detailContent) {
+                detailContent.hidden = false;
+            }
+        }
+
+        function closeDetailModal() {
+            openDetailUserId = '';
+            detailRequestToken += 1;
+            resetDetailView();
+            if (detailTitle) {
+                detailTitle.textContent = 'User Details';
+            }
+            if (detailSubtitle) {
+                detailSubtitle.textContent = '';
+            }
+            if (detailContent) {
+                detailContent.hidden = true;
+            }
+            if (detailModal) {
+                detailModal.style.display = 'none';
+            }
+        }
+
+        function renderDetail(detail) {
+            if (detailTitle) {
+                detailTitle.textContent = detail.full_name || 'User';
+            }
+            if (detailSubtitle) {
+                detailSubtitle.textContent = detail.username ? ('@' + detail.username) : 'Active employee';
+            }
+            if (detailAvatarInitials) {
+                detailAvatarInitials.hidden = false;
+                detailAvatarInitials.textContent = detail.initials || 'U';
+            }
+            if (detailAvatarImage) {
+                if (detail.avatar_url) {
+                    detailAvatarImage.src = detail.avatar_url;
+                    detailAvatarImage.hidden = false;
+                    if (detailAvatarInitials) {
+                        detailAvatarInitials.hidden = true;
+                    }
+                } else {
+                    detailAvatarImage.hidden = true;
+                    detailAvatarImage.removeAttribute('src');
+                }
+            }
+            if (detailTimeIn) {
+                detailTimeIn.textContent = detail.last_time_in_label || '--';
+            }
+            if (detailLastScreenshot) {
+                detailLastScreenshot.textContent = detail.last_screenshot_label || 'No screenshots yet';
+            }
+            if (detailStatusChip) {
+                detailStatusChip.textContent = detail.status_label || 'Active';
+                detailStatusChip.className = 'admin-user-detail-status-chip ' + ((detail.status === 'paused') ? 'is-paused' : 'is-active');
+            }
+            if (detailReasonWrap) {
+                detailReasonWrap.hidden = !(detail.status === 'paused' && detail.pause_reason);
+            }
+            if (detailReason) {
+                detailReason.textContent = detail.pause_reason || '--';
+            }
+            if (detailCaptureLink) {
+                detailCaptureLink.href = detail.captures_url || 'screenshots.php';
+            }
+            if (detailCapturePreviewLink) {
+                detailCapturePreviewLink.href = detail.captures_url || 'screenshots.php';
+                detailCapturePreviewLink.classList.toggle('is-empty', !detail.last_screenshot_url);
+            }
+            if (detailCapturePreviewImage) {
+                if (detail.last_screenshot_url) {
+                    detailCapturePreviewImage.src = detail.last_screenshot_url;
+                    detailCapturePreviewImage.hidden = false;
+                } else {
+                    detailCapturePreviewImage.hidden = true;
+                    detailCapturePreviewImage.removeAttribute('src');
+                }
+            }
+            if (detailCaptureEmpty) {
+                detailCaptureEmpty.hidden = !!detail.last_screenshot_url;
+            }
+            if (detailCaptureTitle) {
+                detailCaptureTitle.textContent = detail.last_screenshot_label || 'No screenshots yet';
+            }
+            if (detailCaptureMeta) {
+                detailCaptureMeta.textContent = detail.last_screenshot_note || 'No screenshot available yet.';
+            }
+
+            showDetailContent();
+        }
+
+        function loadUserDetail(userId, showLoading) {
+            if (!userId || !detailModal) return;
+
+            var requestToken = ++detailRequestToken;
+
+            fetch('app/ajax/active_user_detail.php?user_id=' + encodeURIComponent(userId), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (requestToken !== detailRequestToken || openDetailUserId !== String(userId)) {
+                    return;
+                }
+                if (!data || data.status !== 'success' || !data.detail) {
+                    setDetailState((data && data.message) ? data.message : 'Unable to load this user right now.', 'error', false);
+                    return;
+                }
+
+                renderDetail(data.detail);
+            })
+            .catch(function () {
+                if (requestToken !== detailRequestToken || openDetailUserId !== String(userId)) {
+                    return;
+                }
+                setDetailState('Unable to load this user right now.', 'error', false);
+            });
+        }
+
+        function openDetailModal(row) {
+            if (!detailModal || !row) return;
+
+            openDetailUserId = row.getAttribute('data-user-id') || '';
+            if (!openDetailUserId) return;
+
+            resetDetailView();
+            if (detailTitle) {
+                detailTitle.textContent = row.getAttribute('data-user-name') || 'User Details';
+            }
+            if (detailSubtitle) {
+                detailSubtitle.textContent = '';
+            }
+            detailModal.style.display = 'flex';
+            showDetailContent();
+            loadUserDetail(openDetailUserId, true);
         }
 
         function doClockOut(btn, remark) {
@@ -3347,8 +3615,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             remark = typeof remark === 'string' ? remark.trim() : '';
             if (!remark) {
                 alert('Please enter a remark before clocking out ' + userName + '.');
-                if (modalRemark) {
-                    modalRemark.focus();
+                if (clockoutRemark) {
+                    clockoutRemark.focus();
                 }
                 return;
             }
@@ -3372,6 +3640,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 if (data && data.status === 'success') {
                     if (typeof showToast === 'function') {
                         showToast(userName + ' clocked out successfully.', 'success');
+                    }
+                    if (openDetailUserId === String(userId)) {
+                        closeDetailModal();
                     }
                     var row = btn.closest('.admin-user-row');
                     if (row) {
@@ -3399,51 +3670,80 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
         list.addEventListener('click', function (ev) {
             var btn = ev.target.closest('.admin-clockout-btn');
-            if (!btn) return;
-            ev.preventDefault();
-            if (btn.disabled) return;
+            if (btn) {
+                ev.preventDefault();
+                if (btn.disabled) return;
 
-            if (modal) {
-                openModal(btn);
-            } else {
-                var userName = btn.getAttribute('data-user-name') || 'this user';
-                var fallbackRemark = window.prompt('Add a remark for clocking out ' + userName + ':', '');
-                if (fallbackRemark !== null) {
-                    doClockOut(btn, fallbackRemark);
+                if (clockoutModal) {
+                    openClockoutModal(btn);
+                } else {
+                    var userName = btn.getAttribute('data-user-name') || 'this user';
+                    var fallbackRemark = window.prompt('Add a remark for clocking out ' + userName + ':', '');
+                    if (fallbackRemark !== null) {
+                        doClockOut(btn, fallbackRemark);
+                    }
                 }
+                return;
             }
+
+            if (ev.target.closest('.admin-btn-capture')) {
+                return;
+            }
+
+            var row = ev.target.closest('.admin-user-row');
+            if (!row || !list.contains(row)) {
+                return;
+            }
+
+            openDetailModal(row);
         });
 
-        if (modalConfirm) {
-            modalConfirm.addEventListener('click', function () {
-                if (pendingBtn) {
-                    var btn = pendingBtn;
-                    var remark = getModalRemark();
-                    if (!remark) {
-                        alert('Please enter a remark before clocking out this user.');
-                        if (modalRemark) {
-                            modalRemark.focus();
-                        }
-                        return;
+        if (clockoutConfirm) {
+            clockoutConfirm.addEventListener('click', function () {
+                if (!pendingBtn) return;
+
+                var btn = pendingBtn;
+                var remark = getClockoutRemark();
+                if (!remark) {
+                    alert('Please enter a remark before clocking out this user.');
+                    if (clockoutRemark) {
+                        clockoutRemark.focus();
                     }
-                    closeModal();
-                    doClockOut(btn, remark);
+                    return;
+                }
+                closeClockoutModal();
+                doClockOut(btn, remark);
+            });
+        }
+
+        if (clockoutCancel) {
+            clockoutCancel.addEventListener('click', closeClockoutModal);
+        }
+
+        if (clockoutClose) {
+            clockoutClose.addEventListener('click', closeClockoutModal);
+        }
+
+        if (clockoutModal) {
+            clockoutModal.addEventListener('click', function (ev) {
+                if (ev.target === clockoutModal) {
+                    closeClockoutModal();
                 }
             });
         }
 
-        if (modalCancel) {
-            modalCancel.addEventListener('click', closeModal);
+        if (detailDone) {
+            detailDone.addEventListener('click', closeDetailModal);
         }
 
-        if (modalClose) {
-            modalClose.addEventListener('click', closeModal);
+        if (detailClose) {
+            detailClose.addEventListener('click', closeDetailModal);
         }
 
-        if (modal) {
-            modal.addEventListener('click', function (ev) {
-                if (ev.target === modal) {
-                    closeModal();
+        if (detailModal) {
+            detailModal.addEventListener('click', function (ev) {
+                if (ev.target === detailModal) {
+                    closeDetailModal();
                 }
             });
         }
@@ -3470,7 +3770,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 if (pendingUserId) {
                     var refreshedPendingBtn = syncPendingButton();
                     if (!refreshedPendingBtn || refreshedPendingBtn.disabled) {
-                        closeModal();
+                        closeClockoutModal();
+                    }
+                }
+
+                if (openDetailUserId) {
+                    var activeRow = list.querySelector('.admin-user-row[data-user-id="' + openDetailUserId + '"]');
+                    if (!activeRow) {
+                        closeDetailModal();
+                    } else {
+                        loadUserDetail(openDetailUserId, false);
                     }
                 }
             };
@@ -4081,5 +4390,3 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
    exit();
 }
 ?>
-
-

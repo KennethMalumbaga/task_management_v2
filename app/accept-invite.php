@@ -7,33 +7,15 @@ require_once "../inc/csrf.php";
 require_once "invite_helpers.php";
 require_once __DIR__ . "/helpers/input.php";
 require_once __DIR__ . "/helpers/password_policy.php";
+require_once __DIR__ . "/model/user.php";
 
-function generate_temporary_password($length = 10)
+function accept_invite_random_password()
 {
-    $length = max(8, (int)$length);
-    $upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    $lower = "abcdefghijkmnopqrstuvwxyz";
-    $digits = "23456789";
-    $symbols = "!@#$%&*";
-    $all = $upper . $lower . $digits . $symbols;
-
-    do {
-        $out = '';
-        $out .= $upper[random_int(0, strlen($upper) - 1)];
-        $out .= $lower[random_int(0, strlen($lower) - 1)];
-        $out .= $digits[random_int(0, strlen($digits) - 1)];
-        $out .= $symbols[random_int(0, strlen($symbols) - 1)];
-
-        for ($i = 4; $i < $length; $i++) {
-            $out .= $all[random_int(0, strlen($all) - 1)];
-        }
-
-        $chars = str_split($out);
-        shuffle($chars);
-        $out = implode('', $chars);
-    } while (!password_meets_policy($out));
-
-    return $out;
+    try {
+        return bin2hex(random_bytes(24)) . '!G';
+    } catch (Throwable $e) {
+        return hash('sha256', uniqid('google_invite_', true) . microtime(true)) . '!G';
+    }
 }
 
 if (!isset($_POST['token']) || !isset($_POST['full_name'])) {
@@ -62,6 +44,23 @@ if ($token === '') {
 if ($fullName === '') {
     header("Location: ../join-workspace.php?token=" . urlencode($token) . $redirectEmailParam . "&error=" . urlencode("Full name is required."));
     exit();
+}
+
+$pendingGoogleInvite = isset($_SESSION['pending_google_invite_accept']) && is_array($_SESSION['pending_google_invite_accept'])
+    ? $_SESSION['pending_google_invite_accept']
+    : null;
+$googleInviteActive = false;
+
+if (is_array($pendingGoogleInvite)) {
+    $pendingCreatedAt = isset($pendingGoogleInvite['created_at']) ? (int)$pendingGoogleInvite['created_at'] : 0;
+    $pendingToken = trim((string)($pendingGoogleInvite['token'] ?? ''));
+
+    if ($pendingCreatedAt > 0 && (time() - $pendingCreatedAt) <= 1800 && $pendingToken !== '' && hash_equals($pendingToken, $token)) {
+        $googleInviteActive = true;
+    } else {
+        unset($_SESSION['pending_google_invite_accept']);
+        $pendingGoogleInvite = null;
+    }
 }
 
 if (!tenant_table_exists($pdo, 'workspace_invites')) {
@@ -105,7 +104,32 @@ try {
 
     $isOpenLink = invite_is_open_link_email((string)$invite['email']);
     $email = strtolower((string)$invite['email']);
-    if ($isOpenLink) {
+    $googleSub = '';
+    $googlePicture = '';
+    $googleEmailVerified = 0;
+
+    if ($googleInviteActive) {
+        $pendingEmail = strtolower(trim((string)($pendingGoogleInvite['email'] ?? '')));
+        if ($pendingEmail === '' || !filter_var($pendingEmail, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException("Google account email is missing. Please try the invite again.");
+        }
+
+        if (!$isOpenLink && !hash_equals(strtolower((string)$invite['email']), $pendingEmail)) {
+            throw new RuntimeException("This Google account does not match the invited email.");
+        }
+
+        $email = $pendingEmail;
+        $googleSub = trim((string)($pendingGoogleInvite['google_sub'] ?? ''));
+        $googlePicture = trim((string)($pendingGoogleInvite['picture'] ?? ''));
+        $googleEmailVerified = !empty($pendingGoogleInvite['email_verified']) ? 1 : 0;
+
+        if ($googleSub === '') {
+            throw new RuntimeException("Google account information is incomplete. Please try the invite again.");
+        }
+
+        $password = accept_invite_random_password();
+        $confirmPassword = $password;
+    } elseif ($isOpenLink) {
         if ($submittedEmail === '' || !filter_var($submittedEmail, FILTER_VALIDATE_EMAIL)) {
             throw new RuntimeException("Valid work email is required.");
         }
@@ -115,6 +139,13 @@ try {
     $inviteRole = strtolower((string)($invite['role'] ?? 'employee'));
     $role = ($inviteRole === 'admin') ? 'admin' : 'employee';
 
+    if ($googleInviteActive) {
+        $existingGoogleUser = user_get_by_google_sub_unscoped($pdo, $googleSub);
+        if ($existingGoogleUser !== 0) {
+            throw new RuntimeException("This Google account already has a TaskFlow account.");
+        }
+    }
+
     // Current auth expects username/email to be globally unique.
     $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? LIMIT 1");
     $stmt->execute([$email]);
@@ -122,13 +153,7 @@ try {
         throw new RuntimeException("This email already has an account. Ask your admin to use password reset.");
     }
 
-    $generatedPassword = null;
-    $mustChangePassword = false;
-    if ($isOpenLink) {
-        $generatedPassword = generate_temporary_password(10);
-        $passwordHash = password_hash($generatedPassword, PASSWORD_DEFAULT);
-        $mustChangePassword = true;
-    } else {
+    if (!$googleInviteActive) {
         if ($password === '' || $confirmPassword === '') {
             throw new RuntimeException("Password fields are required.");
         }
@@ -138,7 +163,10 @@ try {
         if ($password !== $confirmPassword) {
             throw new RuntimeException("Passwords do not match.");
         }
-        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+    }
+    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+    if ($passwordHash === false) {
+        throw new RuntimeException("Unable to process the account password right now.");
     }
 
     $organizationId = (int)$invite['organization_id'];
@@ -148,17 +176,35 @@ try {
         throw new RuntimeException((string)$capacity['reason']);
     }
 
+    user_google_auth_ensure_schema($pdo);
+    $hasGoogleSubColumn = tenant_column_exists($pdo, 'users', 'google_sub');
+    $hasGooglePictureColumn = tenant_column_exists($pdo, 'users', 'google_picture');
+    $hasGoogleVerifiedColumn = tenant_column_exists($pdo, 'users', 'google_email_verified');
+
+    $userColumns = ['full_name', 'username', 'password', 'role', 'must_change_password'];
+    $userValues = [$fullName, $email, $passwordHash, $role, "false"];
+
     if (tenant_column_exists($pdo, 'users', 'organization_id')) {
-        $sql = "INSERT INTO users (full_name, username, password, role, must_change_password, organization_id)
-                VALUES (?, ?, ?, ?, ?, ?)";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$fullName, $email, $passwordHash, $role, $mustChangePassword ? "true" : "false", $organizationId]);
-    } else {
-        $sql = "INSERT INTO users (full_name, username, password, role, must_change_password)
-                VALUES (?, ?, ?, ?, ?)";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$fullName, $email, $passwordHash, $role, $mustChangePassword ? "true" : "false"]);
+        $userColumns[] = 'organization_id';
+        $userValues[] = $organizationId;
     }
+    if ($googleInviteActive && $hasGoogleSubColumn) {
+        $userColumns[] = 'google_sub';
+        $userValues[] = $googleSub;
+    }
+    if ($googleInviteActive && $hasGooglePictureColumn) {
+        $userColumns[] = 'google_picture';
+        $userValues[] = $googlePicture !== '' ? $googlePicture : null;
+    }
+    if ($googleInviteActive && $hasGoogleVerifiedColumn) {
+        $userColumns[] = 'google_email_verified';
+        $userValues[] = $googleEmailVerified;
+    }
+
+    $sql = "INSERT INTO users (" . implode(', ', $userColumns) . ")
+            VALUES (" . implode(', ', array_fill(0, count($userColumns), '?')) . ")";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($userValues);
 
     $newUserId = (int)$pdo->lastInsertId();
 
@@ -182,20 +228,13 @@ try {
     );
     $stmt->execute([$newUserId, $email, $fullName, (int)$invite['id']]);
 
-    if ($isOpenLink) {
-        include_once "send_email.php";
-        if (!send_confirmation_email($email, $fullName, (string)$generatedPassword)) {
-            throw new RuntimeException("Temporary password email could not be sent. Please try again.");
-        }
-    }
-
     $pdo->commit();
 
-    if ($isOpenLink) {
-        $msg = "Account created. A temporary password was sent to your email.";
-    } else {
-        $msg = "Account created successfully. You can now log in.";
-    }
+    unset($_SESSION['pending_google_invite_accept']);
+
+    $msg = $googleInviteActive
+        ? "Workspace joined successfully. You can now sign in with Google."
+        : "Account created successfully. You can now log in.";
     header("Location: ../login.php?success=" . urlencode($msg));
     exit();
 } catch (Throwable $e) {

@@ -21,12 +21,16 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     }
 }
 require_once "inc/csrf.php";
+require_once "app/mail_config.php";
 
 $hasPendingVerification = isset($_SESSION['pending_login_verification']) && is_array($_SESSION['pending_login_verification']);
 $pendingVerification = $hasPendingVerification ? $_SESSION['pending_login_verification'] : [];
 $verificationEmailMasked = $hasPendingVerification ? (string)($pendingVerification['email_masked'] ?? '') : '';
 $verificationError = isset($_GET['verify_error']) ? trim((string)$_GET['verify_error']) : '';
 $verificationSuccess = isset($_GET['verify_success']) ? trim((string)$_GET['verify_success']) : '';
+$googleClientId = trim((string)(getenv('GOOGLE_CLIENT_ID') ?: ''));
+$googleLoginEnabled = $googleClientId !== '';
+$googleLoginUri = APP_URL . '/app/google-login.php';
 ?>
 <!DOCTYPE html>
 <html>
@@ -183,6 +187,36 @@ $verificationSuccess = isset($_GET['verify_success']) ? trim((string)$_GET['veri
         .verification-alert.client {
             display: none;
         }
+        .auth-social-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 18px 0;
+            color: #9CA3AF;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .auth-social-divider::before,
+        .auth-social-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #E5E7EB;
+        }
+        .google-login-shell {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 8px;
+            min-height: 44px;
+        }
+        .google-login-note {
+            margin: 0 0 16px;
+            color: #6B7280;
+            font-size: 12px;
+            line-height: 1.45;
+            text-align: center;
+        }
         @media (max-width: 500px) {
             .verification-title {
                 font-size: 25px;
@@ -294,9 +328,30 @@ $verificationSuccess = isset($_GET['verify_success']) ? trim((string)$_GET['veri
                     <button type="submit" class="btn-primary">Log In</button>
                 </form>
 
+                <?php if ($googleLoginEnabled) { ?>
+                    <div class="auth-social-divider"><span>or</span></div>
+                    <div id="g_id_onload"
+                         data-client_id="<?= htmlspecialchars($googleClientId, ENT_QUOTES) ?>"
+                         data-login_uri="<?= htmlspecialchars($googleLoginUri, ENT_QUOTES) ?>"
+                         data-context="signin"
+                         data-auto_prompt="false"
+                         data-ux_mode="redirect"></div>
+                    <div class="google-login-shell">
+                        <div class="g_id_signin"
+                             data-type="standard"
+                             data-theme="outline"
+                             data-size="large"
+                             data-shape="rectangular"
+                             data-text="signin_with"
+                             data-logo_alignment="left"
+                             data-width="320"></div>
+                    </div>
+                    <p class="google-login-note">Use the same Gmail or Google Workspace email address already registered in this system.</p>
+                <?php } ?>
+
                 <div class="auth-footer">
                     Need a workspace? <a href="signup.php" class="auth-link">Create one</a><br>
-                    Got an invite link? Open it and set your password to join your team.
+                    Got an invite link? Open it and join your team with a password or Google.
                 </div>
             </div>
       </div>
@@ -444,8 +499,8 @@ $verificationSuccess = isset($_GET['verify_success']) ? trim((string)$_GET['veri
               button.setAttribute('title', visible ? 'Hide password' : 'Show password');
               var icon = button.querySelector('i');
               if (icon) {
-                  icon.classList.toggle('fa-eye', !visible);
-                  icon.classList.toggle('fa-eye-slash', visible);
+                  icon.classList.toggle('fa-eye', visible);
+                  icon.classList.toggle('fa-eye-slash', !visible);
               }
           }
 
@@ -464,5 +519,8 @@ $verificationSuccess = isset($_GET['verify_success']) ? trim((string)$_GET['veri
           });
       })();
       </script>
+      <?php if ($googleLoginEnabled) { ?>
+      <script src="https://accounts.google.com/gsi/client" async defer></script>
+      <?php } ?>
 </body>
 </html>

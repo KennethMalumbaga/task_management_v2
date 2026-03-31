@@ -9,6 +9,110 @@ function user_model_append_scope($pdo, $sql, $params, $table, $alias = '', $join
     return [$sql . $scope['sql'], array_merge($params, $scope['params'])];
 }
 
+if (!function_exists('user_google_auth_ensure_schema')) {
+    function user_google_auth_ensure_schema($pdo)
+    {
+        static $cache = [];
+
+        $cacheKey = is_object($pdo) ? spl_object_hash($pdo) : 'default';
+        if (array_key_exists($cacheKey, $cache)) {
+            return (bool)$cache[$cacheKey];
+        }
+
+        $columnsToEnsure = [
+            'google_sub' => [
+                'mysql' => "ALTER TABLE users ADD COLUMN google_sub VARCHAR(255) NULL AFTER username",
+                'pgsql' => "ALTER TABLE users ADD COLUMN google_sub VARCHAR(255)",
+            ],
+            'google_email_verified' => [
+                'mysql' => "ALTER TABLE users ADD COLUMN google_email_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER google_sub",
+                'pgsql' => "ALTER TABLE users ADD COLUMN google_email_verified BOOLEAN DEFAULT FALSE",
+            ],
+            'google_picture' => [
+                'mysql' => "ALTER TABLE users ADD COLUMN google_picture VARCHAR(2048) NULL AFTER profile_image",
+                'pgsql' => "ALTER TABLE users ADD COLUMN google_picture VARCHAR(2048)",
+            ],
+        ];
+
+        $driver = strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+        foreach ($columnsToEnsure as $column => $queries) {
+            if (tenant_column_exists($pdo, 'users', $column)) {
+                continue;
+            }
+
+            try {
+                $sql = $driver === 'mysql' ? $queries['mysql'] : $queries['pgsql'];
+                $pdo->exec($sql);
+            } catch (Throwable $e) {
+                // Another request may have added the column already.
+            }
+        }
+
+        $cache[$cacheKey] = tenant_column_exists($pdo, 'users', 'google_sub');
+        return (bool)$cache[$cacheKey];
+    }
+}
+
+if (!function_exists('user_get_by_google_sub_unscoped')) {
+    function user_get_by_google_sub_unscoped($pdo, $googleSub)
+    {
+        if (!user_google_auth_ensure_schema($pdo)) {
+            return 0;
+        }
+
+        $googleSub = trim((string)$googleSub);
+        if ($googleSub === '') {
+            return 0;
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE google_sub = ? LIMIT 1");
+        $stmt->execute([$googleSub]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $user ?: 0;
+    }
+}
+
+if (!function_exists('user_get_by_email_unscoped')) {
+    function user_get_by_email_unscoped($pdo, $email)
+    {
+        $email = strtolower(trim((string)$email));
+        if ($email === '') {
+            return 0;
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $user ?: 0;
+    }
+}
+
+if (!function_exists('user_link_google_account_unscoped')) {
+    function user_link_google_account_unscoped($pdo, $userId, $googleSub, $emailVerified = false, $pictureUrl = null)
+    {
+        if (!user_google_auth_ensure_schema($pdo)) {
+            return false;
+        }
+
+        $userId = (int)$userId;
+        $googleSub = trim((string)$googleSub);
+        $pictureUrl = trim((string)$pictureUrl);
+        $emailVerified = filter_var($emailVerified, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $emailVerified = $emailVerified === null ? !empty($emailVerified) : $emailVerified;
+
+        if ($userId <= 0 || $googleSub === '') {
+            return false;
+        }
+
+        $stmt = $pdo->prepare(
+            "UPDATE users
+             SET google_sub = ?, google_email_verified = ?, google_picture = ?
+             WHERE id = ?"
+        );
+        return $stmt->execute([$googleSub, $emailVerified ? 1 : 0, $pictureUrl !== '' ? $pictureUrl : null, $userId]);
+    }
+}
+
 function get_all_users($pdo, $role = 'all')
 {
     if ($role === 'all') {
@@ -501,6 +605,217 @@ function is_super_admin($user_id, $pdo)
     $stmt->execute($params);
     $username = $stmt->fetchColumn();
     return $username === 'admin';
+}
+
+if (!function_exists('user_model_build_public_file_url')) {
+    function user_model_build_public_file_url($relativePath)
+    {
+        $relativePath = trim((string)$relativePath);
+        if ($relativePath === '') {
+            return null;
+        }
+
+        $normalized = ltrim(str_replace('\\', '/', $relativePath), '/');
+        if ($normalized === '') {
+            return null;
+        }
+
+        $absolutePath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalized);
+        if (!is_file($absolutePath)) {
+            return null;
+        }
+
+        $mtime = @filemtime($absolutePath);
+        return $normalized . '?t=' . ($mtime ? $mtime : time());
+    }
+}
+
+if (!function_exists('get_active_users_with_pause_state')) {
+    function get_active_users_with_pause_state($pdo)
+    {
+        date_default_timezone_set('Asia/Manila');
+
+        $today = date('Y-m-d');
+        $organizationId = tenant_get_current_org_id();
+        $sql = "SELECT a.id AS attendance_id, a.user_id, a.time_in, u.full_name, u.username, u.profile_image
+                FROM attendance a
+                INNER JOIN users u ON a.user_id = u.id
+                WHERE a.att_date = ?
+                  AND a.time_in IS NOT NULL
+                  AND (a.time_out IS NULL OR a.time_out = '00:00:00')
+                  AND u.role = 'employee'";
+        $params = [$today];
+
+        $scopeAtt = tenant_get_scope($pdo, 'attendance', 'a');
+        $sql .= $scopeAtt['sql'];
+        $params = array_merge($params, $scopeAtt['params']);
+
+        $scopeUser = tenant_get_scope($pdo, 'users', 'u');
+        $sql .= $scopeUser['sql'];
+        $params = array_merge($params, $scopeUser['params']);
+
+        $sql .= " ORDER BY a.time_in DESC";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        if (!$rows) {
+            return [];
+        }
+
+        $attendanceIds = [];
+        foreach ($rows as $row) {
+            $attendanceId = isset($row['attendance_id']) ? (int)$row['attendance_id'] : 0;
+            if ($attendanceId > 0) {
+                $attendanceIds[] = $attendanceId;
+            }
+        }
+
+        $pauseSummaries = attendance_pause_get_summary_map($pdo, $attendanceIds, $organizationId, date('Y-m-d H:i:s'));
+
+        foreach ($rows as &$row) {
+            $attendanceId = isset($row['attendance_id']) ? (int)$row['attendance_id'] : 0;
+            $pauseSummary = $pauseSummaries[$attendanceId] ?? [];
+            $row['is_paused'] = !empty($pauseSummary['is_paused']);
+            $row['pause_reason'] = $pauseSummary['pause_reason'] ?? null;
+            $row['pause_started_at'] = $pauseSummary['paused_at'] ?? null;
+        }
+        unset($row);
+
+        return $rows;
+    }
+}
+
+if (!function_exists('user_model_get_latest_screenshot_row')) {
+    function user_model_get_latest_screenshot_row($pdo, $userId, $organizationId = null, $attendanceId = null)
+    {
+        $userId = (int)$userId;
+        $attendanceId = $attendanceId !== null ? (int)$attendanceId : null;
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $sql = "SELECT attendance_id, image_path, taken_at
+                FROM screenshots
+                WHERE user_id = ?";
+        $params = [$userId];
+
+        if ($attendanceId !== null && $attendanceId > 0) {
+            $sql .= " AND attendance_id = ?";
+            $params[] = $attendanceId;
+        }
+
+        $scope = tenant_get_scope($pdo, 'screenshots', '', 'AND', 'organization_id', $organizationId);
+        $sql .= $scope['sql'];
+        $params = array_merge($params, $scope['params']);
+
+        $sql .= " ORDER BY taken_at DESC LIMIT 1";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+}
+
+if (!function_exists('get_active_user_dashboard_detail')) {
+    function get_active_user_dashboard_detail($pdo, $userId)
+    {
+        $userId = (int)$userId;
+        if ($userId <= 0) {
+            return null;
+        }
+
+        date_default_timezone_set('Asia/Manila');
+
+        $today = date('Y-m-d');
+        $organizationId = tenant_get_current_org_id();
+        $sql = "SELECT a.id AS attendance_id, a.att_date, a.time_in, u.id AS user_id, u.full_name, u.username, u.profile_image
+                FROM attendance a
+                INNER JOIN users u ON a.user_id = u.id
+                WHERE a.user_id = ?
+                  AND a.att_date = ?
+                  AND a.time_in IS NOT NULL
+                  AND (a.time_out IS NULL OR a.time_out = '00:00:00')
+                  AND u.role = 'employee'";
+        $params = [$userId, $today];
+
+        $scopeAtt = tenant_get_scope($pdo, 'attendance', 'a');
+        $sql .= $scopeAtt['sql'];
+        $params = array_merge($params, $scopeAtt['params']);
+
+        $scopeUser = tenant_get_scope($pdo, 'users', 'u');
+        $sql .= $scopeUser['sql'];
+        $params = array_merge($params, $scopeUser['params']);
+
+        $sql .= " ORDER BY a.time_in DESC LIMIT 1";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            return null;
+        }
+
+        $attendanceId = isset($row['attendance_id']) ? (int)$row['attendance_id'] : 0;
+        $attDate = trim((string)($row['att_date'] ?? '')) ?: $today;
+        $timeInRaw = trim((string)($row['time_in'] ?? ''));
+        $timeInValue = $timeInRaw !== '' ? attendance_pause_build_datetime($attDate, $timeInRaw, $attDate) : null;
+        $timeInTs = $timeInValue ? strtotime($timeInValue) : false;
+
+        $activePause = $attendanceId > 0
+            ? attendance_pause_get_active($pdo, $attendanceId, $userId, $organizationId)
+            : null;
+        $isPaused = $activePause ? true : false;
+        $pauseReason = $activePause ? trim((string)($activePause['pause_reason'] ?? '')) : '';
+        $pauseStartedAt = $activePause ? trim((string)($activePause['paused_at'] ?? '')) : '';
+
+        $latestScreenshot = $attendanceId > 0
+            ? user_model_get_latest_screenshot_row($pdo, $userId, $organizationId, $attendanceId)
+            : null;
+        if (!$latestScreenshot) {
+            $latestScreenshot = user_model_get_latest_screenshot_row($pdo, $userId, $organizationId, null);
+        }
+
+        $lastScreenshotPath = trim((string)($latestScreenshot['image_path'] ?? ''));
+        $lastScreenshotUrl = $lastScreenshotPath !== ''
+            ? user_model_build_public_file_url($lastScreenshotPath)
+            : null;
+        $lastScreenshotTakenAt = trim((string)($latestScreenshot['taken_at'] ?? ''));
+        $lastScreenshotTs = $lastScreenshotTakenAt !== '' ? strtotime($lastScreenshotTakenAt) : false;
+
+        $profileImage = trim((string)($row['profile_image'] ?? ''));
+        $avatarUrl = $profileImage !== '' ? user_profile_image_url($profileImage) : '';
+
+        return [
+            'user_id' => (int)($row['user_id'] ?? $userId),
+            'attendance_id' => $attendanceId,
+            'full_name' => trim((string)($row['full_name'] ?? '')) ?: 'User',
+            'username' => trim((string)($row['username'] ?? '')),
+            'initials' => user_display_initials($row['full_name'] ?? ''),
+            'avatar_url' => $avatarUrl,
+            'status' => $isPaused ? 'paused' : 'active',
+            'status_label' => $isPaused ? 'Paused' : 'Active',
+            'pause_reason' => $pauseReason !== '' ? $pauseReason : null,
+            'pause_started_at' => $pauseStartedAt !== '' ? $pauseStartedAt : null,
+            'pause_started_at_label' => $pauseStartedAt !== '' ? date('M d, Y h:i A', strtotime($pauseStartedAt)) : null,
+            'last_time_in' => $timeInValue ?: null,
+            'last_time_in_label' => $timeInTs ? date('M d, Y h:i A', $timeInTs) : '--',
+            'last_screenshot_path' => $lastScreenshotPath !== '' ? $lastScreenshotPath : null,
+            'last_screenshot_url' => $lastScreenshotUrl,
+            'last_screenshot_taken_at' => $lastScreenshotTakenAt !== '' ? $lastScreenshotTakenAt : null,
+            'last_screenshot_label' => $lastScreenshotTs ? date('M d, Y h:i A', $lastScreenshotTs) : 'No screenshots yet',
+            'last_screenshot_note' => $lastScreenshotTs
+                ? (($attendanceId > 0 && !empty($latestScreenshot['attendance_id']) && (int)$latestScreenshot['attendance_id'] === $attendanceId)
+                    ? 'Latest screenshot from this session.'
+                    : 'Latest saved screenshot on record.')
+                : 'No screenshot available yet.',
+            'captures_url' => 'screenshots.php?open_user_id=' . rawurlencode((string)$userId) . '&user_id=' . rawurlencode((string)$userId),
+        ];
+    }
 }
 
 function get_todays_attendance_stats($pdo, $user_id)

@@ -98,6 +98,7 @@ body.create-task-page .create-task-main {
 }
 
 input[type="text"],
+input[type="url"],
 input[type="date"],
 textarea,
 select {
@@ -117,11 +118,13 @@ select {
 }
 
 input[type="text"]::placeholder,
+input[type="url"]::placeholder,
 textarea::placeholder {
     color: #bdb6d4;
 }
 
 input[type="text"]:focus,
+input[type="url"]:focus,
 input[type="date"]:focus,
 textarea:focus,
 select:focus,
@@ -718,5 +721,4 @@ textarea.task-textarea {
         width: 100%;
     }
 }
-
 

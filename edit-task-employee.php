@@ -106,6 +106,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 </div>
                 <?php } ?>
 
+                <?php if (!empty($task['google_doc_url'] ?? '')) { ?>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-gray); margin-bottom: 5px;">Working Document</label>
+                    <a href="<?=htmlspecialchars($task['google_doc_url'])?>" target="_blank" rel="noopener noreferrer" class="btn-outline" style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px;">
+                        <i class="fa fa-file-text-o"></i> Open Google Doc
+                    </a>
+                    <div style="font-size: 12px; color: var(--text-gray); margin-top: 6px;">Use this when the task is a document that needs writing or editing.</div>
+                </div>
+                <?php } ?>
+
                 <?php if (!empty($task['review_comment'])) { ?>
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-gray); margin-bottom: 5px;">Admin Feedback</label>
@@ -358,4 +368,3 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
    exit();
 }
  ?>
-

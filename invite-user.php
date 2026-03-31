@@ -231,7 +231,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                         </span>
                         <div>
                             <h3 class="workspace-panel-title">One-time Link</h3>
-                            <p class="workspace-panel-sub">Single-use join URL - consumed on first signup</p>
+                            <p class="workspace-panel-sub">Single-use join URL - teammate creates their own account on first signup</p>
                         </div>
                     </div>
                     <div class="invite-method-divider"></div>

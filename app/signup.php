@@ -6,6 +6,7 @@ require_once "../inc/csrf.php";
 require_once __DIR__ . "/helpers/input.php";
 require_once __DIR__ . "/helpers/password_policy.php";
 require_once __DIR__ . "/helpers/login_verification.php";
+require_once __DIR__ . "/model/user.php";
 
 function signup_redirect_error($message, $planCode = 'starter', $signupMode = '')
 {
@@ -48,6 +49,15 @@ function signup_normalize_mode($modeRaw, $planRaw = '')
     return 'paid';
 }
 
+function signup_random_password()
+{
+    try {
+        return bin2hex(random_bytes(24)) . '!G';
+    } catch (Throwable $e) {
+        return hash('sha256', uniqid('google_signup_', true) . microtime(true)) . '!G';
+    }
+}
+
 $incomingPlanCode = (string)($_POST['plan_code'] ?? 'starter');
 $signupMode = signup_normalize_mode($_POST['signup_mode'] ?? '', $incomingPlanCode);
 
@@ -55,7 +65,7 @@ if (!csrf_verify('signup_form', $_POST['csrf_token'] ?? null, true)) {
     signup_redirect_error("Invalid or expired request. Please refresh and try again.", $incomingPlanCode, $signupMode);
 }
 
-if (!isset($_POST['user_name']) || !isset($_POST['full_name']) || !isset($_POST['password'])) {
+if (!isset($_POST['user_name']) || !isset($_POST['full_name'])) {
     signup_redirect_error("Invalid signup request.", $incomingPlanCode, $signupMode);
 }
 
@@ -75,10 +85,29 @@ $selectedPlanCode = (string)($selectedPlan['code'] ?? 'starter');
 $selectedPlanName = (string)($selectedPlan['name'] ?? 'Starter');
 $selectedPlanSeatLimit = max(1, (int)($selectedPlan['seat_limit'] ?? 10));
 
-$user_name = validate_input($_POST['user_name']);
-$full_name = validate_input($_POST['full_name']);
+$pendingGoogleSignup = isset($_SESSION['pending_google_signup']) && is_array($_SESSION['pending_google_signup'])
+    ? $_SESSION['pending_google_signup']
+    : null;
+
+$googleSignupActive = false;
+if (is_array($pendingGoogleSignup)) {
+    $pendingCreatedAt = isset($pendingGoogleSignup['created_at']) ? (int)$pendingGoogleSignup['created_at'] : 0;
+    if ($pendingCreatedAt > 0 && (time() - $pendingCreatedAt) <= 1800) {
+        $googleSignupActive = true;
+    } else {
+        unset($_SESSION['pending_google_signup']);
+        $pendingGoogleSignup = null;
+    }
+}
+
+$user_name = $googleSignupActive
+    ? strtolower(trim((string)($pendingGoogleSignup['email'] ?? '')))
+    : validate_input($_POST['user_name']);
+$full_name = $googleSignupActive
+    ? trim((string)($pendingGoogleSignup['full_name'] ?? ''))
+    : validate_input($_POST['full_name']);
 $organization_name = validate_input($_POST['organization_name'] ?? '');
-$password = (string)($_POST['password'] ?? '');
+$password = $googleSignupActive ? signup_random_password() : (string)($_POST['password'] ?? '');
 
 if (empty($user_name)) {
     signup_redirect_error("Username/Email is required", $selectedPlanCode, $signupMode);
@@ -92,10 +121,10 @@ if (empty($full_name)) {
 if (empty($organization_name)) {
     signup_redirect_error("Workspace name is required", $selectedPlanCode, $signupMode);
 }
-if ($password === '') {
+if (!$googleSignupActive && $password === '') {
     signup_redirect_error("Password is required", $selectedPlanCode, $signupMode);
 }
-if (!password_meets_policy($password)) {
+if (!$googleSignupActive && !password_meets_policy($password)) {
     signup_redirect_error(password_policy_error(), $selectedPlanCode, $signupMode);
 }
 
@@ -109,6 +138,15 @@ $password_hash = password_hash($password, PASSWORD_DEFAULT);
 if ($password_hash === false) {
     signup_redirect_error("Unable to process password right now. Please try again.", $selectedPlanCode, $signupMode);
 }
+
+user_google_auth_ensure_schema($pdo);
+$hasGoogleSubColumn = tenant_column_exists($pdo, 'users', 'google_sub');
+$hasGooglePictureColumn = tenant_column_exists($pdo, 'users', 'google_picture');
+$hasGoogleVerifiedColumn = tenant_column_exists($pdo, 'users', 'google_email_verified');
+
+$googleSub = $googleSignupActive ? trim((string)($pendingGoogleSignup['google_sub'] ?? '')) : '';
+$googlePicture = $googleSignupActive ? trim((string)($pendingGoogleSignup['picture'] ?? '')) : '';
+$googleEmailVerified = $googleSignupActive && !empty($pendingGoogleSignup['email_verified']) ? 1 : 0;
 
 $hasTenantTables = tenant_table_exists($pdo, 'organizations')
     && tenant_table_exists($pdo, 'organization_members')
@@ -175,11 +213,26 @@ try {
             }
         }
 
+        $userColumns = ['full_name', 'username', 'password', 'role', 'must_change_password', 'organization_id'];
+        $userValues = [$full_name, $user_name, $password_hash, 'admin', 0, $newOrgId];
+        if ($googleSignupActive && $hasGoogleSubColumn) {
+            $userColumns[] = 'google_sub';
+            $userValues[] = $googleSub;
+        }
+        if ($googleSignupActive && $hasGooglePictureColumn) {
+            $userColumns[] = 'google_picture';
+            $userValues[] = $googlePicture !== '' ? $googlePicture : null;
+        }
+        if ($googleSignupActive && $hasGoogleVerifiedColumn) {
+            $userColumns[] = 'google_email_verified';
+            $userValues[] = $googleEmailVerified;
+        }
+
         $userStmt = $pdo->prepare(
-            "INSERT INTO users (full_name, username, password, role, must_change_password, organization_id)
-             VALUES (?, ?, ?, 'admin', ?, ?)"
+            "INSERT INTO users (" . implode(', ', $userColumns) . ")
+             VALUES (" . implode(', ', array_fill(0, count($userColumns), '?')) . ")"
         );
-        $userStmt->execute([$full_name, $user_name, $password_hash, 0, $newOrgId]);
+        $userStmt->execute($userValues);
         $newUserId = (int)$pdo->lastInsertId();
 
         $memberStmt = $pdo->prepare(
@@ -188,11 +241,26 @@ try {
         );
         $memberStmt->execute([$newOrgId, $newUserId]);
     } else {
+        $userColumns = ['full_name', 'username', 'password', 'role', 'must_change_password'];
+        $userValues = [$full_name, $user_name, $password_hash, 'employee', 0];
+        if ($googleSignupActive && $hasGoogleSubColumn) {
+            $userColumns[] = 'google_sub';
+            $userValues[] = $googleSub;
+        }
+        if ($googleSignupActive && $hasGooglePictureColumn) {
+            $userColumns[] = 'google_picture';
+            $userValues[] = $googlePicture !== '' ? $googlePicture : null;
+        }
+        if ($googleSignupActive && $hasGoogleVerifiedColumn) {
+            $userColumns[] = 'google_email_verified';
+            $userValues[] = $googleEmailVerified;
+        }
+
         $userStmt = $pdo->prepare(
-            "INSERT INTO users (full_name, username, password, role, must_change_password)
-             VALUES (?, ?, ?, 'employee', ?)"
+            "INSERT INTO users (" . implode(', ', $userColumns) . ")
+             VALUES (" . implode(', ', array_fill(0, count($userColumns), '?')) . ")"
         );
-        $userStmt->execute([$full_name, $user_name, $password_hash, 0]);
+        $userStmt->execute($userValues);
         $newUserId = (int)$pdo->lastInsertId();
     }
 
@@ -208,6 +276,8 @@ try {
     error_log("signup failed: " . $e->getMessage());
     signup_redirect_error("Unknown error occurred during registration", $selectedPlanCode, $signupMode);
 }
+
+unset($_SESSION['pending_google_signup']);
 
 if ($hasTenantTables) {
     if ($signupMode === 'paid') {

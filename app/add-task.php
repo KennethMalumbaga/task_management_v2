@@ -6,6 +6,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         include "../DB_connection.php";
         require_once "../inc/csrf.php";
         require_once __DIR__ . "/helpers/input.php";
+        require_once __DIR__ . "/helpers/task_links.php";
 
         if (!csrf_verify('create_task_form', $_POST['csrf_token'] ?? null, true)) {
             $em = "Invalid or expired request. Please refresh and try again.";
@@ -17,6 +18,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $description = validate_input($_POST['description']);
         $leader_id = isset($_POST['leader_id']) ? validate_input($_POST['leader_id']) : 0;
         $due_date = validate_input($_POST['due_date']);
+        $google_doc_url_raw = isset($_POST['google_doc_url']) ? trim((string)$_POST['google_doc_url']) : '';
         $assignment_mode = isset($_POST['assignment_mode']) ? validate_input($_POST['assignment_mode']) : 'manual';
         $group_id = isset($_POST['group_id']) ? (int)$_POST['group_id'] : 0;
         $member_ids = isset($_POST['member_ids']) ? $_POST['member_ids'] : [];
@@ -46,6 +48,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             exit();
         }
         else {
+            $google_doc_url = task_link_normalize_google_doc_url($google_doc_url_raw);
+            if ($google_doc_url === null) {
+                $em = "Google Docs link must be a valid docs.google.com/document URL.";
+                header("Location: ../create_task.php?error=" . urlencode($em));
+                exit();
+            }
 
             include_once "model/Task.php";
             include_once "model/Notification.php";
@@ -115,7 +123,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
 
             // Insert task (using leader_id for assigned_to for backward compatibility, but we'll use task_assignees)
-            $data = array($title, $description, $leader_id, $due_date, $template_file_path);
+            $data = [
+                'title' => $title,
+                'description' => $description,
+                'assigned_to' => $leader_id,
+                'due_date' => $due_date,
+                'template_file' => $template_file_path,
+                'google_doc_url' => $google_doc_url,
+            ];
             $task_id = insert_task($pdo, $data);
 
             // Insert task assignees (leader + members)
@@ -159,4 +174,3 @@ else {
     header("Location: ../create_task.php?error=$em");
     exit();
 }
-

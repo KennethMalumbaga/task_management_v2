@@ -316,6 +316,56 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             font-size: 13px;
         }
 
+        .task-resource-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .task-resource-chip,
+        .task-resource-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .task-resource-chip {
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            border: 1px solid transparent;
+        }
+
+        .task-resource-link {
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            border: 1px solid transparent;
+        }
+
+        .task-resource-chip.doc,
+        .task-resource-link.doc {
+            background: #eef2ff;
+            border-color: #c7d2fe;
+            color: #3730a3;
+        }
+
+        .task-resource-chip.file,
+        .task-resource-link.file {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1d4ed8;
+        }
+
+        .task-resource-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         /* MODAL STYLES */
         .modal-overlay {
             position: fixed;
@@ -679,6 +729,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     $assignees = get_task_assignees($pdo, $taskId);
                     $leader = null;
                     $members = [];
+                    $googleDocUrl = trim((string)($task['google_doc_url'] ?? ''));
                     if ($assignees != 0) {
                         foreach ($assignees as $a) {
                             if ($a['role'] == 'leader') {
@@ -710,6 +761,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div style="color: #6B7280; font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
                         <?= htmlspecialchars(mb_strimwidth($task['description'], 0, 100, "...")) ?>
                     </div>
+
+                    <?php if ($googleDocUrl !== '') { ?>
+                    <div class="task-resource-row">
+                        <a href="<?= htmlspecialchars($googleDocUrl) ?>" target="_blank" rel="noopener noreferrer" class="task-resource-chip doc" onclick="event.stopPropagation();">
+                            <i class="fa fa-file-text-o"></i> Working Google Doc
+                        </a>
+                    </div>
+                    <?php } ?>
 
                     <?php if ($leader) { 
                         $leaderImg = !empty($leader['profile_image']) ? 'uploads/' . $leader['profile_image'] : 'img/user.png';
@@ -778,6 +837,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             ];
             $badgeClass = (string)$taskViewStatus['badge_class'];
             $statusDisplay = (string)$taskViewStatus['label'];
+            $googleDocUrl = trim((string)($task['google_doc_url'] ?? ''));
             $assignees = get_task_assignees($pdo, $taskId);
             $leader = null; $members = [];
             if ($assignees != 0) {
@@ -800,6 +860,24 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                              <?= nl2br(htmlspecialchars($task['description'])) ?>
                         </div>
                     </div>
+
+                    <?php if ($googleDocUrl !== '' || !empty($task['template_file'])) { ?>
+                    <div style="margin-bottom: 24px;">
+                        <div class="section-label">Task Resources</div>
+                        <div class="task-resource-list">
+                            <?php if ($googleDocUrl !== '') { ?>
+                                <a href="<?= htmlspecialchars($googleDocUrl) ?>" target="_blank" rel="noopener noreferrer" class="task-resource-link doc">
+                                    <i class="fa fa-file-text-o"></i> Open Working Google Doc
+                                </a>
+                            <?php } ?>
+                            <?php if (!empty($task['template_file'])) { ?>
+                                <a href="<?= htmlspecialchars($task['template_file']) ?>" target="_blank" rel="noopener noreferrer" class="task-resource-link file">
+                                    <i class="fa fa-paperclip"></i> Open Attachment
+                                </a>
+                            <?php } ?>
+                        </div>
+                    </div>
+                    <?php } ?>
 
                     <div class="info-grid">
                         <div class="info-box">

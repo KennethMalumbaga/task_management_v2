@@ -246,6 +246,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                      </div>
                 </div>
 
+                <div class="field">
+                    <label class="field-label">Working Google Doc <span class="optional-tag">Optional for document tasks</span></label>
+                    <input type="url" name="google_doc_url" placeholder="https://docs.google.com/document/d/...">
+                    <div class="field-help">Use this when the task itself is a document that members need to write or edit in Google Docs.</div>
+                </div>
+
                  <!-- File -->
                  <div class="field">
                      <label class="field-label">Attachment <span class="optional-tag">Optional · up to 50MB</span></label>
@@ -755,5 +761,4 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
    exit();
 }
 ?>
-
 

@@ -63,49 +63,55 @@ require_once "inc/csrf.php";
                 </div>
             </div>
 
-            <!-- Right Side: Reset Form -->
+            <!-- Right Side: Recovery Form -->
             <div class="auth-right">
-                <a href="login.php" class="back-link">
-                    <i class="fa fa-arrow-left"></i> Back to Login
-                </a>
+                <div class="auth-form-shell">
+                    <a href="login.php" class="back-link">
+                        <i class="fa fa-arrow-left"></i> Back to Login
+                    </a>
 
-                <div class="auth-logos">
-                    <img src="img/logo.png" alt="Logo 1" class="auth-logo-img">
-                    <div class="logo-sep"></div>
-                    <img src="img/logo2.png" alt="Logo 2" class="auth-logo-img">
-                </div>
-                
-                <h3 class="auth-title">Forgot Password</h3>
-                <p class="auth-subtitle">Enter your email to reset your password</p>
-
-                <?php if (isset($_GET['error'])) { ?>
-                    <div class="alert alert-danger" role="alert">
-                        <?= htmlspecialchars($_GET['error']) ?>
+                    <div class="auth-logos">
+                        <img src="img/logo.png" alt="Logo 1" class="auth-logo-img">
+                        <div class="logo-sep"></div>
+                        <img src="img/logo2.png" alt="Logo 2" class="auth-logo-img">
                     </div>
-                <?php } ?>
-                
-                <?php if (isset($_GET['success'])) { ?>
-                    <div class="alert alert-success" role="alert">
-                        <?= htmlspecialchars($_GET['success']) ?>
-                    </div>
-                <?php } ?>
-
-                <form method="POST" action="app/req-reset-password.php">
-                    <?= csrf_field('req_reset_password_form') ?>
                     
-                    <div class="form-group">
-                        <label class="form-label">Email Address</label>
-                        <div class="input-with-icon">
-                            <i class="fa fa-envelope-o input-icon"></i>
-                            <input type="email" class="form-control" name="email" placeholder="you@example.com" required>
+                    <h3 class="auth-title">Forgot Password</h3>
+                    <p class="auth-subtitle">Enter your email and we&apos;ll send you a secure reset link.</p>
+
+                    <?php if (isset($_GET['error'])) { ?>
+                        <div class="alert alert-danger" role="alert">
+                            <?= htmlspecialchars($_GET['error']) ?>
                         </div>
-                    </div>
+                    <?php } ?>
                     
-                    <button type="submit" class="btn-primary">Send Reset Link</button>
-                </form>
+                    <?php if (isset($_GET['success'])) { ?>
+                        <div class="alert alert-success" role="alert">
+                            <?= htmlspecialchars($_GET['success']) ?>
+                        </div>
+                    <?php } ?>
 
-                <div class="auth-footer">
-                    Remember your password? <a href="login.php" class="auth-link">Login</a>
+                    <form method="POST" action="app/req-reset-password.php">
+                        <?= csrf_field('req_reset_password_form') ?>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <div class="input-with-icon">
+                                <i class="fa fa-envelope-o input-icon"></i>
+                                <input type="email" class="form-control" name="email" placeholder="you@example.com" required>
+                            </div>
+                        </div>
+
+                        <p class="auth-helper-text">
+                            Use the same email address you use to sign in to your workspace.
+                        </p>
+                        
+                        <button type="submit" class="btn-primary">Send Reset Link</button>
+                    </form>
+
+                    <div class="auth-footer">
+                        Remember your password? <a href="login.php" class="auth-link">Login</a>
+                    </div>
                 </div>
             </div>
       </div>

@@ -634,6 +634,7 @@ CREATE TABLE public.tasks (
     status text DEFAULT 'pending'::text,
     submission_file character varying(255),
     template_file character varying(255),
+    google_doc_url character varying(2048),
     review_comment text,
     reviewed_by integer,
     reviewed_at timestamp without time zone,
@@ -684,6 +685,7 @@ CREATE TABLE public.users (
     id integer NOT NULL,
     full_name character varying(50) NOT NULL,
     username character varying(50) NOT NULL,
+    google_sub character varying(255),
     password character varying(255) NOT NULL,
     role text NOT NULL,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
@@ -691,6 +693,8 @@ CREATE TABLE public.users (
     address text,
     skills text,
     profile_image character varying(255) DEFAULT 'default.png'::character varying,
+    google_picture character varying(2048),
+    google_email_verified boolean DEFAULT false,
     must_change_password boolean DEFAULT false,
     bio text,
     CONSTRAINT users_role_check CHECK ((role = ANY (ARRAY['admin'::text, 'employee'::text])))
@@ -1623,4 +1627,3 @@ ALTER TABLE ONLY public.tasks
 --
 
 \unrestrict XZYYkgP6DmaXt0SIzIIkaaGyrS3BVAaLTb3kUiOaxfKjAkkvET7L8YNERCpKFmF
-
