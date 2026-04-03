@@ -9,6 +9,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "app/model/Group.php";
     include "app/model/Bulletin.php";
     require_once "inc/csrf.php";
+    require_once "inc/tenant.php";
+    require_once "inc/workspace_screenshot_interval.php";
 
     // --- DATA FETCHING FOR DASHBOARD ---
     
@@ -64,6 +66,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     if ($_SESSION['role'] === 'admin') {
         $active_users = get_active_users_with_pause_state($pdo);
     }
+    $workspaceCaptureInterval = workspace_screenshot_interval_fetch_minutes($pdo, tenant_get_current_org_id());
 ?>
 <!DOCTYPE html>
 <html>
@@ -1299,6 +1302,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     var adminClockOutCsrfToken = <?= json_encode((isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ? csrf_token('admin_clock_out_action') : '') ?>;
     var bulletinPosts = <?= $bulletinPostsJson ?: '[]' ?>;
     var bulletinTagLabels = { ann: 'Announcement', rem: 'Reminder', alt: 'Alert' };
+    var workspaceCaptureIntervalConfig = <?= json_encode([
+        'min_minutes' => (int)($workspaceCaptureInterval['min_minutes'] ?? workspace_screenshot_interval_default_min_minutes()),
+        'max_minutes' => (int)($workspaceCaptureInterval['max_minutes'] ?? workspace_screenshot_interval_default_max_minutes()),
+    ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
     const timeTrackerCard = document.getElementById('employeeTimeTrackerCard');
     const btnIn = document.getElementById('btnTimeIn');
@@ -1968,7 +1975,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         var top = Math.max(0, Math.round((maxHeight - height) / 2));
         var captureUrl = 'capture.html?attendanceId=' + encodeURIComponent(attendanceId) +
             '&userId=' + encodeURIComponent(currentUserId) +
-            '&csrf_token=' + encodeURIComponent(attendanceAjaxCsrfToken);
+            '&csrf_token=' + encodeURIComponent(attendanceAjaxCsrfToken) +
+            '&capture_min_minutes=' + encodeURIComponent((workspaceCaptureIntervalConfig && workspaceCaptureIntervalConfig.min_minutes) || 20) +
+            '&capture_max_minutes=' + encodeURIComponent((workspaceCaptureIntervalConfig && workspaceCaptureIntervalConfig.max_minutes) || 30);
         if (opts.resumeMode) {
             captureUrl += '&resume=1';
         }

@@ -4,6 +4,10 @@
 let currentAttendanceId = null;
 let currentUserId = null;
 let apiUrl = null;
+const DEFAULT_MIN_INTERVAL_MINUTES = 20;
+const DEFAULT_MAX_INTERVAL_MINUTES = 30;
+const MIN_ALLOWED_INTERVAL_MINUTES = 5;
+const MAX_ALLOWED_INTERVAL_MINUTES = 180;
 const MIN_IDLE_THRESHOLD_SECONDS = 15;
 
 const OFFSCREEN_DOCUMENT_PATH = 'offscreen.html';
@@ -22,6 +26,28 @@ async function logDebug(message) {
     if (logs.length > 50) logs = logs.slice(-50);
 
     await chrome.storage.local.set({ debugLogs: logs });
+}
+
+function normalizeIntervalMinutes(value, fallbackValue) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(parsed) || parsed < MIN_ALLOWED_INTERVAL_MINUTES || parsed > MAX_ALLOWED_INTERVAL_MINUTES) {
+        return fallbackValue;
+    }
+    return parsed;
+}
+
+function resolveCaptureIntervalConfig(minValue, maxValue) {
+    let minMinutes = normalizeIntervalMinutes(minValue, DEFAULT_MIN_INTERVAL_MINUTES);
+    let maxMinutes = normalizeIntervalMinutes(maxValue, DEFAULT_MAX_INTERVAL_MINUTES);
+
+    if (minMinutes > maxMinutes) {
+        [minMinutes, maxMinutes] = [maxMinutes, minMinutes];
+    }
+
+    return {
+        minIntervalMinutes: minMinutes,
+        maxIntervalMinutes: maxMinutes
+    };
 }
 
 // Check if offscreen document exists
@@ -61,7 +87,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             .catch((err) => sendResponse({ status: 'error', message: err.message }));
         return true;
     } else if (request.type === 'CAPTURE_SCREENSHOT') {
-        startScreenshotCapture(request.attendanceId, request.userId, request.apiUrl)
+        startScreenshotCapture(
+            request.attendanceId,
+            request.userId,
+            request.apiUrl,
+            request.minIntervalMinutes,
+            request.maxIntervalMinutes
+        )
             .then(() => sendResponse({ status: 'started' }))
             .catch(err => sendResponse({ status: 'error', message: err.message }));
         return true; // Keep channel open for async response
@@ -236,10 +268,11 @@ function ensureCapturePopupWindow(tab, options) {
     });
 }
 
-async function startScreenshotCapture(attendanceId, userId, url) {
+async function startScreenshotCapture(attendanceId, userId, url, minIntervalMinutes, maxIntervalMinutes) {
     // Stop any existing capture first
     await stopScreenshotCapture();
 
+    const intervalConfig = resolveCaptureIntervalConfig(minIntervalMinutes, maxIntervalMinutes);
     currentAttendanceId = attendanceId;
     currentUserId = userId;
     apiUrl = url || 'http://localhost/task_management_v2/save_screenshot.php';
@@ -249,7 +282,9 @@ async function startScreenshotCapture(attendanceId, userId, url) {
         captureActive: true,
         attendanceId: attendanceId,
         userId: userId,
-        apiUrl: apiUrl
+        apiUrl: apiUrl,
+        minIntervalMinutes: intervalConfig.minIntervalMinutes,
+        maxIntervalMinutes: intervalConfig.maxIntervalMinutes
     });
 
     // Get the active tab
@@ -295,7 +330,9 @@ async function startScreenshotCapture(attendanceId, userId, url) {
                         streamId: streamId,
                         attendanceId: attendanceId,
                         userId: userId,
-                        apiUrl: apiUrl
+                        apiUrl: apiUrl,
+                        minIntervalMinutes: intervalConfig.minIntervalMinutes,
+                        maxIntervalMinutes: intervalConfig.maxIntervalMinutes
                     });
 
                     logDebug('Message sent to offscreen');
@@ -319,7 +356,9 @@ async function stopScreenshotCapture() {
         captureActive: false,
         attendanceId: null,
         userId: null,
-        apiUrl: null
+        apiUrl: null,
+        minIntervalMinutes: null,
+        maxIntervalMinutes: null
     });
 
     // Tell offscreen document to stop

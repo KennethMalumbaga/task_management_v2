@@ -6,12 +6,16 @@ let screenshotInterval = null;
 let currentAttendanceId = null;
 let currentUserId = null;
 let apiUrl = null;
+let currentMinIntervalMs = 20 * 60 * 1000;
+let currentMaxIntervalMs = 30 * 60 * 1000;
 
 // Notify background that offscreen is ready
 chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' });
 
-const MIN_INTERVAL = 20 * 60 * 1000; // 20 minutes
-const MAX_INTERVAL = 30 * 60 * 1000; // 30 minutes
+const DEFAULT_MIN_INTERVAL_MINUTES = 20;
+const DEFAULT_MAX_INTERVAL_MINUTES = 30;
+const MIN_ALLOWED_INTERVAL_MINUTES = 5;
+const MAX_ALLOWED_INTERVAL_MINUTES = 180;
 const REQUIRED_DISPLAY_SURFACE = 'monitor';
 const FULL_SCREEN_REQUIRED_ERROR = 'Please share Entire Screen only. Window or tab sharing is not allowed.';
 
@@ -29,6 +33,31 @@ async function logDebug(message) {
     if (logs.length > 50) logs = logs.slice(-50);
 
     await chrome.storage.local.set({ debugLogs: logs });
+}
+
+function normalizeIntervalMinutes(value, fallbackValue) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(parsed) || parsed < MIN_ALLOWED_INTERVAL_MINUTES || parsed > MAX_ALLOWED_INTERVAL_MINUTES) {
+        return fallbackValue;
+    }
+    return parsed;
+}
+
+function applyCaptureIntervalConfig(minValue, maxValue) {
+    let minMinutes = normalizeIntervalMinutes(minValue, DEFAULT_MIN_INTERVAL_MINUTES);
+    let maxMinutes = normalizeIntervalMinutes(maxValue, DEFAULT_MAX_INTERVAL_MINUTES);
+
+    if (minMinutes > maxMinutes) {
+        [minMinutes, maxMinutes] = [maxMinutes, minMinutes];
+    }
+
+    currentMinIntervalMs = minMinutes * 60 * 1000;
+    currentMaxIntervalMs = maxMinutes * 60 * 1000;
+
+    return {
+        minIntervalMinutes: minMinutes,
+        maxIntervalMinutes: maxMinutes
+    };
 }
 
 function getDisplaySurfaceFromTrack(track) {
@@ -60,7 +89,14 @@ function isEntireScreenRequirementError(err) {
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'START_OFFSCREEN_CAPTURE') {
-        startCapture(message.streamId, message.attendanceId, message.userId, message.apiUrl);
+        startCapture(
+            message.streamId,
+            message.attendanceId,
+            message.userId,
+            message.apiUrl,
+            message.minIntervalMinutes,
+            message.maxIntervalMinutes
+        );
         sendResponse({ status: 'started' });
     } else if (message.type === 'STOP_OFFSCREEN_CAPTURE') {
         stopCapture();
@@ -74,11 +110,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
 });
 
-async function startCapture(streamId, attendanceId, userId, url) {
+async function startCapture(streamId, attendanceId, userId, url, minIntervalMinutes, maxIntervalMinutes) {
     logDebug('startCapture called');
     // Stop any existing capture first
     stopCapture();
 
+    const intervalConfig = applyCaptureIntervalConfig(minIntervalMinutes, maxIntervalMinutes);
     currentAttendanceId = attendanceId;
     currentUserId = userId;
     apiUrl = url;
@@ -104,7 +141,9 @@ async function startCapture(streamId, attendanceId, userId, url) {
             captureActive: true,
             attendanceId: attendanceId,
             userId: userId,
-            apiUrl: url
+            apiUrl: url,
+            minIntervalMinutes: intervalConfig.minIntervalMinutes,
+            maxIntervalMinutes: intervalConfig.maxIntervalMinutes
         });
 
         // Start screenshot loop
@@ -136,18 +175,22 @@ function stopCapture() {
     currentAttendanceId = null;
     currentUserId = null;
     apiUrl = null;
+    currentMinIntervalMs = DEFAULT_MIN_INTERVAL_MINUTES * 60 * 1000;
+    currentMaxIntervalMs = DEFAULT_MAX_INTERVAL_MINUTES * 60 * 1000;
 
     // Clear storage state
     chrome.storage.local.set({
         captureActive: false,
         attendanceId: null,
         userId: null,
-        apiUrl: null
+        apiUrl: null,
+        minIntervalMinutes: null,
+        maxIntervalMinutes: null
     });
 }
 
 function scheduleNextScreenshot() {
-    const delay = MIN_INTERVAL + Math.random() * (MAX_INTERVAL - MIN_INTERVAL);
+    const delay = currentMinIntervalMs + Math.random() * (currentMaxIntervalMs - currentMinIntervalMs);
     screenshotInterval = setTimeout(async () => {
         if (mediaStream && currentAttendanceId) {
             await captureAndSend();

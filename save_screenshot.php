@@ -11,6 +11,7 @@ if (!isset($_SESSION['id'])) {
 require 'DB_connection.php';
 require_once 'inc/tenant.php';
 require_once 'inc/csrf.php';
+require_once 'inc/workspace_screenshot_retention.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -99,13 +100,14 @@ if (tenant_column_exists($pdo, 'screenshots', 'organization_id') && $organizatio
     $stmt->execute([$user_id, $attendance_id ?: null, $relativePath]);
 }
 
-// CLEANUP: Delete screenshots older than 7 days
-// This runs on every save to keep storage managed
-$seven_days_ago = date('Y-m-d H:i:s', strtotime('-7 days'));
+// CLEANUP: Delete screenshots older than the configured retention window.
+// This runs on every save to keep storage managed without a separate scheduler.
+$retentionDays = workspace_screenshot_retention_fetch_days($pdo, $organization_id);
+$retentionCutoff = date('Y-m-d H:i:s', strtotime('-' . $retentionDays . ' days'));
 
 // 1. Get files to delete
 $sql_cleanup = "SELECT id, image_path FROM screenshots WHERE taken_at < ?";
-$cleanupParams = [$seven_days_ago];
+$cleanupParams = [$retentionCutoff];
 $scope = tenant_get_scope($pdo, 'screenshots', '', 'AND', 'organization_id', $organization_id);
 $sql_cleanup .= $scope['sql'];
 $cleanupParams = array_merge($cleanupParams, $scope['params']);
@@ -129,11 +131,11 @@ if (!empty($old_records)) {
     $scope = tenant_get_scope($pdo, 'screenshots', '', 'AND', 'organization_id', $organization_id);
     $sql_del_cleanup .= $scope['sql'];
     $stmt_del_cleanup = $pdo->prepare($sql_del_cleanup);
-    $stmt_del_cleanup->execute(array_merge([$seven_days_ago], $scope['params']));
+    $stmt_del_cleanup->execute(array_merge([$retentionCutoff], $scope['params']));
     
     // Log cleanup
     $count = count($old_records);
-    $logEntry .= "Cleanup: Deleted $count old screenshots (> 7 days)\n";
+    $logEntry .= "Cleanup: Deleted $count old screenshots (> {$retentionDays} days)\n";
     file_put_contents($logFile, $logEntry, FILE_APPEND);
 }
 

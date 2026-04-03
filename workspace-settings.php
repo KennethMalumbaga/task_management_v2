@@ -11,6 +11,8 @@ include "app/model/user.php";
 require_once "inc/tenant.php";
 require_once "inc/csrf.php";
 require_once "inc/workspace_theme.php";
+require_once "inc/workspace_screenshot_retention.php";
+require_once "inc/workspace_screenshot_interval.php";
 
 function ws_format_short_date($value)
 {
@@ -84,6 +86,10 @@ $themeSecondary = $themeDefaults['secondary'];
 $themeAccent = $themeDefaults['accent'];
 $themeMode = workspace_theme_default_mode();
 $themeHasCustom = false;
+$retentionReady = $tenantEnabled && workspace_screenshot_retention_schema_ready($pdo);
+$screenshotRetentionDays = workspace_screenshot_retention_default_days();
+$intervalReady = $tenantEnabled && workspace_screenshot_interval_schema_ready($pdo);
+$screenshotInterval = workspace_screenshot_interval_default_config();
 
 if ($themeReady && $orgId) {
     $themeValues = workspace_theme_fetch($pdo, $orgId);
@@ -107,6 +113,11 @@ if ($themeReady && $orgId) {
     }
 }
 
+if ($orgId) {
+    $screenshotRetentionDays = workspace_screenshot_retention_fetch_days($pdo, $orgId);
+    $screenshotInterval = workspace_screenshot_interval_fetch_minutes($pdo, $orgId);
+}
+
 $themeAccentLight = workspace_theme_mix_hex($themeAccent, '#ffffff', 0.86) ?: $themeDefaults['accent'];
 $themePalettes = workspace_theme_preset_palettes();
 $workspaceDisplayName = (string)($org['name'] ?? ($_SESSION['organization_name'] ?? 'Workspace'));
@@ -116,6 +127,17 @@ $subscriptionStatus = strtoupper((string)($capacity['subscription_status'] ?? 'N
 $seatUsageDisplay = $seatLimit !== null ? ($seatUsed . "/" . $seatLimit) : (string)$seatUsed;
 $themeModeLabel = ucfirst($themeMode);
 $themeStatusLabel = $themeHasCustom ? 'Custom' : 'Default';
+$screenshotRetentionLabel = $screenshotRetentionDays . ' day' . ($screenshotRetentionDays === 1 ? '' : 's');
+$defaultRetentionDays = workspace_screenshot_retention_default_days();
+$defaultRetentionLabel = $defaultRetentionDays . ' day' . ($defaultRetentionDays === 1 ? '' : 's');
+$retentionRangeLabel = workspace_screenshot_retention_min_days() . ' to ' . workspace_screenshot_retention_max_days() . ' days';
+$screenshotIntervalMinMinutes = (int)($screenshotInterval['min_minutes'] ?? workspace_screenshot_interval_default_min_minutes());
+$screenshotIntervalMaxMinutes = (int)($screenshotInterval['max_minutes'] ?? workspace_screenshot_interval_default_max_minutes());
+$screenshotIntervalLabel = $screenshotIntervalMinMinutes === $screenshotIntervalMaxMinutes
+    ? ($screenshotIntervalMinMinutes . ' min fixed')
+    : ($screenshotIntervalMinMinutes . '-' . $screenshotIntervalMaxMinutes . ' min random');
+$defaultIntervalLabel = workspace_screenshot_interval_default_min_minutes() . '-' . workspace_screenshot_interval_default_max_minutes() . ' min random';
+$intervalRangeLabel = workspace_screenshot_interval_min_allowed_minutes() . ' to ' . workspace_screenshot_interval_max_allowed_minutes() . ' minutes';
 ?>
 <!DOCTYPE html>
 <html>
@@ -142,7 +164,7 @@ $themeStatusLabel = $themeHasCustom ? 'Custom' : 'Default';
                     <i class="fa fa-cog"></i> Workspace Settings
                 </span>
                 <h2>Manage your workspace identity and look from one place.</h2>
-                <p>Update the workspace name shown across your admin screens and tune the workspace theme without changing billing or member data.</p>
+                <p>Update the workspace name shown across your admin screens, tune the workspace theme, and control screenshot retention and capture timing without changing billing or member data.</p>
             </div>
             <div class="workspace-hero-stats">
                 <div class="workspace-hero-stat">
@@ -395,6 +417,166 @@ $themeStatusLabel = $themeHasCustom ? 'Custom' : 'Default';
                         <div class="workspace-alert info">
                             <i class="fa fa-database"></i>
                             <div>Color palettes are ready. Run <span class="workspace-inline-code">sql_add_workspace_theme_mode.sql</span> once to save dark mode selections too.</div>
+                        </div>
+                    <?php } ?>
+                <?php } ?>
+            </section>
+
+            <section class="workspace-panel">
+                <div class="workspace-panel-head">
+                    <div>
+                        <h3 class="workspace-panel-title">Screenshot Retention</h3>
+                        <p class="workspace-panel-sub">Control how long captured screenshots stay available before automatic cleanup removes them from this workspace.</p>
+                    </div>
+                    <?php if (!$canManageWorkspace) { ?>
+                        <span class="workspace-pill soft">Read-only</span>
+                    <?php } elseif ($retentionReady) { ?>
+                        <span class="workspace-pill soft"><?= htmlspecialchars($screenshotRetentionLabel) ?></span>
+                    <?php } ?>
+                </div>
+
+                <?php if (!$retentionReady) { ?>
+                    <div class="workspace-alert warn">
+                        <i class="fa fa-warning"></i>
+                        <div>Screenshot retention settings require the workspace retention column. Run <span class="workspace-inline-code">sql_add_workspace_screenshot_retention.sql</span> to enable it.</div>
+                    </div>
+                <?php } else { ?>
+                    <form action="app/update-workspace-screenshot-retention.php" method="POST" class="workspace-form-grid two-col">
+                        <?= csrf_field('workspace_screenshot_retention_form') ?>
+                        <input type="hidden" name="redirect_to" value="workspace-settings.php">
+
+                        <div class="workspace-field">
+                            <label for="screenshot_retention_days">Retention Window</label>
+                            <input
+                                type="number"
+                                id="screenshot_retention_days"
+                                name="screenshot_retention_days"
+                                class="workspace-input"
+                                value="<?= (int)$screenshotRetentionDays ?>"
+                                min="<?= (int)workspace_screenshot_retention_min_days() ?>"
+                                max="<?= (int)workspace_screenshot_retention_max_days() ?>"
+                                required
+                                <?= $canManageWorkspace ? '' : 'disabled' ?>
+                            >
+                        </div>
+
+                        <div class="workspace-field">
+                            <label>Automatic Cleanup</label>
+                            <div class="workspace-input">Screenshots older than <?= htmlspecialchars($screenshotRetentionLabel) ?> are deleted the next time a new screenshot is uploaded for this workspace.</div>
+                        </div>
+
+                        <div class="workspace-field">
+                            <label>Allowed Range</label>
+                            <div class="workspace-input"><?= htmlspecialchars($retentionRangeLabel) ?></div>
+                        </div>
+
+                        <div class="workspace-field">
+                            <label>Default Retention</label>
+                            <div class="workspace-input"><?= htmlspecialchars($defaultRetentionLabel) ?></div>
+                        </div>
+
+                        <div class="workspace-action-row" style="grid-column: 1 / -1;">
+                            <button class="workspace-btn primary" type="submit" <?= $canManageWorkspace ? '' : 'disabled' ?>>
+                                <i class="fa fa-save"></i>
+                                Save Retention
+                            </button>
+                        </div>
+                    </form>
+
+                    <?php if (!$canManageWorkspace) { ?>
+                        <div class="workspace-alert info">
+                            <i class="fa fa-lock"></i>
+                            <div>You currently have read-only access and cannot update screenshot retention.</div>
+                        </div>
+                    <?php } ?>
+                <?php } ?>
+            </section>
+
+            <section class="workspace-panel">
+                <div class="workspace-panel-head">
+                    <div>
+                        <h3 class="workspace-panel-title">Screenshot Timing</h3>
+                        <p class="workspace-panel-sub">Choose the random capture window for this workspace. Use the same value in both fields if you want a fixed screenshot cadence.</p>
+                    </div>
+                    <?php if (!$canManageWorkspace) { ?>
+                        <span class="workspace-pill soft">Read-only</span>
+                    <?php } elseif ($intervalReady) { ?>
+                        <span class="workspace-pill soft"><?= htmlspecialchars($screenshotIntervalLabel) ?></span>
+                    <?php } ?>
+                </div>
+
+                <?php if (!$intervalReady) { ?>
+                    <div class="workspace-alert warn">
+                        <i class="fa fa-warning"></i>
+                        <div>Screenshot timing settings require the workspace interval columns. Run <span class="workspace-inline-code">sql_add_workspace_screenshot_interval.sql</span> to enable them.</div>
+                    </div>
+                <?php } else { ?>
+                    <form action="app/update-workspace-screenshot-interval.php" method="POST" class="workspace-form-grid two-col">
+                        <?= csrf_field('workspace_screenshot_interval_form') ?>
+                        <input type="hidden" name="redirect_to" value="workspace-settings.php">
+
+                        <div class="workspace-field">
+                            <label for="screenshot_interval_min_minutes">Minimum Interval</label>
+                            <input
+                                type="number"
+                                id="screenshot_interval_min_minutes"
+                                name="screenshot_interval_min_minutes"
+                                class="workspace-input"
+                                value="<?= (int)$screenshotIntervalMinMinutes ?>"
+                                min="<?= (int)workspace_screenshot_interval_min_allowed_minutes() ?>"
+                                max="<?= (int)workspace_screenshot_interval_max_allowed_minutes() ?>"
+                                required
+                                <?= $canManageWorkspace ? '' : 'disabled' ?>
+                            >
+                        </div>
+
+                        <div class="workspace-field">
+                            <label for="screenshot_interval_max_minutes">Maximum Interval</label>
+                            <input
+                                type="number"
+                                id="screenshot_interval_max_minutes"
+                                name="screenshot_interval_max_minutes"
+                                class="workspace-input"
+                                value="<?= (int)$screenshotIntervalMaxMinutes ?>"
+                                min="<?= (int)workspace_screenshot_interval_min_allowed_minutes() ?>"
+                                max="<?= (int)workspace_screenshot_interval_max_allowed_minutes() ?>"
+                                required
+                                <?= $canManageWorkspace ? '' : 'disabled' ?>
+                            >
+                        </div>
+
+                        <div class="workspace-field">
+                            <label>Capture Pattern</label>
+                            <div class="workspace-input">While a user is clocked in, screenshots are captured at random times between <?= (int)$screenshotIntervalMinMinutes ?> and <?= (int)$screenshotIntervalMaxMinutes ?> minutes.</div>
+                        </div>
+
+                        <div class="workspace-field">
+                            <label>Allowed Range</label>
+                            <div class="workspace-input"><?= htmlspecialchars($intervalRangeLabel) ?></div>
+                        </div>
+
+                        <div class="workspace-field">
+                            <label>Default Timing</label>
+                            <div class="workspace-input"><?= htmlspecialchars($defaultIntervalLabel) ?></div>
+                        </div>
+
+                        <div class="workspace-field">
+                            <label>Tip</label>
+                            <div class="workspace-input">Set the minimum and maximum to the same value if you prefer a fixed interval instead of a random range.</div>
+                        </div>
+
+                        <div class="workspace-action-row" style="grid-column: 1 / -1;">
+                            <button class="workspace-btn primary" type="submit" <?= $canManageWorkspace ? '' : 'disabled' ?>>
+                                <i class="fa fa-save"></i>
+                                Save Timing
+                            </button>
+                        </div>
+                    </form>
+
+                    <?php if (!$canManageWorkspace) { ?>
+                        <div class="workspace-alert info">
+                            <i class="fa fa-lock"></i>
+                            <div>You currently have read-only access and cannot update screenshot timing.</div>
                         </div>
                     <?php } ?>
                 <?php } ?>

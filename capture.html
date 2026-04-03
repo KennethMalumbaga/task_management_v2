@@ -68,9 +68,10 @@
     <div id="preview"></div>
 
     <script>
-      // Interval: 20 to 30 MINUTES
-      const MIN_INTERVAL = 20 * 60 * 1000;
-      const MAX_INTERVAL = 30 * 60 * 1000;
+      const DEFAULT_MIN_INTERVAL_MINUTES = 20;
+      const DEFAULT_MAX_INTERVAL_MINUTES = 30;
+      const MIN_ALLOWED_INTERVAL_MINUTES = 5;
+      const MAX_ALLOWED_INTERVAL_MINUTES = 180;
       const CAPTURE_HEARTBEAT_STORAGE_KEY = "taskflow_capture_heartbeat";
       const CAPTURE_INPUT_STATE_STORAGE_KEY = "taskflow_capture_input_state";
       const CAPTURE_HEARTBEAT_INTERVAL_MS = 2000;
@@ -116,6 +117,46 @@
       sessionId = params.get("sessionId");
       csrfToken = params.get("csrf_token");
       const resumeMode = params.get("resume") === "1";
+
+      function parseCaptureIntervalMinutes(rawValue, fallbackValue) {
+        const parsed = Number.parseInt(String(rawValue || ""), 10);
+        if (
+          !Number.isFinite(parsed) ||
+          parsed < MIN_ALLOWED_INTERVAL_MINUTES ||
+          parsed > MAX_ALLOWED_INTERVAL_MINUTES
+        ) {
+          return fallbackValue;
+        }
+        return parsed;
+      }
+
+      function resolveCaptureIntervalConfig(searchParams) {
+        let minMinutes = parseCaptureIntervalMinutes(
+          searchParams.get("capture_min_minutes"),
+          DEFAULT_MIN_INTERVAL_MINUTES,
+        );
+        let maxMinutes = parseCaptureIntervalMinutes(
+          searchParams.get("capture_max_minutes"),
+          DEFAULT_MAX_INTERVAL_MINUTES,
+        );
+
+        if (minMinutes > maxMinutes) {
+          const tmp = minMinutes;
+          minMinutes = maxMinutes;
+          maxMinutes = tmp;
+        }
+
+        return {
+          minMinutes: minMinutes,
+          maxMinutes: maxMinutes,
+          minMs: minMinutes * 60 * 1000,
+          maxMs: maxMinutes * 60 * 1000,
+        };
+      }
+
+      const captureIntervalConfig = resolveCaptureIntervalConfig(params);
+      const MIN_INTERVAL = captureIntervalConfig.minMs;
+      const MAX_INTERVAL = captureIntervalConfig.maxMs;
 
       const statusDiv = document.getElementById("status");
       const heartbeatStatusDiv = document.getElementById("heartbeatStatus");
@@ -611,7 +652,7 @@
         }, CAPTURE_HEARTBEAT_INTERVAL_MS);
 
         // Server Session Keep-Alive (every 5 mins) to prevent timeout
-        // since screenshot interval is now 20-30 mins.
+        // Keep sessions alive even when capture intervals are long.
         keepAliveInterval = setInterval(
           () => {
             fetch("check_attendance.php").then((r) =>

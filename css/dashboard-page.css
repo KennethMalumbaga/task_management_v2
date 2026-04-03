@@ -688,6 +688,7 @@ body.dashboard-page.role-admin .admin-clockout-field {
     flex-direction: column;
     gap: 6px;
     margin-top: 6px;
+    min-width: 0;
 }
 
 body.dashboard-page.role-admin .admin-clockout-label {
@@ -697,7 +698,9 @@ body.dashboard-page.role-admin .admin-clockout-label {
 }
 
 body.dashboard-page.role-admin .admin-clockout-textarea {
+    display: block;
     width: 100%;
+    max-width: 100%;
     min-height: 92px;
     resize: vertical;
     border: 1px solid #d1d5db;
@@ -706,6 +709,7 @@ body.dashboard-page.role-admin .admin-clockout-textarea {
     font: inherit;
     color: var(--admin-text);
     background: #f9fafb;
+    box-sizing: border-box;
 }
 
 body.dashboard-page.role-admin .admin-clockout-textarea:focus {

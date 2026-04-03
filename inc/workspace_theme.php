@@ -786,6 +786,55 @@ body.dashboard-page.role-admin .admin-dashboard {
     --admin-muted: {{darkMuted}};
 }
 
+body.dashboard-page.role-admin .admin-user-detail-dialog {
+    --admin-border: {{darkBorder}};
+    --admin-text: {{darkText}};
+    --admin-muted: {{darkMuted}};
+    background: {{darkSurface}} !important;
+    border: 1px solid {{darkBorder}} !important;
+    color: {{darkText}} !important;
+}
+
+body.dashboard-page.role-admin .admin-user-detail-stat {
+    background: {{darkSurface2}} !important;
+    border-color: {{darkBorder}} !important;
+}
+
+body.dashboard-page.role-admin .admin-user-detail-capture-shell {
+    background: linear-gradient(135deg, {{darkSurface2}}, {{darkSurface3}}) !important;
+    border-color: {{darkBorder}} !important;
+}
+
+body.dashboard-page.role-admin .admin-user-detail-capture-preview,
+body.dashboard-page.role-admin .admin-user-detail-capture-preview.is-empty {
+    background: {{darkSurface3}} !important;
+    border-color: {{darkBorder}} !important;
+}
+
+body.dashboard-page.role-admin .admin-user-detail-label,
+body.dashboard-page.role-admin .admin-user-detail-capture-empty,
+body.dashboard-page.role-admin .admin-user-detail-capture-copy p {
+    color: {{darkMuted}} !important;
+}
+
+body.dashboard-page.role-admin .admin-user-detail-capture-empty i {
+    color: {{darkSubtle}} !important;
+}
+
+body.dashboard-page.role-admin .admin-user-detail-actions .admin-btn-ghost,
+body.dashboard-page.role-admin .admin-clockout-actions .admin-btn-ghost,
+body.dashboard-page.role-admin .admin-clockout-close {
+    background: {{darkSurface3}} !important;
+    border: 1px solid {{darkBorder}} !important;
+    color: {{darkSubtle}} !important;
+}
+
+body.dashboard-page.role-admin .admin-user-detail-actions .admin-btn-ghost:hover,
+body.dashboard-page.role-admin .admin-clockout-actions .admin-btn-ghost:hover,
+body.dashboard-page.role-admin .admin-clockout-close:hover {
+    background: {{darkSurface2}} !important;
+}
+
 body.timeline-page .tlp-day-row,
 body.timeline-page .tlp-label-col,
 body.timeline-page .tlp-gantt-canvas,
@@ -1401,6 +1450,7 @@ body.dashboard-page .bulletin-delete-modal,
 body.dashboard-page .clockin-setup-modal-dialog,
 body.dashboard-page .pause-session-dialog,
 body.dashboard-page .admin-clockout-dialog,
+body.dashboard-page #adminClockOutNoticeModal > div,
 body.dashboard-page #confirmModal > div,
 body.dashboard-page #navClockInModal > div,
 body.dashboard-page #autoClockOutModal > div,
@@ -1440,6 +1490,33 @@ body.dashboard-page .admin-clockout-dialog p {
     color: {{darkMuted}} !important;
 }
 
+body.dashboard-page .admin-clockout-label,
+body.dashboard-page .admin-clockout-kicker {
+    color: {{darkSubtle}} !important;
+}
+
+body.dashboard-page .admin-clockout-help {
+    color: {{darkMuted}} !important;
+}
+
+body.dashboard-page .admin-clockout-textarea {
+    background: {{darkSurface3}} !important;
+    border-color: {{darkBorder}} !important;
+    color: {{darkText}} !important;
+    caret-color: {{darkText}} !important;
+    box-shadow: none !important;
+}
+
+body.dashboard-page .admin-clockout-textarea::placeholder {
+    color: {{darkMuted}} !important;
+}
+
+body.dashboard-page .admin-clockout-textarea:focus {
+    background: {{darkSurface2}} !important;
+    border-color: rgba({{primaryRgb}}, 0.42) !important;
+    box-shadow: 0 0 0 3px rgba({{primaryRgb}}, 0.16) !important;
+}
+
 body.dashboard-page #confirmModal p[style*="color:#6B7280"],
 body.dashboard-page #confirmModal p[style*="color: #6B7280"],
 body.dashboard-page #navClockInModal p[style*="color:#6B7280"],
@@ -1453,6 +1530,34 @@ body.dashboard-page #adminClockOutNoticeModal p[style*="color: #6B7280"],
 body.dashboard-page #adminClockOutNoticeModal div[style*="color:#6B7280"],
 body.dashboard-page #adminClockOutNoticeModal div[style*="color: #6B7280"] {
     color: {{darkMuted}} !important;
+}
+
+body.dashboard-page #adminClockOutNoticeModal > div > div[style*="background:#FEE2E2"],
+body.dashboard-page #adminClockOutNoticeModal > div > div[style*="background: #FEE2E2"] {
+    background: rgba(127, 29, 29, 0.24) !important;
+    color: #fca5a5 !important;
+}
+
+body.dashboard-page #adminClockOutNoticeModal > div > div[style*="background:#F9FAFB"],
+body.dashboard-page #adminClockOutNoticeModal > div > div[style*="background: #F9FAFB"] {
+    background: {{darkSurface3}} !important;
+    border-color: {{darkBorder}} !important;
+}
+
+body.dashboard-page #adminClockOutNoticeModal > div > div[style*="text-transform:uppercase"],
+body.dashboard-page #adminClockOutNoticeModal > div > div[style*="text-transform: uppercase"] {
+    color: {{darkSubtle}} !important;
+}
+
+body.dashboard-page #adminClockOutNoticeModal button {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+body.dashboard-page #adminClockOutNoticeModal button:hover {
+    background: #dc2626 !important;
 }
 
 body.dashboard-page #confirmModal button[style*="background:#F3F4F6"],

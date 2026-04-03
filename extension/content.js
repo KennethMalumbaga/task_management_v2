@@ -74,7 +74,9 @@
                 type: 'CAPTURE_SCREENSHOT',
                 attendanceId: event.data.attendanceId,
                 userId: event.data.userId,
-                apiUrl: event.data.apiUrl
+                apiUrl: event.data.apiUrl,
+                minIntervalMinutes: event.data.minIntervalMinutes,
+                maxIntervalMinutes: event.data.maxIntervalMinutes
             }, (response) => {
                 // Notify webpage of result
                 postBridgeMessage({
