@@ -187,7 +187,7 @@ $prefillEmail = $googleSignupActive
                         <br>No payment is required before first login. After trial ends, billing lock will require plan payment.
                     <?php } else { ?>
                         <br><strong>Selected plan:</strong> <?= htmlspecialchars($selectedPlanName) ?> (up to <?= $selectedPlanSeatLimit ?> team members).
-                        <br>After signup, you will continue to dummy checkout before first login.
+                        <br>After signup, you will continue to PayMongo test checkout before first login.
                     <?php } ?>
                 </div>
 

@@ -4,6 +4,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 require_once "inc/csrf.php";
 require_once "inc/tenant.php";
+require_once "inc/paymongo.php";
 
 function checkout_redirect_login_error($message)
 {
@@ -29,15 +30,11 @@ $planCode = strtolower(trim((string)($pending['plan_code'] ?? 'starter')));
 $selectedPlan = $planCatalog[$planCode] ?? tenant_resolve_workspace_plan($planCode, 'starter');
 $planName = (string)($selectedPlan['name'] ?? ($pending['plan_name'] ?? 'Starter'));
 $seatLimit = max(1, (int)($selectedPlan['seat_limit'] ?? ($pending['seat_limit'] ?? 10)));
-
-$planPrices = [
-    'starter' => 9,
-    'professional' => 17,
-    'enterprise' => 29,
-];
-$planPrice = (int)($planPrices[$planCode] ?? $planPrices['starter']);
+$planPrice = paymongo_plan_price_php($planCode, 'post_signup');
 $workspaceName = (string)($pending['workspace_name'] ?? 'Workspace');
 $billingEmail = (string)($pending['billing_email'] ?? '');
+$paymongoConfigured = paymongo_is_configured();
+$paymongoMethodOptions = paymongo_checkout_method_options();
 ?>
 <!DOCTYPE html>
 <html>
@@ -58,7 +55,7 @@ $billingEmail = (string)($pending['billing_email'] ?? '');
     <div class="auth-left">
         <div class="auth-left-content">
             <h2>One more step to activate your workspace.</h2>
-            <p>Finish this dummy checkout so your selected plan is activated before first login.</p>
+            <p>Finish this PayMongo test checkout so your selected plan is activated before first login.</p>
 
             <div class="auth-feature-list">
                 <div class="auth-feature-item">
@@ -78,8 +75,8 @@ $billingEmail = (string)($pending['billing_email'] ?? '');
                 <div class="auth-feature-item">
                     <div class="auth-feature-icon"><i class="fa fa-credit-card"></i></div>
                     <div class="auth-feature-text">
-                        <h4>Dummy Billing</h4>
-                        <p>This is a temporary simulated checkout (no real charge).</p>
+                        <h4>PayMongo Test Mode</h4>
+                        <p>This uses PayMongo Checkout with test credentials only.</p>
                     </div>
                 </div>
             </div>
@@ -102,7 +99,7 @@ $billingEmail = (string)($pending['billing_email'] ?? '');
 
         <div class="auth-info-box">
             <strong>Plan:</strong> <?= htmlspecialchars($planName) ?><br>
-            <strong>Price:</strong> $<?= $planPrice ?>/month (dummy)<br>
+            <strong>Price:</strong> PHP <?= number_format($planPrice) ?>/month (test mode)<br>
             <strong>Seats:</strong> Up to <?= $seatLimit ?> members
             <?php if ($billingEmail !== '') { ?>
                 <br><strong>Billing Email:</strong> <?= htmlspecialchars($billingEmail) ?>
@@ -113,24 +110,24 @@ $billingEmail = (string)($pending['billing_email'] ?? '');
             <?= csrf_field('post_signup_dummy_payment_form') ?>
             <input type="hidden" name="state" value="<?= htmlspecialchars($state) ?>">
 
+            <?php if (!$paymongoConfigured) { ?>
+                <div class="alert alert-danger" role="alert">
+                    PayMongo test mode is not configured yet. Add <code>PAYMONGO_SECRET_KEY=sk_test_...</code> to your local env before using this checkout.
+                </div>
+            <?php } ?>
+
             <div class="form-group">
-                <label class="form-label">Payment Method (Dummy)</label>
+                <label class="form-label">Payment Method</label>
                 <select class="form-control" name="payment_method" required>
-                    <option value="card">Credit/Debit Card</option>
-                    <option value="gcash">GCash</option>
-                    <option value="bank_transfer">Bank Transfer</option>
+                    <?php foreach ($paymongoMethodOptions as $methodKey => $methodLabel) { ?>
+                        <option value="<?= htmlspecialchars((string)$methodKey) ?>"><?= htmlspecialchars((string)$methodLabel) ?></option>
+                    <?php } ?>
                 </select>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Reference (Optional)</label>
-                <input type="text" class="form-control" name="reference_note" maxlength="80" placeholder="Example: OR-2026-001">
-            </div>
-
-            <button type="submit" class="btn-primary">Pay Now (Dummy)</button>
+            <button type="submit" class="btn-primary" <?= !$paymongoConfigured ? 'disabled' : '' ?>>Continue to PayMongo</button>
         </form>
     </div>
 </div>
 </body>
 </html>
-

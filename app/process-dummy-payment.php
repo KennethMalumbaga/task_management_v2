@@ -11,103 +11,126 @@ include "../DB_connection.php";
 include "model/user.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
+require_once "../inc/paymongo.php";
 
-function dummy_payment_redirect_error($message)
+function workspace_payment_redirect_error($message)
 {
     header("Location: ../workspace-billing.php?error=" . urlencode((string)$message));
     exit();
 }
 
-function dummy_payment_redirect_success($message)
-{
-    header("Location: ../workspace-billing.php?success=" . urlencode((string)$message));
-    exit();
-}
-
 if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
-    dummy_payment_redirect_error("Invalid request method.");
+    workspace_payment_redirect_error("Invalid request method.");
 }
 
 if (!csrf_verify('workspace_dummy_payment_form', $_POST['csrf_token'] ?? null, true)) {
-    dummy_payment_redirect_error("Invalid or expired request. Please refresh and try again.");
+    workspace_payment_redirect_error("Invalid or expired request. Please refresh and try again.");
 }
 
 $isSuperAdmin = is_super_admin((int)$_SESSION['id'], $pdo);
 if ($isSuperAdmin) {
-    dummy_payment_redirect_error("Super Admin cannot run workspace dummy checkout from this page.");
+    workspace_payment_redirect_error("Super Admin cannot process workspace billing from this page.");
 }
 
 $orgId = tenant_get_current_org_id();
 if (!$orgId) {
-    dummy_payment_redirect_error("Workspace context is missing.");
+    workspace_payment_redirect_error("Workspace context is missing.");
 }
 
 $organizationRole = strtolower(trim((string)($_SESSION['organization_role'] ?? '')));
 if ($organizationRole !== '' && !in_array($organizationRole, ['owner', 'admin'], true)) {
-    dummy_payment_redirect_error("You do not have permission to process workspace billing.");
+    workspace_payment_redirect_error("You do not have permission to process workspace billing.");
 }
 
 if (!tenant_table_exists($pdo, 'subscriptions')) {
-    dummy_payment_redirect_error("Workspace billing tables are not available.");
+    workspace_payment_redirect_error("Workspace billing tables are not available.");
+}
+
+if (!paymongo_is_configured()) {
+    workspace_payment_redirect_error("PayMongo test mode is not configured. Add PAYMONGO_SECRET_KEY with your sk_test_ key.");
 }
 
 $method = strtolower(trim((string)($_POST['payment_method'] ?? '')));
-$referenceNote = trim((string)($_POST['reference_note'] ?? ''));
-$referenceNote = substr($referenceNote, 0, 80);
-
-$methodLabels = [
-    'gcash' => 'GCash',
-    'card' => 'Card',
-    'bank_transfer' => 'Bank Transfer',
-    'over_the_counter' => 'Over the Counter',
-];
-
-if (!isset($methodLabels[$method])) {
-    dummy_payment_redirect_error("Please choose a valid demo payment method.");
+$methodConfig = paymongo_resolve_checkout_method($method);
+if ($methodConfig === null) {
+    workspace_payment_redirect_error("Please choose a valid PayMongo payment method.");
 }
 
 try {
+    $stmtOrg = $pdo->prepare(
+        "SELECT id, name, plan_code, billing_email
+         FROM organizations
+         WHERE id = ?
+         LIMIT 1"
+    );
+    $stmtOrg->execute([(int)$orgId]);
+    $org = $stmtOrg->fetch(PDO::FETCH_ASSOC) ?: null;
+
+    if (!$org) {
+        workspace_payment_redirect_error("Workspace was not found.");
+    }
+
     $subscription = tenant_ensure_subscription($pdo, (int)$orgId);
     if (!$subscription) {
-        dummy_payment_redirect_error("Unable to initialize workspace subscription.");
+        workspace_payment_redirect_error("Unable to initialize workspace subscription.");
     }
 
-    $nowTs = time();
-    $currentPeriodTs = !empty($subscription['current_period_end'])
-        ? strtotime((string)$subscription['current_period_end'])
-        : false;
-    $baseTs = ($currentPeriodTs !== false && $currentPeriodTs > $nowTs) ? $currentPeriodTs : $nowTs;
-    $newPeriodEnd = date('Y-m-d H:i:s', strtotime('+1 month', $baseTs));
-    $providerSubscriptionId = 'dummy-' . (int)$orgId . '-' . time();
-    $setParts = [
-        "status = 'active'",
-        "current_period_end = ?",
+    $resolvedPlan = tenant_resolve_workspace_plan((string)($org['plan_code'] ?? 'starter'), 'starter');
+    $planCode = (string)($resolvedPlan['code'] ?? 'starter');
+    $planName = (string)($resolvedPlan['name'] ?? 'Starter');
+    $workspaceName = trim((string)($org['name'] ?? ($_SESSION['organization_name'] ?? 'Workspace')));
+    $amountCentavos = paymongo_plan_price_centavos($planCode, 'workspace');
+    $state = paymongo_create_state_token();
+    $referenceNumber = paymongo_reference_number('TFWS', (int)$orgId);
+    $billingName = trim((string)($_SESSION['full_name'] ?? $workspaceName));
+    $billingEmail = trim((string)($org['billing_email'] ?? ($_SESSION['username'] ?? '')));
+
+    $checkoutResult = paymongo_create_checkout_session([
+        'amount_centavos' => $amountCentavos,
+        'billing_email' => $billingEmail,
+        'billing_name' => $billingName,
+        'cancel_url' => paymongo_build_app_url('/app/paymongo-return.php', [
+            'flow' => 'workspace',
+            'result' => 'cancel',
+            'state' => $state,
+        ]),
+        'description' => "TaskFlow workspace subscription for {$workspaceName}",
+        'item_description' => "{$planName} plan for {$workspaceName}",
+        'item_name' => "{$planName} Plan",
+        'metadata' => [
+            'flow' => 'workspace',
+            'organization_id' => (string)$orgId,
+            'plan_code' => $planCode,
+            'payment_method' => (string)$methodConfig['key'],
+            'workspace_name' => $workspaceName,
+        ],
+        'payment_method_types' => (array)($methodConfig['types'] ?? []),
+        'reference_number' => $referenceNumber,
+        'success_url' => paymongo_build_app_url('/app/paymongo-return.php', [
+            'flow' => 'workspace',
+            'result' => 'success',
+            'state' => $state,
+        ]),
+    ]);
+
+    if (empty($checkoutResult['ok'])) {
+        workspace_payment_redirect_error((string)($checkoutResult['error'] ?? 'Unable to start PayMongo checkout right now.'));
+    }
+
+    $_SESSION['paymongo_workspace_checkout'] = [
+        'amount_php' => paymongo_plan_price_php($planCode, 'workspace'),
+        'checkout_session_id' => (string)($checkoutResult['checkout_session_id'] ?? ''),
+        'created_at' => time(),
+        'organization_id' => (int)$orgId,
+        'payment_method' => (string)($methodConfig['key'] ?? ''),
+        'plan_code' => $planCode,
+        'plan_name' => $planName,
+        'reference_number' => $referenceNumber,
+        'state' => $state,
     ];
-    $params = [$newPeriodEnd];
 
-    if (tenant_column_exists($pdo, 'subscriptions', 'provider')) {
-        $setParts[] = "provider = ?";
-        $params[] = 'dummy';
-    }
-    if (tenant_column_exists($pdo, 'subscriptions', 'provider_subscription_id')) {
-        $setParts[] = "provider_subscription_id = ?";
-        $params[] = $providerSubscriptionId;
-    }
-
-    $params[] = (int)$orgId;
-    $sql = "UPDATE subscriptions SET " . implode(", ", $setParts) . " WHERE organization_id = ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-
-    $periodDisplay = date("M j, Y g:i A", strtotime($newPeriodEnd));
-    $methodDisplay = $methodLabels[$method];
-
-    $message = "Dummy payment successful via {$methodDisplay}. Subscription active until {$periodDisplay}.";
-    if ($referenceNote !== '') {
-        $message .= " Ref: {$referenceNote}.";
-    }
-
-    dummy_payment_redirect_success($message);
+    header("Location: " . (string)$checkoutResult['checkout_url']);
+    exit();
 } catch (Throwable $e) {
-    dummy_payment_redirect_error("Dummy payment failed right now. Please try again.");
+    workspace_payment_redirect_error("Unable to start PayMongo checkout right now. Please try again.");
 }

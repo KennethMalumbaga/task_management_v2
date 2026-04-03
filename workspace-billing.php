@@ -11,6 +11,7 @@ include "DB_connection.php";
 include "app/model/user.php";
 require_once "inc/tenant.php";
 require_once "inc/csrf.php";
+require_once "inc/paymongo.php";
 
 function wb_format_datetime($value)
 {
@@ -91,6 +92,8 @@ $adminCount = 0;
 $memberCount = 0;
 $flashSuccess = isset($_GET['success']) ? trim((string)$_GET['success']) : null;
 $flashError = isset($_GET['error']) ? trim((string)$_GET['error']) : null;
+$paymongoConfigured = paymongo_is_configured();
+$paymongoMethodOptions = paymongo_checkout_method_options();
 
 if (!$tenantEnabled) {
     $error = "Workspace billing is unavailable until tenant migration is enabled.";
@@ -173,12 +176,8 @@ $availablePlans = tenant_workspace_plan_catalog();
 $resolvedWorkspacePlan = tenant_resolve_workspace_plan($workspacePlanCode, 'starter');
 $currentWorkspacePlanCode = (string)($resolvedWorkspacePlan['code'] ?? 'starter');
 $currentWorkspacePlanName = (string)($resolvedWorkspacePlan['name'] ?? 'Starter');
-$dummyPlanPrices = [
-    'starter' => 399,
-    'professional' => 799,
-    'enterprise' => 1599,
-];
-$currentPlanPrice = (int)($dummyPlanPrices[strtolower($currentWorkspacePlanCode)] ?? $dummyPlanPrices['starter']);
+$workspacePlanPrices = paymongo_workspace_plan_prices();
+$currentPlanPrice = paymongo_plan_price_php($currentWorkspacePlanCode, 'workspace');
 $periodEndsAtRaw = (string)($subscription['current_period_end'] ?? '');
 $periodEndsShort = wb_format_short_date($periodEndsAtRaw);
 $trialEndsShort = wb_format_short_date($subscription['trial_ends_at'] ?? null);
@@ -205,11 +204,11 @@ $planPanelTitle = $isSubscriptionBlocked ? 'Renew Your Subscription' : 'Plan & S
 $planPanelSub = $isSubscriptionBlocked
     ? 'Choose a plan below to reactivate your workspace and restore full member access.'
     : 'Seat capacity is fixed by plan. Switch plans to change workspace limits.';
-$checkoutTitle = $isSubscriptionBlocked ? 'Reactivation Checkout' : 'Demo Checkout';
+$checkoutTitle = $isSubscriptionBlocked ? 'PayMongo Reactivation Checkout' : 'PayMongo Test Checkout';
 $checkoutSub = $isSubscriptionBlocked
-    ? 'Complete payment to immediately restore workspace access.'
-    : 'Sandbox-only payment simulation. No real charge is made.';
-$checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Simulate Payment & Activate';
+    ? 'Continue to PayMongo Checkout to restore workspace access.'
+    : 'Redirects to PayMongo Checkout using your test key. No live charge is made while test mode is enabled.';
+$checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Continue to PayMongo Test Checkout';
 ?>
 <!DOCTYPE html>
 <html>
@@ -465,7 +464,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                             $planSeatLimit = (int)($plan['seat_limit'] ?? 0);
                             $isCurrentPlan = !$isFreeTrialStatus && strtolower($planCode) === strtolower($currentWorkspacePlanCode);
                             $isPopularPlan = strtolower($planCode) === 'professional';
-                            $planPrice = (int)($dummyPlanPrices[strtolower($planCode)] ?? $currentPlanPrice);
+                            $planPrice = (int)($workspacePlanPrices[strtolower($planCode)] ?? $currentPlanPrice);
                             if ($planSummary === '') {
                                 $planSummary = 'Up to ' . $planSeatLimit . ' members';
                             }
@@ -507,7 +506,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                                 <h4 class="billing-v2-checkout-title"><?= htmlspecialchars($checkoutTitle) ?></h4>
                                 <p class="billing-v2-checkout-sub"><?= htmlspecialchars($checkoutSub) ?></p>
                             </div>
-                            <span class="billing-v2-checkout-badge <?= $isSubscriptionBlocked ? 'is-urgent' : '' ?>"><?= $isSubscriptionBlocked ? 'RENEWAL' : 'DEMO' ?></span>
+                            <span class="billing-v2-checkout-badge <?= $isSubscriptionBlocked ? 'is-urgent' : '' ?>">PAYMONGO</span>
                         </div>
 
                         <div class="billing-v2-checkout-summary">
@@ -522,33 +521,27 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                         </div>
 
                         <?php if ($canManageSeats) { ?>
-                            <form action="app/process-dummy-payment.php" method="POST" class="workspace-form-grid two-col billing-v2-checkout-form">
+                            <form action="app/process-dummy-payment.php" method="POST" class="workspace-form-grid billing-v2-checkout-form">
                                 <?= csrf_field('workspace_dummy_payment_form') ?>
+
+                                <?php if (!$paymongoConfigured) { ?>
+                                    <div class="workspace-alert warn" style="grid-column: 1 / -1;">
+                                        <i class="fa fa-plug"></i>
+                                        <div>PayMongo test mode is not configured yet. Add <code>PAYMONGO_SECRET_KEY=sk_test_...</code> to your local env before using this checkout.</div>
+                                    </div>
+                                <?php } ?>
 
                                 <div class="workspace-field">
                                     <label for="dummy_payment_method">Payment Method</label>
                                     <select id="dummy_payment_method" name="payment_method" class="workspace-input" required>
-                                        <option value="gcash">GCash (Demo)</option>
-                                        <option value="card">Credit Card (Demo)</option>
-                                        <option value="bank_transfer">Bank Transfer (Demo)</option>
-                                        <option value="over_the_counter">Over the Counter (Demo)</option>
+                                        <?php foreach ($paymongoMethodOptions as $methodKey => $methodLabel) { ?>
+                                            <option value="<?= htmlspecialchars((string)$methodKey) ?>"><?= htmlspecialchars((string)$methodLabel) ?></option>
+                                        <?php } ?>
                                     </select>
                                 </div>
-
-                                <div class="workspace-field">
-                                    <label for="dummy_reference_note">Reference Note <span>(optional)</span></label>
-                                    <input
-                                        id="dummy_reference_note"
-                                        type="text"
-                                        name="reference_note"
-                                        maxlength="80"
-                                        class="workspace-input"
-                                        placeholder="e.g. OR-1001"
-                                    >
-                                </div>
-
+                                
                                 <div class="workspace-action-row">
-                                    <button class="workspace-btn primary billing-v2-sim-btn <?= $isSubscriptionBlocked ? 'is-urgent' : '' ?>" type="submit">
+                                    <button class="workspace-btn primary billing-v2-sim-btn <?= $isSubscriptionBlocked ? 'is-urgent' : '' ?>" type="submit" <?= !$paymongoConfigured ? 'disabled' : '' ?>>
                                         <i class="fa fa-shield"></i>
                                         <?= htmlspecialchars($checkoutButtonLabel) ?>
                                     </button>
@@ -557,7 +550,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Reactivate Workspace Now' : 'Si
                         <?php } else { ?>
                             <div class="workspace-alert info">
                                 <i class="fa fa-lock"></i>
-                                <div>You currently have read-only access and cannot run dummy checkout.</div>
+                                <div>You currently have read-only access and cannot launch PayMongo checkout.</div>
                             </div>
                         <?php } ?>
                     </div>

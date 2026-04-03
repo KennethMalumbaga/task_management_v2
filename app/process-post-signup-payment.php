@@ -4,6 +4,7 @@ session_start();
 include "../DB_connection.php";
 require_once "../inc/tenant.php";
 require_once "../inc/csrf.php";
+require_once "../inc/paymongo.php";
 
 function post_signup_payment_redirect_error($message, $state = '')
 {
@@ -56,16 +57,14 @@ if (!tenant_table_exists($pdo, 'subscriptions')) {
     post_signup_payment_redirect_error("Subscription table is missing.", $state);
 }
 
+if (!paymongo_is_configured()) {
+    post_signup_payment_redirect_error("PayMongo test mode is not configured. Add PAYMONGO_SECRET_KEY with your sk_test_ key.", $state);
+}
+
 $method = strtolower(trim((string)($_POST['payment_method'] ?? '')));
-$referenceNote = trim((string)($_POST['reference_note'] ?? ''));
-$referenceNote = substr($referenceNote, 0, 80);
-$methodLabels = [
-    'card' => 'Card',
-    'gcash' => 'GCash',
-    'bank_transfer' => 'Bank Transfer',
-];
-if (!isset($methodLabels[$method])) {
-    post_signup_payment_redirect_error("Please choose a valid payment method.", $state);
+$methodConfig = paymongo_resolve_checkout_method($method);
+if ($methodConfig === null) {
+    post_signup_payment_redirect_error("Please choose a valid PayMongo payment method.", $state);
 }
 
 try {
@@ -74,45 +73,64 @@ try {
         post_signup_payment_redirect_error("Unable to initialize subscription.", $state);
     }
 
-    $currentPeriodTs = !empty($subscription['current_period_end'])
-        ? strtotime((string)$subscription['current_period_end'])
-        : false;
-    $nowTs = time();
-    $baseTs = ($currentPeriodTs !== false && $currentPeriodTs > $nowTs) ? $currentPeriodTs : $nowTs;
-    $newPeriodEnd = date('Y-m-d H:i:s', strtotime('+1 month', $baseTs));
-    $providerSubscriptionId = 'dummy-signup-' . $orgId . '-' . time();
-
-    $setParts = [
-        "status = 'active'",
-        "current_period_end = ?",
-    ];
-    $params = [$newPeriodEnd];
-
-    if (tenant_column_exists($pdo, 'subscriptions', 'provider')) {
-        $setParts[] = "provider = ?";
-        $params[] = 'dummy';
-    }
-    if (tenant_column_exists($pdo, 'subscriptions', 'provider_subscription_id')) {
-        $setParts[] = "provider_subscription_id = ?";
-        $params[] = $providerSubscriptionId;
-    }
-
-    $params[] = $orgId;
-    $sql = "UPDATE subscriptions SET " . implode(", ", $setParts) . " WHERE organization_id = ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-
     $planName = (string)($pending['plan_name'] ?? 'selected');
-    $methodLabel = (string)$methodLabels[$method];
-    unset($_SESSION['post_signup_checkout']);
+    $planCode = (string)($pending['plan_code'] ?? 'starter');
+    $workspaceName = trim((string)($pending['workspace_name'] ?? 'Workspace'));
+    $billingEmail = trim((string)($pending['billing_email'] ?? ''));
+    $billingName = '';
 
-    $message = "Dummy payment successful via {$methodLabel} for {$planName} plan. You can now log in.";
-    if ($referenceNote !== '') {
-        $message .= " Ref: {$referenceNote}.";
+    if (tenant_table_exists($pdo, 'users')) {
+        $stmtUser = $pdo->prepare("SELECT full_name FROM users WHERE id = ? LIMIT 1");
+        $stmtUser->execute([(int)($pending['user_id'] ?? 0)]);
+        $billingName = trim((string)$stmtUser->fetchColumn());
     }
-    header("Location: ../login.php?success=" . urlencode($message));
+
+    if ($billingName === '') {
+        $billingName = $workspaceName . ' Owner';
+    }
+
+    $referenceNumber = paymongo_reference_number('TFSU', $orgId);
+    $checkoutResult = paymongo_create_checkout_session([
+        'amount_centavos' => paymongo_plan_price_centavos($planCode, 'post_signup'),
+        'billing_email' => $billingEmail,
+        'billing_name' => $billingName,
+        'cancel_url' => paymongo_build_app_url('/app/paymongo-return.php', [
+            'flow' => 'post_signup',
+            'result' => 'cancel',
+            'state' => $state,
+        ]),
+        'description' => "TaskFlow signup checkout for {$workspaceName}",
+        'item_description' => "{$planName} plan for {$workspaceName}",
+        'item_name' => "{$planName} Plan",
+        'metadata' => [
+            'flow' => 'post_signup',
+            'organization_id' => (string)$orgId,
+            'plan_code' => $planCode,
+            'payment_method' => (string)$methodConfig['key'],
+            'workspace_name' => $workspaceName,
+        ],
+        'payment_method_types' => (array)($methodConfig['types'] ?? []),
+        'reference_number' => $referenceNumber,
+        'success_url' => paymongo_build_app_url('/app/paymongo-return.php', [
+            'flow' => 'post_signup',
+            'result' => 'success',
+            'state' => $state,
+        ]),
+    ]);
+
+    if (empty($checkoutResult['ok'])) {
+        post_signup_payment_redirect_error((string)($checkoutResult['error'] ?? 'Unable to start PayMongo checkout right now.'), $state);
+    }
+
+    $_SESSION['post_signup_checkout']['paymongo'] = [
+        'checkout_session_id' => (string)($checkoutResult['checkout_session_id'] ?? ''),
+        'payment_method' => (string)($methodConfig['key'] ?? ''),
+        'reference_number' => $referenceNumber,
+        'started_at' => time(),
+    ];
+
+    header("Location: " . (string)$checkoutResult['checkout_url']);
     exit();
 } catch (Throwable $e) {
-    post_signup_payment_redirect_error("Payment failed right now. Please try again.", $state);
+    post_signup_payment_redirect_error("Unable to start PayMongo checkout right now. Please try again.", $state);
 }
-
