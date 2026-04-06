@@ -101,6 +101,8 @@ if (!$tenantEnabled) {
     $error = "Workspace context is missing. Please log in again.";
 } else {
     try {
+        tenant_sync_workspace_subscription_status($pdo, (int)$orgId);
+
         $stmtOrg = $pdo->prepare(
             "SELECT id, name, slug, status, plan_code, billing_email, created_at
              FROM organizations
@@ -352,7 +354,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Contin
                             </div>
                             <p class="billing-v2-stat-sub">
                                 <?php if ($isSubscriptionBlocked) { ?>
-                                    Access suspended
+                                    Access inactive
                                 <?php } else { ?>
                                     Used <?= $seatUsed ?> &middot; <?= $seatsLeft !== null ? max(0, $seatsLeft) : 'N/A' ?> left
                                 <?php } ?>

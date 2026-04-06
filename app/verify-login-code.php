@@ -56,10 +56,13 @@ if ($role !== 'admin' && $role !== 'employee') {
 
 $isSuperAdmin = !empty($pending['is_super_admin']);
 $orgId = (int)($pending['organization_id'] ?? 0);
+$billingGate = [
+    'required' => false,
+    'reason' => null,
+];
 if ($orgId > 0 && !$isSuperAdmin && tenant_table_exists($pdo, 'organizations')) {
-    $orgStmt = $pdo->prepare("SELECT status FROM organizations WHERE id = ? LIMIT 1");
-    $orgStmt->execute([$orgId]);
-    $org = $orgStmt->fetch(PDO::FETCH_ASSOC);
+    $workspaceAccess = tenant_workspace_access_state($pdo, $orgId, $role === 'admin');
+    $org = is_array($workspaceAccess['organization'] ?? null) ? $workspaceAccess['organization'] : null;
 
     if (!$org) {
         unset($_SESSION['pending_login_verification']);
@@ -67,11 +70,22 @@ if ($orgId > 0 && !$isSuperAdmin && tenant_table_exists($pdo, 'organizations')) 
         exit();
     }
 
-    $orgStatus = strtolower((string)($org['status'] ?? 'active'));
-    if ($orgStatus !== 'active') {
+    if (
+        empty($workspaceAccess['can_access_workspace'])
+        && empty($workspaceAccess['should_route_to_billing'])
+    ) {
         unset($_SESSION['pending_login_verification']);
-        header("Location: ../login.php?error=" . urlencode("Workspace is currently turned off. Please contact your workspace admin."));
+        header("Location: ../login.php?error=" . urlencode((string)($workspaceAccess['message'] ?? tenant_workspace_inactive_message())));
         exit();
+    }
+
+    if (is_array($workspaceAccess['billing_gate'] ?? null)) {
+        $billingGate = $workspaceAccess['billing_gate'];
+    }
+
+    $orgName = trim((string)($org['name'] ?? ''));
+    if ($orgName !== '') {
+        $pending['organization_name'] = $orgName;
     }
 }
 
@@ -113,6 +127,11 @@ if (!empty($pending['must_change_password'])) {
     $_SESSION['must_change_password'] = true;
     $warning = "Action Needed: Please change your password.";
     header("Location: ../edit_profile.php?warning=" . urlencode($warning));
+    exit();
+}
+
+if ($role === 'admin' && !$isSuperAdmin && $orgId > 0 && !empty($billingGate['required'])) {
+    header("Location: ../workspace-billing.php?error=" . urlencode((string)$billingGate['reason']));
     exit();
 }
 

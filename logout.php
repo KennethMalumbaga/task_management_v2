@@ -2,6 +2,7 @@
 session_start();
 date_default_timezone_set('Asia/Manila');
 
+$redirectError = trim((string)($_GET['error'] ?? ''));
 $user_id = isset($_SESSION['id']) ? (int)$_SESSION['id'] : 0;
 $role = isset($_SESSION['role']) ? (string)$_SESSION['role'] : '';
 $organization_id = isset($_SESSION['organization_id']) ? (int)$_SESSION['organization_id'] : null;
@@ -86,5 +87,10 @@ if ($user_id > 0 && $role === 'employee') {
     }
 }
 
-header("Location: login.php");
+$target = "login.php";
+if ($redirectError !== '') {
+    $target .= "?error=" . urlencode($redirectError);
+}
+
+header("Location: " . $target);
 exit();

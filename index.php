@@ -15,20 +15,18 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     // --- DATA FETCHING FOR DASHBOARD ---
     
     // 1. Stats and Counts
+    $top_users = [];
+    $top_groups = [];
     if ($_SESSION['role'] == "admin") {
         $num_task = count_tasks($pdo);
         $completed = count_completed_tasks($pdo);
         $num_users = count_users($pdo); // Employees
-        $top_users = get_top_rated_users($pdo, 5);
-        $top_groups = get_top_rated_groups($pdo, 5);
     } else {
         $num_task = count_my_tasks($pdo, $_SESSION['id']);
         $completed = count_my_completed_tasks($pdo, $_SESSION['id']);
         $num_users = count_users($pdo); // Show total team members
         $stats = get_user_rating_stats($pdo, $_SESSION['id']);
         $avg_rating = $stats['avg'];
-        $top_users = get_top_rated_users($pdo, 5);
-        $top_groups = get_top_rated_groups($pdo, 5);
         $collab_stats = get_collaborative_scores_by_user($pdo, $_SESSION['id']);
         $collaborative_rate = $collab_stats['avg'];
     }
@@ -67,6 +65,22 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         $active_users = get_active_users_with_pause_state($pdo);
     }
     $workspaceCaptureInterval = workspace_screenshot_interval_fetch_minutes($pdo, tenant_get_current_org_id());
+
+    // Fetch leaderboard widgets last so a single failing aggregate query
+    // does not prevent the rest of the dashboard from rendering.
+    try {
+        $top_users = get_top_rated_users($pdo, 5);
+    } catch (Throwable $e) {
+        error_log('Dashboard top users fetch failed: ' . $e->getMessage());
+        $top_users = [];
+    }
+
+    try {
+        $top_groups = get_top_rated_groups($pdo, 5);
+    } catch (Throwable $e) {
+        error_log('Dashboard top groups fetch failed: ' . $e->getMessage());
+        $top_groups = [];
+    }
 ?>
 <!DOCTYPE html>
 <html>

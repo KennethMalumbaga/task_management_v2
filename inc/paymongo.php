@@ -636,6 +636,7 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
 
         $currentProvider = '';
         $currentProviderReference = '';
+        $currentOrgStatus = 'active';
         $providerColumnExists = tenant_column_exists($pdo, 'subscriptions', 'provider');
         $providerReferenceExists = tenant_column_exists($pdo, 'subscriptions', 'provider_subscription_id');
 
@@ -659,6 +660,13 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
 
             $currentProvider = strtolower(trim((string)($row['provider'] ?? '')));
             $currentProviderReference = trim((string)($row['provider_subscription_id'] ?? ''));
+        }
+
+        if (tenant_table_exists($pdo, 'organizations')) {
+            $orgStmt = $pdo->prepare("SELECT status FROM organizations WHERE id = ? LIMIT 1");
+            $orgStmt->execute([$orgId]);
+            $orgRow = $orgStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            $currentOrgStatus = strtolower(trim((string)($orgRow['status'] ?? 'active')));
         }
 
         $currentStatus = strtolower(trim((string)($subscription['status'] ?? '')));
@@ -701,8 +709,26 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
         $params[] = $orgId;
 
         try {
+            $startedTransaction = !$pdo->inTransaction();
+            if ($startedTransaction) {
+                $pdo->beginTransaction();
+            }
+
             $stmt = $pdo->prepare("UPDATE subscriptions SET " . implode(', ', $setParts) . " WHERE organization_id = ?");
             $stmt->execute($params);
+
+            if (
+                tenant_table_exists($pdo, 'organizations')
+                && in_array($currentOrgStatus, ['inactive', 'suspended'], true)
+                && $currentStatus !== 'active'
+            ) {
+                $orgUpdate = $pdo->prepare("UPDATE organizations SET status = 'active' WHERE id = ?");
+                $orgUpdate->execute([$orgId]);
+            }
+
+            if ($startedTransaction) {
+                $pdo->commit();
+            }
 
             return [
                 'ok' => true,
@@ -711,6 +737,10 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
                 'already_processed' => false,
             ];
         } catch (Throwable $e) {
+            if (!empty($startedTransaction) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
             return [
                 'ok' => false,
                 'reason' => 'Unable to activate the workspace subscription right now.',

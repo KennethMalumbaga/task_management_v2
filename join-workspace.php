@@ -62,19 +62,21 @@ if ($token === '') {
         $inviteError = "Invalid invitation link.";
     } else {
         $status = strtolower((string)$invite['status']);
-        $orgStatus = strtolower((string)($invite['organization_status'] ?? 'active'));
         $expiresAt = strtotime((string)$invite['expires_at']);
 
         if ($status !== 'pending') {
             $inviteError = "This invitation is no longer active.";
         } elseif ($expiresAt !== false && $expiresAt <= time()) {
             $inviteError = "This invitation has expired. Ask your admin to send a new one.";
-        } elseif ($orgStatus !== 'active') {
-            $inviteError = "This workspace is currently unavailable.";
         } else {
-            $capacity = tenant_check_workspace_capacity($pdo, (int)$invite['organization_id']);
-            if (!$capacity['ok']) {
-                $inviteError = (string)$capacity['reason'];
+            $workspaceAccess = tenant_workspace_access_state($pdo, (int)$invite['organization_id'], false);
+            if (empty($workspaceAccess['can_access_workspace'])) {
+                $inviteError = (string)($workspaceAccess['message'] ?? "This workspace is currently unavailable.");
+            } else {
+                $capacity = tenant_check_workspace_capacity($pdo, (int)$invite['organization_id']);
+                if (!$capacity['ok']) {
+                    $inviteError = (string)$capacity['reason'];
+                }
             }
         }
     }

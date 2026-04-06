@@ -113,9 +113,9 @@ if ($expiresAt !== false && $expiresAt <= time()) {
     google_invite_redirect($token, "This invitation has expired. Ask your admin to send a new one.");
 }
 
-$orgStatus = strtolower((string)($invite['organization_status'] ?? 'active'));
-if ($orgStatus !== 'active') {
-    google_invite_redirect($token, "This workspace is currently unavailable.");
+$workspaceAccess = tenant_workspace_access_state($pdo, (int)$invite['organization_id'], false);
+if (empty($workspaceAccess['can_access_workspace'])) {
+    google_invite_redirect($token, (string)($workspaceAccess['message'] ?? "This workspace is currently unavailable."));
 }
 
 $capacity = tenant_check_workspace_capacity($pdo, (int)$invite['organization_id']);

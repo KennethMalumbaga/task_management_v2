@@ -166,6 +166,44 @@ function send_login_verification_code_email($to_email, $full_name, $code) {
     );
 }
 
+function send_workspace_subscription_reminder_email($to_email, $full_name, $workspace_name, $ends_at_display, $is_trial = false) {
+    $safeName = trim((string)$full_name) !== '' ? (string)$full_name : 'Workspace Owner';
+    $safeWorkspace = trim((string)$workspace_name) !== '' ? (string)$workspace_name : 'your workspace';
+    $safeEndsAt = trim((string)$ends_at_display) !== '' ? (string)$ends_at_display : 'the scheduled billing end date';
+    $billingUrl = APP_URL . '/workspace-billing.php';
+    $subjectLabel = $is_trial ? 'trial' : 'subscription';
+    $safeNameHtml = htmlspecialchars($safeName, ENT_QUOTES);
+    $safeWorkspaceHtml = htmlspecialchars($safeWorkspace, ENT_QUOTES);
+    $safeEndsAtHtml = htmlspecialchars($safeEndsAt, ENT_QUOTES);
+    $billingUrlHtml = htmlspecialchars($billingUrl, ENT_QUOTES);
+
+    $htmlBody = "
+        <h2>Workspace Billing Reminder</h2>
+        <p>Hello {$safeNameHtml},</p>
+        <p>Your <strong>{$safeWorkspaceHtml}</strong> {$subjectLabel} is nearing its end.</p>
+        <p><strong>Ends on:</strong> {$safeEndsAtHtml}</p>
+        <p>Please renew before the deadline to avoid interrupted workspace access for your team.</p>
+        <p><a href='{$billingUrlHtml}'>Open Workspace Billing</a></p>
+        <br>
+        <p>Regards,<br>The Team</p>
+    ";
+    $textBody =
+        "Hello {$safeName},\n\n" .
+        "Your {$safeWorkspace} {$subjectLabel} is nearing its end.\n" .
+        "Ends on: {$safeEndsAt}\n" .
+        "Renew here: {$billingUrl}\n\n" .
+        "Regards,\nThe Team";
+
+    return tm_send_app_mail(
+        $to_email,
+        $safeName,
+        "TaskFlow {$subjectLabel} reminder for {$safeWorkspace}",
+        $htmlBody,
+        $textBody,
+        'Workspace subscription reminder email failed'
+    );
+}
+
 function send_meeting_reminder_email($to_email, $full_name, array $meetingData) {
     if (MAIL_USERNAME === '' || MAIL_PASSWORD === '') {
         error_log('Mail not configured: set MAIL_USERNAME and MAIL_PASSWORD environment variables.');

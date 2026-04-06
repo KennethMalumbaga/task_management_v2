@@ -97,9 +97,9 @@ try {
         throw new RuntimeException("This invitation has expired.");
     }
 
-    $orgStatus = strtolower((string)($invite['organization_status'] ?? 'active'));
-    if ($orgStatus !== 'active') {
-        throw new RuntimeException("This workspace is currently unavailable.");
+    $workspaceAccess = tenant_workspace_access_state($pdo, (int)$invite['organization_id'], false);
+    if (empty($workspaceAccess['can_access_workspace'])) {
+        throw new RuntimeException((string)($workspaceAccess['message'] ?? "This workspace is currently unavailable."));
     }
 
     $isOpenLink = invite_is_open_link_email((string)$invite['email']);

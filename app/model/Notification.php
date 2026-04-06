@@ -69,6 +69,15 @@ function count_notification($pdo, $id){
 	return $stmt->fetchColumn();
 }
 
+function notification_exists_for_recipient($pdo, $recipient_id, $type, $message){
+	$sql = "SELECT 1 FROM notifications WHERE recipient=? AND type=? AND message=? LIMIT 1";
+	[$sql, $params] = notification_append_scope($pdo, $sql, [$recipient_id, $type, $message]);
+	$stmt = $pdo->prepare($sql);
+	$stmt->execute($params);
+
+	return (bool)$stmt->fetchColumn();
+}
+
 function insert_notification($pdo, $data){
 	// Automatically set the current date when inserting a notification.
     // If `notified_at` exists, also store full timestamp for "x minutes/hours ago" UI.

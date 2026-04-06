@@ -18,22 +18,44 @@ if (!function_exists('tenant_workspace_requires_payment')) {
     require_once __DIR__ . "/tenant.php";
 }
 
-if (isset($_SESSION['role'], $_SESSION['id']) && $_SESSION['role'] === 'admin' && isset($pdo)) {
+if (isset($_SESSION['role'], $_SESSION['id']) && isset($pdo)) {
     $currentPageForBillingGate = basename($_SERVER['PHP_SELF'] ?? 'index.php');
     $allowedBillingPages = ['workspace-billing.php', 'logout.php'];
-    if (!in_array($currentPageForBillingGate, $allowedBillingPages, true)) {
-        $orgIdForBillingGate = tenant_get_current_org_id();
-        if ($orgIdForBillingGate) {
-            $billingGate = tenant_workspace_requires_payment($pdo, (int)$orgIdForBillingGate);
-            if (!empty($billingGate['required'])) {
-                $target = "workspace-billing.php?error=" . urlencode((string)$billingGate['reason']);
-                if (!headers_sent()) {
-                    header("Location: " . $target);
-                } else {
-                    echo '<script>window.location.replace(' . json_encode($target) . ');</script>';
-                }
-                exit();
+    $orgIdForBillingGate = tenant_get_current_org_id();
+    $isCurrentUserSuperAdmin = $_SESSION['role'] === 'admin' && (string)($_SESSION['username'] ?? '') === 'admin';
+
+    if ($orgIdForBillingGate && !$isCurrentUserSuperAdmin) {
+        $workspaceAccess = tenant_workspace_access_state(
+            $pdo,
+            (int)$orgIdForBillingGate,
+            $_SESSION['role'] === 'admin'
+        );
+
+        if (
+            !in_array($currentPageForBillingGate, $allowedBillingPages, true)
+            && !empty($workspaceAccess['should_route_to_billing'])
+        ) {
+            $target = "workspace-billing.php?error="
+                . urlencode((string)($workspaceAccess['billing_gate']['reason'] ?? $workspaceAccess['message']));
+            if (!headers_sent()) {
+                header("Location: " . $target);
+            } else {
+                echo '<script>window.location.replace(' . json_encode($target) . ');</script>';
             }
+            exit();
+        }
+
+        if (
+            empty($workspaceAccess['can_access_workspace'])
+            && empty($workspaceAccess['should_route_to_billing'])
+        ) {
+            $target = "logout.php?error=" . urlencode((string)($workspaceAccess['message'] ?? tenant_workspace_inactive_message()));
+            if (!headers_sent()) {
+                header("Location: " . $target);
+            } else {
+                echo '<script>window.location.replace(' . json_encode($target) . ');</script>';
+            }
+            exit();
         }
     }
 }

@@ -48,6 +48,11 @@ $tenantScripts = [
 
 $globalScripts = [
     [
+        'path' => 'send_subscription_reminders.php?global=1',
+        'label' => 'Send Subscription Reminders',
+        'description' => 'Sends 15-day subscription reminder notifications and owner emails.',
+    ],
+    [
         'path' => 'run_migration_workspace_invites.php',
         'label' => 'Run Invite Migration',
         'description' => 'Creates workspace_invites table and indexes.',
@@ -66,17 +71,30 @@ $globalScripts = [
 
 $orgRows = [];
 $queryError = null;
+$selectedWorkspaceId = isset($_GET['workspace_id']) ? (int)$_GET['workspace_id'] : 0;
+$selectedWorkspace = null;
+$selectedWorkspaceUsers = [];
+$selectedWorkspaceError = null;
 
 try {
     if ($tenantEnabled && tenant_table_exists($pdo, 'organizations')) {
+        $orgIdStmt = $pdo->query("SELECT id FROM organizations ORDER BY id ASC");
+        $orgIdsForSync = $orgIdStmt ? $orgIdStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        foreach ($orgIdsForSync as $syncOrgId) {
+            $syncOrgId = (int)$syncOrgId;
+            if ($syncOrgId > 0) {
+                tenant_sync_workspace_subscription_status($pdo, $syncOrgId);
+            }
+        }
+
         $hasMembers = tenant_table_exists($pdo, 'organization_members');
         $hasSubscriptions = tenant_table_exists($pdo, 'subscriptions');
 
         $sql = "SELECT o.id, o.name, o.slug, o.status, o.plan_code";
         if ($hasSubscriptions) {
-            $sql .= ", s.status AS subscription_status, s.seat_limit";
+            $sql .= ", s.status AS subscription_status, s.seat_limit, s.trial_ends_at, s.current_period_end";
         } else {
-            $sql .= ", NULL AS subscription_status, NULL AS seat_limit";
+            $sql .= ", NULL AS subscription_status, NULL AS seat_limit, NULL AS trial_ends_at, NULL AS current_period_end";
         }
         if ($hasMembers) {
             $sql .= ", COUNT(DISTINCT om.user_id) AS member_count";
@@ -94,7 +112,7 @@ try {
 
         $sql .= " GROUP BY o.id, o.name, o.slug, o.status, o.plan_code";
         if ($hasSubscriptions) {
-            $sql .= ", s.status, s.seat_limit";
+            $sql .= ", s.status, s.seat_limit, s.trial_ends_at, s.current_period_end";
         }
         $sql .= " ORDER BY o.id ASC";
 
@@ -114,6 +132,297 @@ function maintenance_build_link(string $path, ?int $orgId = null, bool $global =
         return $path . '?org_id=' . (int)$orgId;
     }
     return $path;
+}
+
+function maintenance_format_datetime(?string $value): string
+{
+    if ($value === null || trim($value) === '') {
+        return 'N/A';
+    }
+
+    $ts = strtotime($value);
+    if ($ts === false) {
+        return 'N/A';
+    }
+
+    return date('M j, Y g:i A', $ts);
+}
+
+function maintenance_format_subscription_status(?string $status): string
+{
+    $normalized = strtolower(trim((string)$status));
+    if ($normalized === '') {
+        return 'No subscription';
+    }
+
+    $labels = [
+        'trialing' => 'Free Trial',
+        'trial' => 'Free Trial',
+        'past_due' => 'Past Due',
+        'incomplete_expired' => 'Incomplete Expired',
+    ];
+
+    if (isset($labels[$normalized])) {
+        return $labels[$normalized];
+    }
+
+    return ucwords(str_replace('_', ' ', $normalized));
+}
+
+function maintenance_name_initials(string $name): string
+{
+    $name = trim($name);
+    if ($name === '') {
+        return 'U';
+    }
+
+    $parts = preg_split('/\s+/', $name) ?: [];
+    $initials = '';
+    foreach ($parts as $part) {
+        $part = trim((string)$part);
+        if ($part === '') {
+            continue;
+        }
+        $initials .= strtoupper(substr($part, 0, 1));
+        if (strlen($initials) >= 2) {
+            break;
+        }
+    }
+
+    if ($initials === '') {
+        $initials = strtoupper(substr($name, 0, 1));
+    }
+
+    return $initials !== '' ? $initials : 'U';
+}
+
+function maintenance_fetch_workspace_users($pdo, int $orgId): array
+{
+    $orgId = (int)$orgId;
+    if ($orgId <= 0 || !tenant_table_exists($pdo, 'users')) {
+        return [];
+    }
+
+    $hasMembers = tenant_table_exists($pdo, 'organization_members');
+    $hasUserOrg = tenant_column_exists($pdo, 'users', 'organization_id');
+    $hasProfileImage = tenant_column_exists($pdo, 'users', 'profile_image');
+    $hasCreatedAt = tenant_column_exists($pdo, 'users', 'created_at');
+
+    $profileSelect = $hasProfileImage ? 'u.profile_image AS profile_image' : 'NULL AS profile_image';
+    $createdAtSelect = $hasCreatedAt ? 'u.created_at AS created_at' : 'NULL AS created_at';
+
+    if ($hasMembers) {
+        $stmt = $pdo->prepare(
+            "SELECT
+                u.id,
+                u.full_name,
+                u.username,
+                u.role AS account_role,
+                CASE
+                    WHEN om.role IS NULL OR om.role = '' THEN CASE WHEN u.role = 'admin' THEN 'admin' ELSE 'member' END
+                    ELSE om.role
+                END AS workspace_role,
+                {$profileSelect},
+                {$createdAtSelect}
+             FROM organization_members om
+             JOIN users u ON u.id = om.user_id
+             WHERE om.organization_id = ?
+             ORDER BY
+                CASE LOWER(COALESCE(om.role, ''))
+                    WHEN 'owner' THEN 0
+                    WHEN 'admin' THEN 1
+                    ELSE 2
+                END,
+                LOWER(COALESCE(u.full_name, '')),
+                u.id ASC"
+        );
+        $stmt->execute([$orgId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $rows ?: [];
+    }
+
+    if ($hasUserOrg) {
+        $stmt = $pdo->prepare(
+            "SELECT
+                u.id,
+                u.full_name,
+                u.username,
+                u.role AS account_role,
+                CASE WHEN u.role = 'admin' THEN 'admin' ELSE 'member' END AS workspace_role,
+                {$profileSelect},
+                {$createdAtSelect}
+             FROM users u
+             WHERE u.organization_id = ?
+             ORDER BY
+                CASE WHEN u.role = 'admin' THEN 0 ELSE 1 END,
+                LOWER(COALESCE(u.full_name, '')),
+                u.id ASC"
+        );
+        $stmt->execute([$orgId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $rows ?: [];
+    }
+
+    return [];
+}
+
+function maintenance_workspace_seat_meta(array $workspace): array
+{
+    $memberCount = (int)($workspace['member_count'] ?? 0);
+    $seatLimitRaw = $workspace['seat_limit'] ?? null;
+    $seatLimit = $seatLimitRaw !== null ? (int)$seatLimitRaw : null;
+
+    if ($seatLimit === null) {
+        return [
+            'value' => 'N/A',
+            'detail' => $memberCount . ' member' . ($memberCount === 1 ? '' : 's') . ' counted',
+            'tone' => 'muted',
+        ];
+    }
+
+    if ($seatLimit <= 0) {
+        return [
+            'value' => 'No seats',
+            'detail' => 'Subscription seat limit is not configured',
+            'tone' => 'danger',
+        ];
+    }
+
+    $seatsLeft = $seatLimit - $memberCount;
+    if ($seatsLeft > 0) {
+        return [
+            'value' => $seatsLeft . ' left',
+            'detail' => $memberCount . ' / ' . $seatLimit . ' seats used',
+            'tone' => $seatsLeft <= 2 ? 'warn' : 'ok',
+        ];
+    }
+
+    if ($seatsLeft === 0) {
+        return [
+            'value' => 'Full',
+            'detail' => $memberCount . ' / ' . $seatLimit . ' seats used',
+            'tone' => 'warn',
+        ];
+    }
+
+    return [
+        'value' => abs($seatsLeft) . ' over',
+        'detail' => $memberCount . ' / ' . $seatLimit . ' seats used',
+        'tone' => 'danger',
+    ];
+}
+
+function maintenance_workspace_time_meta(array $workspace): array
+{
+    $status = strtolower(trim((string)($workspace['subscription_status'] ?? '')));
+    $trialEndsAt = trim((string)($workspace['trial_ends_at'] ?? ''));
+    $periodEndsAt = trim((string)($workspace['current_period_end'] ?? ''));
+
+    $referenceValue = '';
+    $referenceLabel = 'Billing date';
+    if (in_array($status, ['trialing', 'trial'], true) && $trialEndsAt !== '') {
+        $referenceValue = $trialEndsAt;
+        $referenceLabel = 'Trial ends';
+    } elseif ($periodEndsAt !== '') {
+        $referenceValue = $periodEndsAt;
+        $referenceLabel = in_array($status, ['active'], true) ? 'Period ends' : 'Access ends';
+    } elseif ($trialEndsAt !== '') {
+        $referenceValue = $trialEndsAt;
+        $referenceLabel = 'Trial ends';
+    }
+
+    if ($referenceValue === '') {
+        return [
+            'value' => 'No date',
+            'detail' => 'No trial or renewal date found',
+            'tone' => 'muted',
+            'reference_label' => $referenceLabel,
+            'reference_at' => 'N/A',
+        ];
+    }
+
+    $targetTs = strtotime($referenceValue);
+    if ($targetTs === false) {
+        return [
+            'value' => 'Invalid',
+            'detail' => $referenceLabel . ' is not readable',
+            'tone' => 'danger',
+            'reference_label' => $referenceLabel,
+            'reference_at' => 'N/A',
+        ];
+    }
+
+    $diff = $targetTs - time();
+    if ($diff <= 0) {
+        return [
+            'value' => 'Expired',
+            'detail' => $referenceLabel . ' ' . maintenance_format_datetime($referenceValue),
+            'tone' => 'danger',
+            'reference_label' => $referenceLabel,
+            'reference_at' => maintenance_format_datetime($referenceValue),
+        ];
+    }
+
+    $days = (int)floor($diff / 86400);
+    $hours = (int)floor(($diff % 86400) / 3600);
+    $minutes = (int)floor(($diff % 3600) / 60);
+
+    if ($days > 0) {
+        $value = $days . 'd ' . $hours . 'h left';
+    } elseif ($hours > 0) {
+        $value = $hours . 'h ' . $minutes . 'm left';
+    } else {
+        $value = max(1, $minutes) . 'm left';
+    }
+
+    $tone = 'ok';
+    if ($days < 1) {
+        $tone = 'danger';
+    } elseif ($days <= 3) {
+        $tone = 'warn';
+    }
+
+    return [
+        'value' => $value,
+        'detail' => $referenceLabel . ' ' . maintenance_format_datetime($referenceValue),
+        'tone' => $tone,
+        'reference_label' => $referenceLabel,
+        'reference_at' => maintenance_format_datetime($referenceValue),
+    ];
+}
+
+foreach ($orgRows as &$orgRow) {
+    $ownerContact = tenant_get_workspace_owner_contact($pdo, (int)($orgRow['id'] ?? 0));
+    $ownerName = trim((string)($ownerContact['full_name'] ?? ''));
+    $ownerEmail = trim((string)($ownerContact['email'] ?? ''));
+
+    if ($ownerName === '') {
+        $ownerName = 'No owner found';
+    }
+
+    $orgRow['owner_name'] = $ownerName;
+    $orgRow['owner_email'] = $ownerEmail;
+    $orgRow['owner_initials'] = maintenance_name_initials($ownerName);
+}
+unset($orgRow);
+
+if ($selectedWorkspaceId > 0) {
+    foreach ($orgRows as $orgRow) {
+        if ((int)($orgRow['id'] ?? 0) === $selectedWorkspaceId) {
+            $selectedWorkspace = $orgRow;
+            break;
+        }
+    }
+
+    if ($selectedWorkspace === null && $queryError === null) {
+        $selectedWorkspaceError = 'The selected workspace was not found.';
+    } elseif ($selectedWorkspace !== null) {
+        try {
+            $selectedWorkspaceUsers = maintenance_fetch_workspace_users($pdo, $selectedWorkspaceId);
+        } catch (Throwable $e) {
+            $selectedWorkspaceError = 'Unable to load workspace users right now.';
+        }
+    }
 }
 
 $totalWorkspaces = count($orgRows);
@@ -188,8 +497,9 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         .md-search input { border: none; outline: none; font-size: 13px; color: var(--text); background: transparent; width: 100%; }
         .md-search input::placeholder { color: var(--muted); }
         .md-workspaces-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
-        .md-ws-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px 18px 14px; box-shadow: 0 2px 10px rgba(15,23,42,.04); transition: box-shadow .2s, transform .2s; }
+        .md-ws-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px 18px 14px; box-shadow: 0 2px 10px rgba(15,23,42,.04); transition: box-shadow .2s, transform .2s, border-color .2s; }
         .md-ws-card:hover { box-shadow: 0 6px 22px rgba(108,60,225,.1); transform: translateY(-2px); }
+        .md-ws-card.is-selected { border-color: #a78bfa; box-shadow: 0 10px 26px rgba(108,60,225,.14); }
         .md-ws-card.is-off { background: #f1f5f9; border-color: #cbd5e1; box-shadow: none; }
         .md-ws-card.is-off:hover { box-shadow: 0 4px 14px rgba(100,116,139,.15); transform: translateY(-1px); }
         .md-ws-card.is-off .md-ws-name,
@@ -198,6 +508,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         .md-ws-card.is-off .md-ws-sub-row { color: #475569; }
         .md-ws-card.is-off .md-ws-meta { background: #e2e8f0; }
         .md-ws-card.is-off .md-ws-meta-item:first-child { border-right-color: #cbd5e1; }
+        .md-ws-card.is-clickable { cursor: pointer; }
         .md-ws-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; }
         .md-ws-name { font-size: 15px; font-weight: 700; color: var(--text); }
         .md-ws-more-wrap { position: relative; }
@@ -217,14 +528,27 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         .md-badge.inactive { background:#e2e8f0; color:#475569; }
         .md-badge.suspended{ background:#fee2e2; color:#991b1b; }
         .md-ws-slug { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+        .md-ws-owner { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:12px; }
+        .md-ws-owner i { color: #f59e0b; }
+        .md-ws-owner strong { color: #334155; font-weight: 700; }
+        .md-ws-owner-email { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; background:#f8fafc; border:1px solid #e2e8f0; color:#475569; font-size:11px; }
         .md-ws-meta { display: grid; grid-template-columns: 1fr 1fr; background: #f8f7ff; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
         .md-ws-meta-item { padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
         .md-ws-meta-item:first-child { border-right: 1px solid #ede9fe; }
         .md-ws-meta-icon { color: var(--brand-2); font-size: 13px; }
         .md-ws-meta-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
         .md-ws-meta-value { font-size: 16px; font-weight: 700; color: var(--text); }
-        .md-ws-sub-row { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; margin-bottom: 10px; }
+        .md-ws-sub-row { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; line-height: 1.5; }
         .md-ws-sub-row i { color: var(--brand-2); }
+        .md-ws-insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+        .md-ws-insight { border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; background: #fcfcff; min-width: 0; }
+        .md-ws-insight-label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+        .md-ws-insight-value { margin-top: 5px; font-size: 18px; font-weight: 800; color: var(--text); line-height: 1.1; word-break: break-word; }
+        .md-ws-insight-value.is-ok { color: #166534; }
+        .md-ws-insight-value.is-warn { color: #b45309; }
+        .md-ws-insight-value.is-danger { color: #b91c1c; }
+        .md-ws-insight-value.is-muted { color: #64748b; }
+        .md-ws-insight-meta { margin-top: 6px; font-size: 11px; color: var(--muted); line-height: 1.45; }
         .md-ws-actions { display: flex; gap: 8px; justify-content: center; border-top: 1px solid var(--border); padding-top: 10px; }
         .md-ws-action-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; text-decoration: none; color: var(--brand); padding: 4px 10px; border-radius: 8px; transition: background .15s, transform .15s; }
         .md-ws-action-btn:hover { background: var(--soft); transform: translateY(-1px); }
@@ -232,7 +556,35 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         .md-ws-action-btn.destructive:hover { background: #fee2e2; }
         .md-ws-action-btn.success { color: #16a34a; }
         .md-ws-action-btn.success:hover { background: #dcfce7; }
+        .md-ws-action-btn.info { color: #2563eb; }
+        .md-ws-action-btn.info:hover { background: #dbeafe; }
         .md-ws-action-btn.is-running { pointer-events:none; opacity:.6; }
+        .md-detail-panel { background:#fff; border:1px solid var(--border); border-radius:16px; padding:20px; margin: 0 0 26px; box-shadow: 0 4px 16px rgba(15,23,42,.05); }
+        .md-detail-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+        .md-detail-title { margin:0 0 4px; font-size:22px; font-weight:800; color:var(--text); }
+        .md-detail-sub { font-size:13px; color:var(--muted); line-height:1.5; }
+        .md-detail-close { display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:#fff; color:#475569; text-decoration:none; font-size:12px; font-weight:700; white-space:nowrap; }
+        .md-detail-close:hover { background:#f8fafc; color:#111827; }
+        .md-detail-stats { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; margin-bottom:16px; }
+        .md-detail-stat { border:1px solid var(--border); border-radius:12px; background:#fafbff; padding:14px; }
+        .md-detail-stat-label { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+        .md-detail-stat-value { font-size:18px; font-weight:800; color:var(--text); line-height:1.25; }
+        .md-detail-stat-meta { margin-top:5px; font-size:12px; color:var(--muted); line-height:1.45; word-break:break-word; }
+        .md-user-list { display:flex; flex-direction:column; gap:10px; }
+        .md-user-row { display:grid; grid-template-columns: minmax(0, 1.6fr) 140px 140px 120px; gap:12px; align-items:center; border:1px solid var(--border); border-radius:14px; background:#fff; padding:14px 16px; }
+        .md-user-person { display:flex; align-items:center; gap:12px; min-width:0; }
+        .md-user-avatar { width:42px; height:42px; border-radius:50%; background:var(--brand-grad); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; flex-shrink:0; }
+        .md-user-name { font-size:14px; font-weight:700; color:var(--text); line-height:1.25; }
+        .md-user-email { font-size:12px; color:var(--muted); margin-top:3px; word-break:break-word; }
+        .md-user-pill { display:inline-flex; align-items:center; justify-content:center; border-radius:999px; padding:5px 10px; font-size:11px; font-weight:700; text-transform:capitalize; }
+        .md-user-pill.owner { background:#fef3c7; color:#92400e; }
+        .md-user-pill.admin { background:#dbeafe; color:#1d4ed8; }
+        .md-user-pill.member { background:#e0f2fe; color:#0369a1; }
+        .md-user-pill.employee { background:#e5e7eb; color:#374151; }
+        .md-user-pill.user-admin { background:#ede9fe; color:#6d28d9; }
+        .md-user-pill.user-employee { background:#dcfce7; color:#166534; }
+        .md-user-cell-label { display:none; font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+        .md-empty-users { border:1px dashed var(--soft-border); border-radius:14px; padding:18px; background:#f8f7ff; color:var(--muted); font-size:13px; }
         .md-bottom-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 24px; }
         .md-panel { background: #fff; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(15,23,42,.04); }
         .md-panel-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; }
@@ -272,8 +624,8 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         .md-run-log-time { color: #94a3b8; margin-right: 7px; font-family: Consolas, monospace; }
         .md-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
         .md-filter-bar select { height: 36px; border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; background: #fff; color: #374151; font-size: 13px; outline: none; }
-        @media (max-width: 1024px) { .md-workspaces-grid { grid-template-columns: repeat(2,1fr); } .md-bottom-grid { grid-template-columns: 1fr; } }
-        @media (max-width: 640px) { .md-stats-row { grid-template-columns: 1fr; } .md-workspaces-grid { grid-template-columns: 1fr; } .md-container { padding: 16px; } }
+        @media (max-width: 1024px) { .md-workspaces-grid { grid-template-columns: repeat(2,1fr); } .md-bottom-grid { grid-template-columns: 1fr; } .md-detail-stats { grid-template-columns: 1fr; } .md-user-row { grid-template-columns: minmax(0, 1fr) 120px 120px 110px; } }
+        @media (max-width: 640px) { .md-stats-row { grid-template-columns: 1fr; } .md-workspaces-grid { grid-template-columns: 1fr; } .md-ws-insights { grid-template-columns: 1fr; } .md-container { padding: 16px; } .md-detail-head { flex-direction:column; } .md-user-row { grid-template-columns: 1fr; } .md-user-cell-label { display:block; } }
     </style>
 </head>
 <body>
@@ -371,11 +723,17 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         <?php foreach ($orgRows as $org) {
             $statusClass = strtolower((string)$org['status']);
             $planClass   = strtolower((string)$org['plan_code']);
+            $subscriptionStatusLabel = maintenance_format_subscription_status($org['subscription_status'] ?? null);
+            $seatMeta = maintenance_workspace_seat_meta($org);
+            $timeMeta = maintenance_workspace_time_meta($org);
+            $ownerName = trim((string)($org['owner_name'] ?? ''));
+            $ownerEmail = trim((string)($org['owner_email'] ?? ''));
             $workspaceName = trim((string)($org['name'] ?? ''));
             if ($workspaceName === '') {
                 $workspaceName = 'this workspace';
             }
             $isWorkspaceOff = $statusClass !== 'active';
+            $isSelectedWorkspace = $selectedWorkspaceId > 0 && (int)$selectedWorkspaceId === (int)$org['id'];
             $nextWorkspaceStatus = $isWorkspaceOff ? 'active' : 'inactive';
             $toggleLabel = $isWorkspaceOff ? 'Turn On Workspace' : 'Turn Off Workspace';
             $toggleText = $isWorkspaceOff ? 'Turn On' : 'Turn Off';
@@ -386,13 +744,21 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             $toggleHref  = maintenance_build_link('toggle_workspace_status.php', (int)$org['id'])
                 . '&set_status=' . urlencode($nextWorkspaceStatus)
                 . '&return_to=maintenance_dashboard';
+            $sendReminderHref = maintenance_build_link('send_subscription_reminders.php', (int)$org['id'])
+                . '&ignore_window=1';
             $deleteHref  = maintenance_build_link('delete_workspace.php', (int)$org['id']) . '&return_to=maintenance_dashboard';
+            $viewWorkspaceHref = 'maintenance_dashboard.php?workspace_id=' . (int)$org['id'] . '#workspaceUsersPanel';
         ?>
-        <div class="md-ws-card<?= $isWorkspaceOff ? ' is-off' : '' ?>"
+        <div class="md-ws-card js-workspace-card<?= $isWorkspaceOff ? ' is-off' : '' ?><?= $isSelectedWorkspace ? ' is-selected' : '' ?> is-clickable"
              data-workspace-name="<?= htmlspecialchars(strtolower((string)$org['name'])) ?>"
              data-workspace-slug="<?= htmlspecialchars(strtolower((string)$org['slug'])) ?>"
+             data-workspace-owner="<?= htmlspecialchars(strtolower($ownerName . ' ' . $ownerEmail)) ?>"
              data-workspace-status="<?= htmlspecialchars($statusClass) ?>"
-             data-workspace-plan="<?= htmlspecialchars($planClass) ?>">
+             data-workspace-plan="<?= htmlspecialchars($planClass) ?>"
+             data-view-href="<?= htmlspecialchars($viewWorkspaceHref) ?>"
+             tabindex="0"
+             role="button"
+             aria-label="View users for <?= htmlspecialchars((string)$org['name']) ?>">
 
             <div class="md-ws-card-header">
                 <div class="md-ws-name"><?= htmlspecialchars((string)$org['name']) ?></div>
@@ -421,6 +787,14 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             </div>
 
             <div class="md-ws-slug">/<?= htmlspecialchars((string)$org['slug']) ?></div>
+            <div class="md-ws-owner">
+                <i class="fa-solid fa-crown"></i>
+                <span>Owner:</span>
+                <strong><?= htmlspecialchars($ownerName !== '' ? $ownerName : 'No owner found') ?></strong>
+                <?php if ($ownerEmail !== '') { ?>
+                    <span class="md-ws-owner-email"><?= htmlspecialchars($ownerEmail) ?></span>
+                <?php } ?>
+            </div>
 
             <div class="md-ws-meta">
                 <div class="md-ws-meta-item">
@@ -439,18 +813,43 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                 </div>
             </div>
 
+            <div class="md-ws-insights">
+                <div class="md-ws-insight">
+                    <div class="md-ws-insight-label">Seats Left</div>
+                    <div class="md-ws-insight-value is-<?= htmlspecialchars($seatMeta['tone']) ?>"><?= htmlspecialchars($seatMeta['value']) ?></div>
+                    <div class="md-ws-insight-meta"><?= htmlspecialchars($seatMeta['detail']) ?></div>
+                </div>
+                <div class="md-ws-insight">
+                    <div class="md-ws-insight-label">Time Left</div>
+                    <div class="md-ws-insight-value is-<?= htmlspecialchars($timeMeta['tone']) ?>"><?= htmlspecialchars($timeMeta['value']) ?></div>
+                    <div class="md-ws-insight-meta"><?= htmlspecialchars($timeMeta['detail']) ?></div>
+                </div>
+            </div>
+
             <?php if (!empty($org['subscription_status'])) { ?>
             <div class="md-ws-sub-row">
                 <i class="fa-solid fa-wave-square"></i>
                 <strong>Subscription</strong>
-                &middot; <?= htmlspecialchars((string)$org['subscription_status']) ?>
-                <?php if (!empty($org['seat_limit'])) { ?>
-                    &middot; <?= (int)$org['seat_limit'] ?> seats
+                &middot; <?= htmlspecialchars($subscriptionStatusLabel) ?>
+                <?php if (($org['seat_limit'] ?? null) !== null) { ?>
+                    &middot; <?= (int)$org['seat_limit'] ?> total seats
+                <?php } ?>
+                <?php if (($timeMeta['reference_at'] ?? 'N/A') !== 'N/A') { ?>
+                    &middot; <?= htmlspecialchars((string)$timeMeta['reference_label']) ?> <?= htmlspecialchars((string)$timeMeta['reference_at']) ?>
                 <?php } ?>
             </div>
             <?php } ?>
 
             <div class="md-ws-actions">
+                <a href="<?= htmlspecialchars($sendReminderHref) ?>"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   data-action-label="Send Reminder"
+                   data-action-workspace="<?= htmlspecialchars((string)$org['name']) ?>"
+                   class="md-ws-action-btn info"
+                   onclick="return confirm('Send subscription reminder now for <?= htmlspecialchars(addslashes((string)$org['name']), ENT_QUOTES) ?>? This will create a notification and send an email to the workspace owner.');">
+                    <i class="fa-solid fa-envelope"></i> Send Reminder
+                </a>
                 <a href="<?= htmlspecialchars($toggleHref) ?>"
                    target="_self"
                    rel="noopener noreferrer"
@@ -467,6 +866,105 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         </div>
         <?php } ?>
     </div>
+    <?php } ?>
+
+    <?php if ($selectedWorkspace !== null || $selectedWorkspaceError !== null) { ?>
+    <section class="md-detail-panel" id="workspaceUsersPanel">
+        <div class="md-detail-head">
+            <div>
+                <h2 class="md-detail-title">
+                    <?php if ($selectedWorkspace !== null) { ?>
+                        <?= htmlspecialchars((string)($selectedWorkspace['name'] ?? 'Workspace')) ?> Users
+                    <?php } else { ?>
+                        Workspace Users
+                    <?php } ?>
+                </h2>
+                <div class="md-detail-sub">
+                    <?php if ($selectedWorkspace !== null) { ?>
+                        Super admin view for all users in this workspace, including the owner account.
+                    <?php } else { ?>
+                        Select a workspace card above to view all users in that workspace.
+                    <?php } ?>
+                </div>
+            </div>
+            <a href="maintenance_dashboard.php" class="md-detail-close">
+                <i class="fa-solid fa-xmark"></i> Clear Selection
+            </a>
+        </div>
+
+        <?php if ($selectedWorkspaceError !== null) { ?>
+            <div class="md-empty-users"><?= htmlspecialchars($selectedWorkspaceError) ?></div>
+        <?php } elseif ($selectedWorkspace !== null) { ?>
+            <div class="md-detail-stats">
+                <div class="md-detail-stat">
+                    <div class="md-detail-stat-label">Workspace Owner</div>
+                    <div class="md-detail-stat-value"><?= htmlspecialchars((string)($selectedWorkspace['owner_name'] ?? 'No owner found')) ?></div>
+                    <div class="md-detail-stat-meta">
+                        <?php if (!empty($selectedWorkspace['owner_email'])) { ?>
+                            <?= htmlspecialchars((string)$selectedWorkspace['owner_email']) ?>
+                        <?php } else { ?>
+                            No owner email saved
+                        <?php } ?>
+                    </div>
+                </div>
+                <div class="md-detail-stat">
+                    <div class="md-detail-stat-label">Workspace Status</div>
+                    <div class="md-detail-stat-value"><?= htmlspecialchars((string)($selectedWorkspace['status'] ?? 'Unknown')) ?></div>
+                    <div class="md-detail-stat-meta">
+                        <?= (int)($selectedWorkspace['member_count'] ?? 0) ?> total user<?= (int)($selectedWorkspace['member_count'] ?? 0) === 1 ? '' : 's' ?>
+                    </div>
+                </div>
+                <div class="md-detail-stat">
+                    <div class="md-detail-stat-label">Subscription</div>
+                    <div class="md-detail-stat-value"><?= htmlspecialchars(maintenance_format_subscription_status($selectedWorkspace['subscription_status'] ?? null)) ?></div>
+                    <div class="md-detail-stat-meta"><?= htmlspecialchars(maintenance_workspace_time_meta($selectedWorkspace)['detail']) ?></div>
+                </div>
+            </div>
+
+            <?php if (empty($selectedWorkspaceUsers)) { ?>
+                <div class="md-empty-users">No users were found in this workspace.</div>
+            <?php } else { ?>
+                <div class="md-user-list">
+                    <?php foreach ($selectedWorkspaceUsers as $workspaceUser) {
+                        $userName = trim((string)($workspaceUser['full_name'] ?? ''));
+                        if ($userName === '') {
+                            $userName = 'Unnamed User';
+                        }
+                        $userEmail = trim((string)($workspaceUser['username'] ?? ''));
+                        $workspaceRole = strtolower(trim((string)($workspaceUser['workspace_role'] ?? 'member')));
+                        $accountRole = strtolower(trim((string)($workspaceUser['account_role'] ?? 'employee')));
+                        $joinedAt = maintenance_format_datetime($workspaceUser['created_at'] ?? null);
+                    ?>
+                    <div class="md-user-row">
+                        <div class="md-user-person">
+                            <div class="md-user-avatar"><?= htmlspecialchars(maintenance_name_initials($userName)) ?></div>
+                            <div style="min-width:0;">
+                                <div class="md-user-name"><?= htmlspecialchars($userName) ?></div>
+                                <div class="md-user-email"><?= htmlspecialchars($userEmail !== '' ? $userEmail : 'No email saved') ?></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="md-user-cell-label">Workspace Role</div>
+                            <span class="md-user-pill <?= htmlspecialchars(in_array($workspaceRole, ['owner', 'admin', 'member'], true) ? $workspaceRole : 'member') ?>">
+                                <?= htmlspecialchars($workspaceRole !== '' ? $workspaceRole : 'member') ?>
+                            </span>
+                        </div>
+                        <div>
+                            <div class="md-user-cell-label">Account Role</div>
+                            <span class="md-user-pill <?= htmlspecialchars($accountRole === 'admin' ? 'user-admin' : 'user-employee') ?>">
+                                <?= htmlspecialchars($accountRole !== '' ? $accountRole : 'employee') ?>
+                            </span>
+                        </div>
+                        <div>
+                            <div class="md-user-cell-label">Joined</div>
+                            <div class="md-user-email"><?= htmlspecialchars($joinedAt) ?></div>
+                        </div>
+                    </div>
+                    <?php } ?>
+                </div>
+            <?php } ?>
+        <?php } ?>
+    </section>
     <?php } ?>
 
     <!-- BOTTOM 3-COLUMN SECTION -->
@@ -544,7 +1042,8 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                 >
                     <?php
                         $icon = 'fa-solid fa-play';
-                        if (stripos($script['label'],'debug') !== false) $icon = 'fa-solid fa-bug';
+                        if (stripos($script['label'],'subscription') !== false) $icon = 'fa-solid fa-envelope-open-text';
+                        elseif (stripos($script['label'],'debug') !== false) $icon = 'fa-solid fa-bug';
                         elseif (stripos($script['label'],'constraint') !== false) $icon = 'fa-solid fa-link';
                         elseif (stripos($script['label'],'schema') !== false) $icon = 'fa-solid fa-table-columns';
                     ?>
@@ -589,6 +1088,13 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             </div>
             <div class="md-panel-body">
                 <div class="md-cli-list">
+                    <div class="md-cli-item">
+                        <div class="md-cli-info">
+                            <div class="md-cli-label"><i class="fa-solid fa-envelope-open-text"></i> Send 15-day subscription reminders for all workspaces</div>
+                            <div class="md-cli-cmd">php send_subscription_reminders.php --global=1</div>
+                        </div>
+                        <button type="button" class="md-cli-copy" onclick="navigator.clipboard.writeText('php send_subscription_reminders.php --global=1')" title="Copy"><i class="fa-regular fa-copy"></i></button>
+                    </div>
                     <div class="md-cli-item">
                         <div class="md-cli-info">
                             <div class="md-cli-label"><i class="fa-solid fa-rotate-left destructive"></i> Reset database for one organization</div>
@@ -707,6 +1213,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         var logoutConfirmBtn = document.getElementById('logoutConfirmBtn');
         var restrictedErrorModal = document.getElementById('restrictedErrorModal');
         var restrictedOkBtn = document.getElementById('restrictedOkBtn');
+        var workspaceCards = document.querySelectorAll('.js-workspace-card');
         var workspaceMenuToggles = document.querySelectorAll('.js-ws-menu-toggle');
         var deleteWorkspaceButtons = document.querySelectorAll('.js-delete-workspace-btn');
         var deleteWorkspaceModal = document.getElementById('deleteWorkspaceModal');
@@ -735,9 +1242,10 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             rows.forEach(function (row) {
                 var name = row.getAttribute('data-workspace-name') || '';
                 var slug = row.getAttribute('data-workspace-slug') || '';
+                var owner = row.getAttribute('data-workspace-owner') || '';
                 var status = row.getAttribute('data-workspace-status') || '';
                 var plan = row.getAttribute('data-workspace-plan') || '';
-                var matchQ = !q || name.indexOf(q) !== -1 || slug.indexOf(q) !== -1;
+                var matchQ = !q || name.indexOf(q) !== -1 || slug.indexOf(q) !== -1 || owner.indexOf(q) !== -1;
                 var matchStatus = !statusVal || status === statusVal;
                 var matchPlan = !planVal || plan === planVal;
                 row.style.display = (matchQ && matchStatus && matchPlan) ? '' : 'none';
@@ -803,6 +1311,32 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                 dangerArrow.innerHTML = isOpen ? '&#9652;' : '&#9662;';
             });
         }
+
+        function workspaceCardClickShouldIgnore(target) {
+            return !!(target && target.closest('a, button, input, select, textarea, .md-ws-menu, .md-ws-more-wrap'));
+        }
+
+        workspaceCards.forEach(function (card) {
+            var viewHref = card.getAttribute('data-view-href') || '';
+            if (!viewHref) {
+                return;
+            }
+
+            card.addEventListener('click', function (event) {
+                if (workspaceCardClickShouldIgnore(event.target)) {
+                    return;
+                }
+                window.location.href = viewHref;
+            });
+
+            card.addEventListener('keydown', function (event) {
+                if (event.key !== 'Enter' && event.key !== ' ') {
+                    return;
+                }
+                event.preventDefault();
+                window.location.href = viewHref;
+            });
+        });
 
         workspaceMenuToggles.forEach(function (toggle) {
             toggle.addEventListener('click', function (event) {
@@ -967,4 +1501,3 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
 </script>
 </body>
 </html>
-

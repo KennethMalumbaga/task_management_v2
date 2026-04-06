@@ -274,6 +274,119 @@ if (!function_exists('tenant_fetch_subscription')) {
     }
 }
 
+if (!function_exists('tenant_is_valid_email')) {
+    function tenant_is_valid_email($value)
+    {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return false;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_EMAIL) !== false;
+    }
+}
+
+if (!function_exists('tenant_get_workspace_owner_contact')) {
+    function tenant_get_workspace_owner_contact($pdo, $orgId)
+    {
+        $orgId = (int)$orgId;
+        $contact = [
+            'organization_id' => $orgId,
+            'workspace_name' => 'Workspace',
+            'billing_email' => null,
+            'user_id' => null,
+            'full_name' => 'Workspace Owner',
+            'email' => null,
+        ];
+
+        if ($orgId <= 0 || !tenant_table_exists($pdo, 'organizations')) {
+            return $contact;
+        }
+
+        $orgStmt = $pdo->prepare(
+            "SELECT name, billing_email
+             FROM organizations
+             WHERE id = ?
+             LIMIT 1"
+        );
+        $orgStmt->execute([$orgId]);
+        $org = $orgStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        $workspaceName = trim((string)($org['name'] ?? ''));
+        if ($workspaceName !== '') {
+            $contact['workspace_name'] = $workspaceName;
+        }
+
+        $billingEmail = trim((string)($org['billing_email'] ?? ''));
+        if (tenant_is_valid_email($billingEmail)) {
+            $contact['billing_email'] = $billingEmail;
+        }
+
+        if (tenant_table_exists($pdo, 'organization_members') && tenant_table_exists($pdo, 'users')) {
+            $ownerStmt = $pdo->prepare(
+                "SELECT u.id, u.full_name, u.username
+                 FROM organization_members om
+                 JOIN users u ON u.id = om.user_id
+                 WHERE om.organization_id = ?
+                   AND om.role = 'owner'
+                 ORDER BY om.id ASC
+                 LIMIT 1"
+            );
+            $ownerStmt->execute([$orgId]);
+            $owner = $ownerStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+            if ($owner) {
+                $contact['user_id'] = isset($owner['id']) ? (int)$owner['id'] : null;
+
+                $ownerName = trim((string)($owner['full_name'] ?? ''));
+                if ($ownerName !== '') {
+                    $contact['full_name'] = $ownerName;
+                }
+
+                $ownerEmail = trim((string)($owner['username'] ?? ''));
+                if (tenant_is_valid_email($ownerEmail)) {
+                    $contact['email'] = $ownerEmail;
+                }
+            }
+        }
+
+        if ($contact['email'] === null && $contact['billing_email'] !== null) {
+            $contact['email'] = $contact['billing_email'];
+        }
+
+        if ($contact['user_id'] === null && tenant_column_exists($pdo, 'users', 'organization_id')) {
+            $adminStmt = $pdo->prepare(
+                "SELECT id, full_name, username
+                 FROM users
+                 WHERE organization_id = ?
+                   AND role = 'admin'
+                 ORDER BY id ASC
+                 LIMIT 1"
+            );
+            $adminStmt->execute([$orgId]);
+            $admin = $adminStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+            if ($admin) {
+                $contact['user_id'] = isset($admin['id']) ? (int)$admin['id'] : null;
+
+                $adminName = trim((string)($admin['full_name'] ?? ''));
+                if ($adminName !== '') {
+                    $contact['full_name'] = $adminName;
+                }
+
+                if ($contact['email'] === null) {
+                    $adminEmail = trim((string)($admin['username'] ?? ''));
+                    if (tenant_is_valid_email($adminEmail)) {
+                        $contact['email'] = $adminEmail;
+                    }
+                }
+            }
+        }
+
+        return $contact;
+    }
+}
+
 if (!function_exists('tenant_ensure_subscription')) {
     function tenant_ensure_subscription($pdo, $orgId)
     {
@@ -305,6 +418,279 @@ if (!function_exists('tenant_ensure_subscription')) {
     }
 }
 
+if (!function_exists('tenant_subscription_blocked_statuses')) {
+    function tenant_subscription_blocked_statuses()
+    {
+        return [
+            'canceled',
+            'cancelled',
+            'suspended',
+            'inactive',
+            'unpaid',
+            'incomplete',
+            'incomplete_expired',
+            'paused',
+        ];
+    }
+}
+
+if (!function_exists('tenant_evaluate_workspace_subscription')) {
+    function tenant_evaluate_workspace_subscription($subscription, $nowTs = null)
+    {
+        $nowTs = is_numeric($nowTs) ? (int)$nowTs : time();
+        $status = strtolower(trim((string)($subscription['status'] ?? 'active')));
+        $trialEndsAt = $subscription['trial_ends_at'] ?? null;
+        $periodEndsAt = $subscription['current_period_end'] ?? null;
+        $isTrial = in_array($status, ['trialing', 'trial'], true);
+
+        $summary = [
+            'status' => $status !== '' ? $status : null,
+            'effective_status' => $status !== '' ? $status : null,
+            'trial_ends_at' => $trialEndsAt,
+            'current_period_end' => $periodEndsAt,
+            'is_trial' => $isTrial,
+            'requires_payment' => false,
+            'payment_reason' => null,
+            'capacity_reason' => null,
+            'expired_by_trial' => false,
+            'expired_by_period' => false,
+        ];
+
+        if ($status !== '' && in_array($status, tenant_subscription_blocked_statuses(), true)) {
+            $summary['requires_payment'] = true;
+            $summary['payment_reason'] = "Workspace subscription is '{$status}'. Please complete payment to continue.";
+            $summary['capacity_reason'] = "Workspace subscription is '{$status}'. Please update billing before adding members.";
+            return $summary;
+        }
+
+        if ($isTrial && !empty($trialEndsAt)) {
+            $trialTs = strtotime((string)$trialEndsAt);
+            if ($trialTs !== false && $trialTs <= $nowTs) {
+                $summary['requires_payment'] = true;
+                $summary['payment_reason'] = 'Your 2-day free trial has ended. Please complete payment to continue.';
+                $summary['capacity_reason'] = 'Workspace trial has ended. Please activate a paid plan before adding members.';
+                $summary['expired_by_trial'] = true;
+                $summary['effective_status'] = 'inactive';
+                return $summary;
+            }
+        }
+
+        if (!$isTrial && !empty($periodEndsAt)) {
+            $periodTs = strtotime((string)$periodEndsAt);
+            if ($periodTs !== false && $periodTs <= $nowTs) {
+                $summary['requires_payment'] = true;
+                $summary['payment_reason'] = 'Your workspace subscription has expired. Please renew to continue.';
+                $summary['capacity_reason'] = 'Workspace subscription has expired. Please renew before adding members.';
+                $summary['expired_by_period'] = true;
+                $summary['effective_status'] = 'inactive';
+                return $summary;
+            }
+        }
+
+        return $summary;
+    }
+}
+
+if (!function_exists('tenant_sync_workspace_subscription_status')) {
+    function tenant_sync_workspace_subscription_status($pdo, $orgId)
+    {
+        $orgId = (int)$orgId;
+        if (
+            $orgId <= 0
+            || !tenant_table_exists($pdo, 'organizations')
+            || !tenant_table_exists($pdo, 'subscriptions')
+        ) {
+            return [
+                'ok' => false,
+                'changed' => false,
+                'reason' => 'Workspace billing tables are unavailable.',
+            ];
+        }
+
+        $subscription = tenant_ensure_subscription($pdo, $orgId);
+        if (!$subscription) {
+            return [
+                'ok' => false,
+                'changed' => false,
+                'reason' => 'Subscription record is unavailable.',
+            ];
+        }
+
+        $summary = tenant_evaluate_workspace_subscription($subscription);
+
+        $orgStmt = $pdo->prepare("SELECT status FROM organizations WHERE id = ? LIMIT 1");
+        $orgStmt->execute([$orgId]);
+        $org = $orgStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        if (!$org) {
+            return [
+                'ok' => false,
+                'changed' => false,
+                'reason' => 'Workspace not found.',
+            ];
+        }
+
+        $currentOrgStatus = strtolower(trim((string)($org['status'] ?? 'active')));
+        $currentSubscriptionStatus = strtolower(trim((string)($subscription['status'] ?? 'active')));
+        $nextOrgStatus = null;
+        $nextSubscriptionStatus = null;
+
+        if (!empty($summary['requires_payment'])) {
+            if (in_array($currentOrgStatus, ['active', 'suspended'], true)) {
+                $nextOrgStatus = 'inactive';
+            }
+
+            if (
+                ($summary['expired_by_trial'] || $summary['expired_by_period'])
+                && in_array($currentSubscriptionStatus, ['active', 'trialing', 'trial', 'suspended'], true)
+            ) {
+                $nextSubscriptionStatus = 'inactive';
+            }
+        } else {
+            if ($currentOrgStatus === 'suspended') {
+                $nextOrgStatus = 'active';
+            }
+        }
+
+        if ($nextOrgStatus === null && $nextSubscriptionStatus === null) {
+            return [
+                'ok' => true,
+                'changed' => false,
+                'organization_status' => $currentOrgStatus,
+                'subscription_status' => $currentSubscriptionStatus,
+                'summary' => $summary,
+            ];
+        }
+
+        try {
+            $startedTransaction = !$pdo->inTransaction();
+            if ($startedTransaction) {
+                $pdo->beginTransaction();
+            }
+
+            if ($nextSubscriptionStatus !== null && $nextSubscriptionStatus !== $currentSubscriptionStatus) {
+                $subStmt = $pdo->prepare("UPDATE subscriptions SET status = ? WHERE organization_id = ?");
+                $subStmt->execute([$nextSubscriptionStatus, $orgId]);
+                $currentSubscriptionStatus = $nextSubscriptionStatus;
+            }
+
+            if ($nextOrgStatus !== null && $nextOrgStatus !== $currentOrgStatus) {
+                $updateOrg = $pdo->prepare("UPDATE organizations SET status = ? WHERE id = ?");
+                $updateOrg->execute([$nextOrgStatus, $orgId]);
+                $currentOrgStatus = $nextOrgStatus;
+            }
+
+            if ($startedTransaction) {
+                $pdo->commit();
+            }
+
+            return [
+                'ok' => true,
+                'changed' => true,
+                'organization_status' => $currentOrgStatus,
+                'subscription_status' => $currentSubscriptionStatus,
+                'summary' => $summary,
+            ];
+        } catch (Throwable $e) {
+            if (!empty($startedTransaction) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            return [
+                'ok' => false,
+                'changed' => false,
+                'reason' => 'Unable to sync workspace subscription status right now.',
+                'summary' => $summary,
+            ];
+        }
+    }
+}
+
+if (!function_exists('tenant_workspace_expired_message')) {
+    function tenant_workspace_expired_message($canManageBilling = false)
+    {
+        return $canManageBilling
+            ? 'Workspace subscription has expired. Please pay to use it again.'
+            : 'Workspace subscription has expired. Please ask your workspace owner to pay to use it again.';
+    }
+}
+
+if (!function_exists('tenant_workspace_inactive_message')) {
+    function tenant_workspace_inactive_message()
+    {
+        return 'Workspace is currently turned off. Please contact your workspace admin.';
+    }
+}
+
+if (!function_exists('tenant_workspace_access_state')) {
+    function tenant_workspace_access_state($pdo, $orgId, $canManageBilling = false)
+    {
+        $orgId = (int)$orgId;
+        $canManageBilling = (bool)$canManageBilling;
+        $result = [
+            'org_id' => $orgId,
+            'organization' => null,
+            'org_status' => null,
+            'billing_gate' => [
+                'required' => false,
+                'reason' => null,
+                'subscription_status' => null,
+                'trial_ends_at' => null,
+                'current_period_end' => null,
+            ],
+            'billing_required' => false,
+            'can_access_workspace' => false,
+            'should_route_to_billing' => false,
+            'message' => null,
+            'sync' => null,
+        ];
+
+        if ($orgId <= 0 || !tenant_table_exists($pdo, 'organizations')) {
+            $result['message'] = 'Workspace context is missing.';
+            return $result;
+        }
+
+        $result['sync'] = tenant_sync_workspace_subscription_status($pdo, $orgId);
+
+        $orgStmt = $pdo->prepare(
+            "SELECT id, name, status
+             FROM organizations
+             WHERE id = ?
+             LIMIT 1"
+        );
+        $orgStmt->execute([$orgId]);
+        $org = $orgStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        if (!$org) {
+            $result['message'] = 'Workspace was not found.';
+            return $result;
+        }
+
+        $orgStatus = strtolower(trim((string)($org['status'] ?? 'active')));
+        $billingGate = tenant_workspace_requires_payment($pdo, $orgId);
+        $billingRequired = !empty($billingGate['required']);
+        $shouldRouteToBilling = $canManageBilling && $billingRequired;
+        $canAccessWorkspace = $orgStatus === 'active' && !$billingRequired;
+
+        $message = null;
+        if ($shouldRouteToBilling) {
+            $message = tenant_workspace_expired_message(true);
+        } elseif (!$canAccessWorkspace) {
+            $message = $billingRequired
+                ? tenant_workspace_expired_message(false)
+                : tenant_workspace_inactive_message();
+        }
+
+        $result['organization'] = $org;
+        $result['org_status'] = $orgStatus;
+        $result['billing_gate'] = $billingGate;
+        $result['billing_required'] = $billingRequired;
+        $result['can_access_workspace'] = $canAccessWorkspace;
+        $result['should_route_to_billing'] = $shouldRouteToBilling;
+        $result['message'] = $message;
+
+        return $result;
+    }
+}
+
 if (!function_exists('tenant_workspace_requires_payment')) {
     function tenant_workspace_requires_payment($pdo, $orgId)
     {
@@ -319,46 +705,14 @@ if (!function_exists('tenant_workspace_requires_payment')) {
         }
 
         $subscription = tenant_ensure_subscription($pdo, $orgId);
-        $status = strtolower(trim((string)($subscription['status'] ?? 'active')));
-        $trialEndsAt = $subscription['trial_ends_at'] ?? null;
-
-        $blockedStatuses = [
-            'canceled',
-            'cancelled',
-            'suspended',
-            'inactive',
-            'unpaid',
-            'incomplete',
-            'incomplete_expired',
-            'paused',
-        ];
-
-        if ($status !== '' && in_array($status, $blockedStatuses, true)) {
-            return [
-                'required' => true,
-                'reason' => "Workspace subscription is '{$status}'. Please complete payment to continue.",
-                'subscription_status' => $status,
-                'trial_ends_at' => $trialEndsAt,
-            ];
-        }
-
-        if ($status === 'trialing' && !empty($trialEndsAt)) {
-            $trialTs = strtotime((string)$trialEndsAt);
-            if ($trialTs !== false && $trialTs <= time()) {
-                return [
-                    'required' => true,
-                    'reason' => 'Your 2-day free trial has ended. Please complete payment to continue.',
-                    'subscription_status' => $status,
-                    'trial_ends_at' => $trialEndsAt,
-                ];
-            }
-        }
+        $summary = tenant_evaluate_workspace_subscription($subscription);
 
         return [
-            'required' => false,
-            'reason' => null,
-            'subscription_status' => $status !== '' ? $status : null,
-            'trial_ends_at' => $trialEndsAt,
+            'required' => !empty($summary['requires_payment']),
+            'reason' => $summary['payment_reason'],
+            'subscription_status' => $summary['effective_status'],
+            'trial_ends_at' => $summary['trial_ends_at'],
+            'current_period_end' => $summary['current_period_end'],
         ];
     }
 }
@@ -409,28 +763,19 @@ if (!function_exists('tenant_check_workspace_capacity')) {
         }
 
         $subscription = tenant_ensure_subscription($pdo, $orgId);
-        $status = strtolower(trim((string)($subscription['status'] ?? 'active')));
-        $trialEndsAt = $subscription['trial_ends_at'] ?? null;
-        $periodEndsAt = $subscription['current_period_end'] ?? null;
+        $summary = tenant_evaluate_workspace_subscription($subscription);
+        $status = $summary['effective_status'];
+        $trialEndsAt = $summary['trial_ends_at'] ?? null;
+        $periodEndsAt = $summary['current_period_end'] ?? null;
 
         $seatUsed = tenant_count_workspace_members($pdo, $orgId);
         $seatLimit = isset($subscription['seat_limit']) ? (int)$subscription['seat_limit'] : null;
         $seatsLeft = $seatLimit === null ? null : ($seatLimit - $seatUsed);
 
-        $blockedStatuses = [
-            'canceled',
-            'cancelled',
-            'suspended',
-            'inactive',
-            'unpaid',
-            'incomplete',
-            'incomplete_expired',
-            'paused',
-        ];
-        if ($status !== '' && in_array($status, $blockedStatuses, true)) {
+        if (!empty($summary['requires_payment'])) {
             return [
                 'ok' => false,
-                'reason' => "Workspace subscription is '{$status}'. Please update billing before adding members.",
+                'reason' => (string)$summary['capacity_reason'],
                 'subscription_status' => $status,
                 'seat_limit' => $seatLimit,
                 'seat_used' => $seatUsed,
@@ -438,22 +783,6 @@ if (!function_exists('tenant_check_workspace_capacity')) {
                 'trial_ends_at' => $trialEndsAt,
                 'current_period_end' => $periodEndsAt,
             ];
-        }
-
-        if ($status === 'trialing' && !empty($trialEndsAt)) {
-            $trialTs = strtotime((string)$trialEndsAt);
-            if ($trialTs !== false && $trialTs <= time()) {
-                return [
-                    'ok' => false,
-                    'reason' => 'Workspace trial has ended. Please activate a paid plan before adding members.',
-                    'subscription_status' => $status,
-                    'seat_limit' => $seatLimit,
-                    'seat_used' => $seatUsed,
-                    'seats_left' => $seatsLeft,
-                    'trial_ends_at' => $trialEndsAt,
-                    'current_period_end' => $periodEndsAt,
-                ];
-            }
         }
 
         if ($seatLimit !== null) {
@@ -493,6 +822,149 @@ if (!function_exists('tenant_check_workspace_capacity')) {
             'seats_left' => $seatsLeft,
             'trial_ends_at' => $trialEndsAt,
             'current_period_end' => $periodEndsAt,
+        ];
+    }
+}
+
+if (!function_exists('tenant_subscription_time_left_text')) {
+    function tenant_subscription_time_left_text($secondsLeft)
+    {
+        $secondsLeft = (int)$secondsLeft;
+        if ($secondsLeft <= 0) {
+            return 'expired';
+        }
+
+        $days = (int)floor($secondsLeft / 86400);
+        $hours = (int)floor(($secondsLeft % 86400) / 3600);
+        $minutes = (int)floor(($secondsLeft % 3600) / 60);
+
+        if ($days > 0) {
+            return $days . ' day' . ($days === 1 ? '' : 's')
+                . ' and '
+                . $hours . ' hour' . ($hours === 1 ? '' : 's');
+        }
+
+        if ($hours > 0) {
+            return $hours . ' hour' . ($hours === 1 ? '' : 's')
+                . ' and '
+                . $minutes . ' minute' . ($minutes === 1 ? '' : 's');
+        }
+
+        $minutes = max(1, $minutes);
+        return $minutes . ' minute' . ($minutes === 1 ? '' : 's');
+    }
+}
+
+if (!function_exists('tenant_workspace_subscription_notice')) {
+    function tenant_workspace_subscription_notice($pdo, $orgId, $warningDays = 15, $ignoreWindow = false)
+    {
+        $orgId = (int)$orgId;
+        $warningDays = max(1, (int)$warningDays);
+        $ignoreWindow = (bool)$ignoreWindow;
+
+        if ($orgId <= 0) {
+            return [
+                'show' => false,
+                'reason' => 'Workspace context is missing.',
+            ];
+        }
+
+        $subscription = tenant_ensure_subscription($pdo, $orgId);
+        if (!$subscription) {
+            return [
+                'show' => false,
+                'reason' => 'Subscription record is unavailable.',
+            ];
+        }
+
+        $status = strtolower(trim((string)($subscription['status'] ?? 'active')));
+        $trialEndsAt = trim((string)($subscription['trial_ends_at'] ?? ''));
+        $periodEndsAt = trim((string)($subscription['current_period_end'] ?? ''));
+        $isTrial = in_array($status, ['trialing', 'trial'], true);
+
+        $blockedStatuses = [
+            'canceled',
+            'cancelled',
+            'suspended',
+            'inactive',
+            'unpaid',
+            'incomplete',
+            'incomplete_expired',
+            'paused',
+        ];
+
+        if ($status !== '' && in_array($status, $blockedStatuses, true)) {
+            return [
+                'show' => false,
+                'reason' => 'Subscription is already blocked.',
+                'status' => $status,
+            ];
+        }
+
+        $endsAt = '';
+        $referenceLabel = $isTrial ? 'trial' : 'subscription';
+        if ($isTrial && $trialEndsAt !== '') {
+            $endsAt = $trialEndsAt;
+        } elseif ($periodEndsAt !== '') {
+            $endsAt = $periodEndsAt;
+        } elseif ($trialEndsAt !== '') {
+            $endsAt = $trialEndsAt;
+            $referenceLabel = 'trial';
+        }
+
+        if ($endsAt === '') {
+            return [
+                'show' => false,
+                'reason' => 'No billing deadline is set.',
+                'status' => $status,
+            ];
+        }
+
+        $endsAtTs = strtotime($endsAt);
+        if ($endsAtTs === false) {
+            return [
+                'show' => false,
+                'reason' => 'Billing deadline is invalid.',
+                'status' => $status,
+            ];
+        }
+
+        $secondsLeft = $endsAtTs - time();
+        if ($secondsLeft <= 0) {
+            return [
+                'show' => false,
+                'reason' => 'Subscription is already expired.',
+                'status' => $status,
+                'ends_at' => $endsAt,
+                'is_trial' => $isTrial,
+                'reference_label' => $referenceLabel,
+            ];
+        }
+
+        $warningWindowSeconds = $warningDays * 86400;
+        if (!$ignoreWindow && $secondsLeft > $warningWindowSeconds) {
+            return [
+                'show' => false,
+                'reason' => 'Subscription is not yet within the reminder window.',
+                'status' => $status,
+                'ends_at' => $endsAt,
+                'is_trial' => $isTrial,
+                'reference_label' => $referenceLabel,
+            ];
+        }
+
+        return [
+            'show' => true,
+            'reason' => null,
+            'status' => $status,
+            'ends_at' => $endsAt,
+            'ends_at_display' => date('M j, Y g:i A', $endsAtTs),
+            'seconds_left' => $secondsLeft,
+            'time_left_text' => tenant_subscription_time_left_text($secondsLeft),
+            'warning_days' => $warningDays,
+            'ignore_window' => $ignoreWindow,
+            'is_trial' => $isTrial,
+            'reference_label' => $referenceLabel,
         ];
     }
 }

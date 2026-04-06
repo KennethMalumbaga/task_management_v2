@@ -8,7 +8,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "app/model/Group.php";
     include "app/model/GroupMessage.php";
     include "app/model/ChatVisibility.php";
+    require_once "app/model/GoogleWorkspace.php";
+    require_once "app/helpers/google_gmail.php";
     $chatAjaxCsrfToken = csrf_token('chat_ajax_actions');
+    $composeEmailCsrfToken = csrf_token('compose_email_action');
     
     // Fetch users for the chat list
     // Fetch users for the chat list
@@ -65,6 +68,70 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     $dashboardCssVersion = @filemtime(__DIR__ . "/css/dashboard.css") ?: time();
     $chatCssVersion = @filemtime(__DIR__ . "/css/chat.css") ?: time();
     $chatAttachmentsCssVersion = @filemtime(__DIR__ . "/css/chat_attachments.css") ?: time();
+    $isAdminUser = ((string)($_SESSION['role'] ?? '') === 'admin');
+    $formalEmailUsers = [];
+    if ($isAdminUser) {
+        foreach ($all_users as $emailUser) {
+            $emailUserId = (int)($emailUser['id'] ?? 0);
+            if ($emailUserId <= 0 || $emailUserId === (int)$_SESSION['id']) {
+                continue;
+            }
+
+            if ((string)($emailUser['role'] ?? '') === 'admin') {
+                continue;
+            }
+
+            $emailAddress = strtolower(trim((string)($emailUser['username'] ?? '')));
+            if ($emailAddress === '' || !filter_var($emailAddress, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+
+            $displayName = trim((string)($emailUser['full_name'] ?? ''));
+            if ($displayName === '') {
+                $displayName = $emailAddress;
+            }
+
+            $formalEmailUsers[] = [
+                'id' => $emailUserId,
+                'full_name' => $displayName,
+                'email' => $emailAddress,
+                'initials' => user_display_initials($displayName),
+            ];
+        }
+
+        usort($formalEmailUsers, function ($left, $right) {
+            $leftKey = strtolower((string)($left['full_name'] ?? '') . ' ' . (string)($left['email'] ?? ''));
+            $rightKey = strtolower((string)($right['full_name'] ?? '') . ' ' . (string)($right['email'] ?? ''));
+            return strcmp($leftKey, $rightKey);
+        });
+    }
+
+    $gmailTokenRecord = $isAdminUser ? google_workspace_get_token_record($pdo, (int)$_SESSION['id']) : null;
+    $gmailReady = $isAdminUser
+        && google_gmail_is_enabled()
+        && $gmailTokenRecord
+        && google_workspace_scope_contains((string)($gmailTokenRecord['scope'] ?? ''), google_gmail_required_scope());
+    $gmailConfigReady = google_gmail_is_enabled();
+    $gmailConnectUrl = 'app/google-gmail-init.php';
+    $formalEmailSenderAddress = strtolower(trim((string)($gmailTokenRecord['google_email'] ?? ($_SESSION['username'] ?? ''))));
+    if ($formalEmailSenderAddress === '') {
+        $formalEmailSenderAddress = 'Link an email';
+    }
+    $formalEmailFlash = [
+        'type' => '',
+        'message' => '',
+        'open' => isset($_GET['open_formal_email']) && $_GET['open_formal_email'] === '1',
+    ];
+
+    $gmailStatus = trim((string)($_GET['gmail_status'] ?? ''));
+    $gmailError = trim((string)($_GET['gmail_error'] ?? ''));
+    if ($gmailError !== '') {
+        $formalEmailFlash['type'] = 'error';
+        $formalEmailFlash['message'] = $gmailError;
+    } elseif ($gmailStatus !== '') {
+        $formalEmailFlash['type'] = 'success';
+        $formalEmailFlash['message'] = $gmailStatus;
+    }
 ?>
 <!DOCTYPE html>
 <html>
@@ -95,6 +162,17 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             
             <!-- Chat Sidebar (Users) -->
             <div class="chat-sidebar">
+                <?php if ($isAdminUser) { ?>
+                <div class="chat-sidebar-toolbar">
+                    <button type="button" class="email-compose-trigger" id="openFormalEmailComposer">
+                        <i class="fa fa-envelope-o"></i>
+                        <span>Formal Email</span>
+                    </button>
+                    <div class="email-compose-toolbar-copy">
+                        Use Gmail API for official messages to members.
+                    </div>
+                </div>
+                <?php } ?>
                 <div class="chat-search">
                     <div class="chat-search-input-wrapper">
                         <i class="fa fa-search chat-search-icon"></i>
@@ -264,6 +342,104 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 </div>
             </div>
 
+            <?php if ($isAdminUser) { ?>
+            <div class="email-compose-backdrop" id="formalEmailBackdrop" style="display:none;">
+                <div class="email-compose-window" role="dialog" aria-modal="true" aria-labelledby="formalEmailTitle">
+                    <div class="email-compose-body">
+                        <h4 id="formalEmailTitle" class="email-compose-accessible-title">Formal Email</h4>
+
+                        <div class="email-compose-row email-compose-from-row">
+                            <label>From</label>
+                            <div class="email-compose-from-shell">
+                                <a
+                                    href="<?= $gmailConfigReady ? htmlspecialchars($gmailConnectUrl, ENT_QUOTES, 'UTF-8') : '#' ?>"
+                                    class="email-compose-from-pill<?= $gmailReady ? ' is-connected' : '' ?><?= !$gmailConfigReady ? ' is-disabled' : '' ?>"
+                                    id="connectFormalGmailBtn"
+                                    <?= $gmailConfigReady ? '' : 'aria-disabled="true"' ?>
+                                >
+                                    <?= htmlspecialchars($gmailReady ? $formalEmailSenderAddress : ($gmailConfigReady ? 'Link an email' : 'Gmail unavailable'), ENT_QUOTES, 'UTF-8') ?>
+                                </a>
+                                <span class="email-compose-from-meta" id="formalEmailFromMeta">
+                                    <?= htmlspecialchars(
+                                        $gmailReady
+                                            ? 'Ready to send official messages from your admin account.'
+                                            : ($gmailConfigReady
+                                                ? 'Authorize Gmail once to start sending formal emails.'
+                                                : 'Add Google credentials to enable Gmail API.'
+                                            ),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </span>
+                            </div>
+                            <button type="button" class="email-compose-close" id="closeFormalEmailComposer" aria-label="Close email composer">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </div>
+
+                        <div class="email-compose-row email-compose-recipient-row">
+                            <label for="formalEmailRecipientInput">To</label>
+                            <div class="email-compose-recipient-shell">
+                                <div class="email-recipient-field" id="formalEmailRecipientField">
+                                    <div class="email-recipient-chip-list" id="formalEmailRecipientChipList"></div>
+                                    <input type="text" id="formalEmailRecipientInput" placeholder="Select members by name or email">
+                                </div>
+                                <div class="email-compose-recipient-extras">
+                                    <button type="button" class="email-compose-mini-link" disabled>Cc</button>
+                                    <button type="button" class="email-compose-mini-link" disabled>Bcc</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="email-recipient-suggestions" id="formalEmailRecipientSuggestions" style="display:none;"></div>
+
+                        <div class="email-compose-row email-compose-subject-row">
+                            <label for="formalEmailSubjectInput">Subject</label>
+                            <input type="text" id="formalEmailSubjectInput" placeholder="Add a formal subject">
+                        </div>
+
+                        <div class="email-compose-editor-shell">
+                            <textarea id="formalEmailBodyInput" placeholder="Write a formal message to your members..."></textarea>
+                            <div class="email-compose-attachment-list" id="formalEmailAttachmentList"></div>
+                            <button type="button" class="email-compose-signature" disabled>Add signature</button>
+                        </div>
+
+                        <div class="email-compose-status" id="formalEmailStatus"></div>
+                    </div>
+
+                    <div class="email-compose-footer">
+                        <div class="email-compose-toolbar-left">
+                            <button type="button" class="email-compose-round-btn" id="addFormalEmailAttachment" aria-label="Add attachment">
+                                <i class="fa fa-plus"></i>
+                            </button>
+                            <input type="file" id="formalEmailAttachmentInput" multiple hidden>
+                            <button type="button" class="email-compose-toolbar-pill" disabled>
+                                <span>Email</span>
+                                <i class="fa fa-angle-down"></i>
+                            </button>
+                            <button type="button" class="email-compose-icon-btn" id="formalEmailToolbarAttach" aria-label="Attach files">
+                                <i class="fa fa-paperclip"></i>
+                            </button>
+                            <button type="button" class="email-compose-icon-btn" id="formalEmailToolbarRecipients" aria-label="Focus recipients">
+                                <i class="fa fa-at"></i>
+                            </button>
+                            <button type="button" class="email-compose-icon-btn" id="formalEmailToolbarGmail" aria-label="Gmail settings">
+                                <i class="fa fa-cog"></i>
+                            </button>
+                        </div>
+                        <div class="email-compose-toolbar-right">
+                            <div class="email-compose-summary" id="formalEmailSummary">No recipients selected</div>
+                            <button type="button" class="email-compose-discard" id="discardFormalEmail">Discard</button>
+                            <button type="button" class="email-compose-send" id="sendFormalEmail"<?= $gmailReady ? '' : ' disabled' ?>>
+                                <span class="email-compose-send-label">Send</span>
+                                <i class="fa fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php } ?>
+
         </div>
     </div>
 
@@ -276,6 +452,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             var loadInterval;
             var selectedFiles = []; // Array to store multiple files
             var chatAjaxCsrfToken = <?= json_encode($chatAjaxCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            var formalEmailCsrfToken = <?= json_encode($composeEmailCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            var formalEmailIsAdmin = <?= $isAdminUser ? 'true' : 'false' ?>;
+            var formalEmailUsers = <?= json_encode($formalEmailUsers, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            var formalEmailGmailReady = <?= $gmailReady ? 'true' : 'false' ?>;
+            var formalEmailGmailConfigReady = <?= $gmailConfigReady ? 'true' : 'false' ?>;
+            var formalEmailConnectUrl = <?= json_encode($gmailConnectUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            var formalEmailSenderLabel = <?= json_encode($formalEmailSenderAddress, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            var formalEmailFlash = <?= json_encode($formalEmailFlash, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
             var groupMentionMembers = [];
             var mentionSuggestionsData = [];
             var mentionSelectionIndex = -1;
@@ -291,6 +475,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             var chatDeleteLongPressTimer = null;
             var messageDeleteLongPressTimer = null;
             var suppressChatClickUntil = 0;
+            var formalEmailSelectedRecipientIds = [];
+            var formalEmailSuggestionsData = [];
+            var formalEmailSelectionIndex = -1;
+            var formalEmailSending = false;
+            var formalEmailAttachments = [];
+            var formalEmailAttachmentMaxCount = 10;
+            var formalEmailAttachmentMaxBytes = 18 * 1024 * 1024;
 
             // Search Filter
              $("#searchText").on("input", function(){
@@ -408,6 +599,587 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 pendingMessageDeleteTarget = null;
                 $("#messageDeleteModal").hide();
                 $("#messageDeleteConfirm").prop("disabled", false);
+            }
+
+            function findFormalEmailUser(userId) {
+                var normalizedId = parseInt(userId, 10) || 0;
+                for (var i = 0; i < formalEmailUsers.length; i++) {
+                    if ((parseInt(formalEmailUsers[i].id, 10) || 0) === normalizedId) {
+                        return formalEmailUsers[i];
+                    }
+                }
+                return null;
+            }
+
+            function clearFormalEmailStatus() {
+                $("#formalEmailStatus").removeClass("is-error is-success").hide().text("");
+            }
+
+            function setFormalEmailStatus(message, type) {
+                var statusClass = type === "success" ? "is-success" : "is-error";
+                $("#formalEmailStatus")
+                    .removeClass("is-error is-success")
+                    .addClass(statusClass)
+                    .text(message || "")
+                    .show();
+            }
+
+            function formatFormalEmailBytes(bytes) {
+                var size = parseInt(bytes, 10) || 0;
+                if (size < 1024) {
+                    return size + " B";
+                }
+                if (size < (1024 * 1024)) {
+                    return (size / 1024).toFixed(size < (10 * 1024) ? 1 : 0) + " KB";
+                }
+                return (size / (1024 * 1024)).toFixed(size < (10 * 1024 * 1024) ? 1 : 0) + " MB";
+            }
+
+            function getFormalEmailAttachmentKey(file) {
+                if (!file) {
+                    return "";
+                }
+
+                return [
+                    String(file.name || ""),
+                    String(file.size || 0),
+                    String(file.lastModified || 0),
+                    String(file.type || "")
+                ].join("::");
+            }
+
+            function getFormalEmailAttachmentCount() {
+                return formalEmailAttachments.length;
+            }
+
+            function getFormalEmailAttachmentTotalBytes() {
+                var total = 0;
+                for (var i = 0; i < formalEmailAttachments.length; i++) {
+                    total += parseInt(formalEmailAttachments[i].size, 10) || 0;
+                }
+                return total;
+            }
+
+            function updateFormalEmailSummary() {
+                var count = formalEmailSelectedRecipientIds.length;
+                var attachmentCount = getFormalEmailAttachmentCount();
+                var summaryParts = [];
+
+                if (count === 1) {
+                    summaryParts.push("1 member selected");
+                } else if (count > 1) {
+                    summaryParts.push(count + " members selected");
+                } else {
+                    summaryParts.push("No recipients selected");
+                }
+
+                if (attachmentCount === 1) {
+                    summaryParts.push("1 file attached");
+                } else if (attachmentCount > 1) {
+                    summaryParts.push(attachmentCount + " files attached");
+                }
+
+                $("#formalEmailSummary").text(summaryParts.join(" | "));
+            }
+
+            function hideFormalEmailSuggestions() {
+                formalEmailSuggestionsData = [];
+                formalEmailSelectionIndex = -1;
+                $("#formalEmailRecipientSuggestions").hide().empty();
+            }
+
+            function renderFormalEmailRecipients() {
+                var html = "";
+
+                for (var i = 0; i < formalEmailSelectedRecipientIds.length; i++) {
+                    var user = findFormalEmailUser(formalEmailSelectedRecipientIds[i]);
+                    if (!user) {
+                        continue;
+                    }
+
+                    var label = $.trim(user.full_name || user.email || "Member");
+                    var email = $.trim(user.email || "");
+                    var chipMeta = email !== "" && label.toLowerCase() !== email.toLowerCase()
+                        ? label + " - " + email
+                        : label;
+
+                    html += '<span class="email-recipient-chip" data-user-id="' + user.id + '">' +
+                                '<span class="email-recipient-chip-avatar">' + escapeHtml($.trim(user.initials || "?") || "?") + '</span>' +
+                                '<span class="email-recipient-chip-text">' + escapeHtml(chipMeta) + '</span>' +
+                                '<button type="button" class="email-recipient-chip-remove formal-email-recipient-remove" data-user-id="' + user.id + '" aria-label="Remove recipient">' +
+                                    '<i class="fa fa-times"></i>' +
+                                '</button>' +
+                            '</span>';
+                }
+
+                $("#formalEmailRecipientChipList").html(html);
+                updateFormalEmailSummary();
+            }
+
+            function renderFormalEmailAttachments() {
+                var list = $("#formalEmailAttachmentList");
+                if (list.length === 0) {
+                    return;
+                }
+
+                if (!formalEmailAttachments.length) {
+                    list.html("").removeClass("has-items");
+                    updateFormalEmailSummary();
+                    return;
+                }
+
+                var html = "";
+                for (var i = 0; i < formalEmailAttachments.length; i++) {
+                    var item = formalEmailAttachments[i];
+                    var extension = "";
+                    if (String(item.name || "").indexOf(".") !== -1) {
+                        extension = String(item.name || "").split(".").pop().toUpperCase();
+                    }
+                    if (extension === "") {
+                        extension = "FILE";
+                    }
+
+                    html += '<div class="email-compose-attachment-chip" data-file-key="' + escapeHtml(item.key) + '">' +
+                                '<span class="email-compose-attachment-chip-grip"><i class="fa fa-ellipsis-v"></i></span>' +
+                                '<span class="email-compose-attachment-chip-name">' + escapeHtml(item.name || "Attachment") + '</span>' +
+                                '<span class="email-compose-attachment-chip-meta">' + escapeHtml(extension) + ' ' + escapeHtml(formatFormalEmailBytes(item.size || 0)) + '</span>' +
+                                '<button type="button" class="email-compose-attachment-remove" data-file-key="' + escapeHtml(item.key) + '" aria-label="Remove attachment">' +
+                                    '<i class="fa fa-times"></i>' +
+                                '</button>' +
+                            '</div>';
+                }
+
+                list.html(html).addClass("has-items");
+                updateFormalEmailSummary();
+            }
+
+            function addFormalEmailAttachments(fileList) {
+                if (!fileList || !fileList.length) {
+                    return;
+                }
+
+                var currentBytes = getFormalEmailAttachmentTotalBytes();
+                var addedAny = false;
+                var hadError = false;
+
+                for (var i = 0; i < fileList.length; i++) {
+                    var file = fileList[i];
+                    if (!file) {
+                        continue;
+                    }
+
+                    var key = getFormalEmailAttachmentKey(file);
+                    if (key === "") {
+                        continue;
+                    }
+
+                    var isDuplicate = false;
+                    for (var j = 0; j < formalEmailAttachments.length; j++) {
+                        if (formalEmailAttachments[j].key === key) {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+
+                    if (isDuplicate) {
+                        continue;
+                    }
+
+                    if (formalEmailAttachments.length >= formalEmailAttachmentMaxCount) {
+                        setFormalEmailStatus("You can attach up to " + formalEmailAttachmentMaxCount + " files per email.", "error");
+                        hadError = true;
+                        break;
+                    }
+
+                    var nextBytes = currentBytes + (parseInt(file.size, 10) || 0);
+                    if (nextBytes > formalEmailAttachmentMaxBytes) {
+                        setFormalEmailStatus("Attachments must stay under " + formatFormalEmailBytes(formalEmailAttachmentMaxBytes) + " total.", "error");
+                        hadError = true;
+                        break;
+                    }
+
+                    formalEmailAttachments.push({
+                        key: key,
+                        file: file,
+                        name: String(file.name || "Attachment"),
+                        size: parseInt(file.size, 10) || 0
+                    });
+                    currentBytes = nextBytes;
+                    addedAny = true;
+                }
+
+                $("#formalEmailAttachmentInput").val("");
+                renderFormalEmailAttachments();
+                if (addedAny && !hadError) {
+                    clearFormalEmailStatus();
+                }
+            }
+
+            function removeFormalEmailAttachment(fileKey) {
+                if (formalEmailSending) {
+                    return;
+                }
+
+                var normalizedKey = String(fileKey || "");
+                formalEmailAttachments = formalEmailAttachments.filter(function(item){
+                    return String(item.key || "") !== normalizedKey;
+                });
+
+                renderFormalEmailAttachments();
+                clearFormalEmailStatus();
+                $("#formalEmailAttachmentInput").val("");
+            }
+
+            function buildFormalEmailSuggestions() {
+                var query = $.trim($("#formalEmailRecipientInput").val() || "").toLowerCase();
+                var selectedMap = {};
+
+                for (var i = 0; i < formalEmailSelectedRecipientIds.length; i++) {
+                    selectedMap[parseInt(formalEmailSelectedRecipientIds[i], 10) || 0] = true;
+                }
+
+                return formalEmailUsers.filter(function(user){
+                    var userId = parseInt(user.id, 10) || 0;
+                    if (!userId || selectedMap[userId]) {
+                        return false;
+                    }
+
+                    if (query === "") {
+                        return true;
+                    }
+
+                    var fullName = String(user.full_name || "").toLowerCase();
+                    var email = String(user.email || "").toLowerCase();
+                    return fullName.indexOf(query) !== -1 || email.indexOf(query) !== -1;
+                }).slice(0, 8);
+            }
+
+            function renderFormalEmailSuggestions(items) {
+                if (!items.length) {
+                    formalEmailSuggestionsData = [];
+                    formalEmailSelectionIndex = -1;
+                    $("#formalEmailRecipientSuggestions")
+                        .html(
+                            '<div class="email-recipient-empty">' +
+                                escapeHtml(
+                                    formalEmailUsers.length === 0
+                                        ? "No workspace members with valid email addresses."
+                                        : "No matching members found."
+                                ) +
+                            '</div>'
+                        )
+                        .show();
+                    return;
+                }
+
+                formalEmailSuggestionsData = items;
+                if (formalEmailSelectionIndex < 0 || formalEmailSelectionIndex >= formalEmailSuggestionsData.length) {
+                    formalEmailSelectionIndex = 0;
+                }
+
+                var html = "";
+                for (var i = 0; i < formalEmailSuggestionsData.length; i++) {
+                    var suggestion = formalEmailSuggestionsData[i];
+                    var activeClass = i === formalEmailSelectionIndex ? " active" : "";
+
+                    html += '<button type="button" class="email-recipient-suggestion formal-email-suggestion' + activeClass + '" data-user-id="' + suggestion.id + '" data-idx="' + i + '">' +
+                                '<span class="email-recipient-suggestion-avatar">' + escapeHtml($.trim(suggestion.initials || "?") || "?") + '</span>' +
+                                '<span class="email-recipient-suggestion-copy">' +
+                                    '<span class="email-recipient-suggestion-name">' + escapeHtml(suggestion.full_name || suggestion.email || "Member") + '</span>' +
+                                    '<span class="email-recipient-suggestion-email">' + escapeHtml(suggestion.email || "") + '</span>' +
+                                '</span>' +
+                            '</button>';
+                }
+
+                $("#formalEmailRecipientSuggestions").html(html).show();
+            }
+
+            function refreshFormalEmailSuggestions() {
+                renderFormalEmailSuggestions(buildFormalEmailSuggestions());
+            }
+
+            function addFormalEmailRecipient(userId) {
+                var normalizedId = parseInt(userId, 10) || 0;
+                if (!normalizedId) {
+                    return;
+                }
+
+                if (formalEmailSelectedRecipientIds.indexOf(normalizedId) !== -1) {
+                    $("#formalEmailRecipientInput").val("");
+                    refreshFormalEmailSuggestions();
+                    return;
+                }
+
+                var user = findFormalEmailUser(normalizedId);
+                if (!user) {
+                    return;
+                }
+
+                formalEmailSelectedRecipientIds.push(normalizedId);
+                $("#formalEmailRecipientInput").val("").focus();
+                renderFormalEmailRecipients();
+                refreshFormalEmailSuggestions();
+                clearFormalEmailStatus();
+            }
+
+            function removeFormalEmailRecipient(userId) {
+                var normalizedId = parseInt(userId, 10) || 0;
+                formalEmailSelectedRecipientIds = formalEmailSelectedRecipientIds.filter(function(existingId){
+                    return (parseInt(existingId, 10) || 0) !== normalizedId;
+                });
+
+                renderFormalEmailRecipients();
+                refreshFormalEmailSuggestions();
+            }
+
+            function moveFormalEmailSelection(direction) {
+                if (!formalEmailSuggestionsData.length) {
+                    return;
+                }
+
+                formalEmailSelectionIndex += direction;
+                if (formalEmailSelectionIndex < 0) {
+                    formalEmailSelectionIndex = formalEmailSuggestionsData.length - 1;
+                }
+                if (formalEmailSelectionIndex >= formalEmailSuggestionsData.length) {
+                    formalEmailSelectionIndex = 0;
+                }
+
+                renderFormalEmailSuggestions(formalEmailSuggestionsData);
+            }
+
+            function applySelectedFormalEmailRecipient() {
+                if (!formalEmailSuggestionsData.length || formalEmailSelectionIndex < 0) {
+                    return;
+                }
+
+                var picked = formalEmailSuggestionsData[formalEmailSelectionIndex];
+                if (!picked || !picked.id) {
+                    return;
+                }
+
+                addFormalEmailRecipient(picked.id);
+            }
+
+            function setFormalEmailComposerEnabled(isEnabled) {
+                formalEmailGmailReady = !!isEnabled;
+                $("#formalEmailRecipientInput").prop("disabled", !formalEmailGmailReady);
+                $("#formalEmailSubjectInput").prop("disabled", !formalEmailGmailReady);
+                $("#formalEmailBodyInput").prop("disabled", !formalEmailGmailReady);
+                $("#formalEmailAttachmentInput").prop("disabled", !formalEmailGmailReady);
+                $("#addFormalEmailAttachment").prop("disabled", !formalEmailGmailReady);
+                $("#formalEmailToolbarAttach").prop("disabled", !formalEmailGmailReady);
+                $("#formalEmailToolbarRecipients").prop("disabled", !formalEmailGmailReady);
+                $("#formalEmailRecipientField").toggleClass("is-disabled", !formalEmailGmailReady);
+                $("#addFormalEmailAttachment").toggleClass("is-disabled", !formalEmailGmailReady);
+                $("#sendFormalEmail").prop("disabled", !formalEmailGmailReady);
+                if (!formalEmailGmailReady) {
+                    hideFormalEmailSuggestions();
+                }
+                syncFormalEmailAuthCard();
+            }
+
+            function syncFormalEmailAuthCard() {
+                var pill = $("#connectFormalGmailBtn");
+                var meta = $("#formalEmailFromMeta");
+                var toolbarGmail = $("#formalEmailToolbarGmail");
+
+                if (pill.length === 0) {
+                    return;
+                }
+
+                pill.removeClass("is-connected is-disabled");
+                var message = "";
+                var label = "";
+
+                if (!formalEmailGmailConfigReady) {
+                    label = "Gmail unavailable";
+                    message = "Add Google credentials to enable Gmail API.";
+                    pill.addClass("is-disabled").attr("href", "#").attr("aria-disabled", "true");
+                    toolbarGmail.prop("disabled", true).addClass("is-disabled").removeClass("is-active");
+                } else if (formalEmailGmailReady) {
+                    label = formalEmailSenderLabel || "Connected Gmail";
+                    message = "Ready to send official messages from your admin account.";
+                    pill.addClass("is-connected").attr("href", formalEmailConnectUrl || "app/google-gmail-init.php").removeAttr("aria-disabled");
+                    toolbarGmail.prop("disabled", false).removeClass("is-disabled").addClass("is-active");
+                } else {
+                    label = "Link an email";
+                    message = "Authorize Gmail once to start sending formal emails.";
+                    pill.attr("href", formalEmailConnectUrl || "app/google-gmail-init.php").removeAttr("aria-disabled");
+                    toolbarGmail.prop("disabled", false).removeClass("is-disabled is-active");
+                }
+
+                pill.text(label);
+                meta.text(message);
+            }
+
+            function resetFormalEmailComposer() {
+                formalEmailSelectedRecipientIds = [];
+                formalEmailSuggestionsData = [];
+                formalEmailSelectionIndex = -1;
+                formalEmailSending = false;
+                formalEmailAttachments = [];
+                $("#formalEmailRecipientInput").val("");
+                $("#formalEmailSubjectInput").val("");
+                $("#formalEmailBodyInput").val("");
+                $("#formalEmailAttachmentInput").val("");
+                renderFormalEmailRecipients();
+                renderFormalEmailAttachments();
+                hideFormalEmailSuggestions();
+                clearFormalEmailStatus();
+                syncFormalEmailAuthCard();
+                setFormalEmailComposerEnabled(formalEmailGmailReady);
+            }
+
+            function openFormalEmailComposer() {
+                if (!formalEmailIsAdmin) {
+                    return;
+                }
+
+                $("#formalEmailBackdrop").css("display", "flex");
+                $("#formalEmailRecipientField").removeClass("is-focused");
+                renderFormalEmailRecipients();
+                if (formalEmailGmailReady) {
+                    refreshFormalEmailSuggestions();
+                } else {
+                    hideFormalEmailSuggestions();
+                }
+
+                if (formalEmailFlash && formalEmailFlash.message) {
+                    setFormalEmailStatus(formalEmailFlash.message, formalEmailFlash.type === "success" ? "success" : "error");
+                    formalEmailFlash.message = "";
+                } else {
+                    clearFormalEmailStatus();
+                }
+
+                window.setTimeout(function(){
+                    if (formalEmailGmailReady) {
+                        $("#formalEmailRecipientInput").trigger("focus");
+                    } else {
+                        $("#connectFormalGmailBtn").trigger("focus");
+                    }
+                }, 20);
+            }
+
+            function closeFormalEmailComposer(shouldReset) {
+                if (formalEmailSending) {
+                    return;
+                }
+
+                $("#formalEmailRecipientField").removeClass("is-focused");
+                hideFormalEmailSuggestions();
+                $("#formalEmailBackdrop").hide();
+
+                if (shouldReset !== false) {
+                    resetFormalEmailComposer();
+                }
+            }
+
+            function sendFormalEmailMessage() {
+                if (!formalEmailIsAdmin || formalEmailSending) {
+                    return;
+                }
+
+                if (!formalEmailGmailReady) {
+                    setFormalEmailStatus("Connect Gmail first before sending formal emails.", "error");
+                    return;
+                }
+
+                var subject = $("#formalEmailSubjectInput").val() || "";
+                var body = $("#formalEmailBodyInput").val() || "";
+
+                if (formalEmailSelectedRecipientIds.length === 0) {
+                    setFormalEmailStatus("Select at least one member.", "error");
+                    $("#formalEmailRecipientInput").trigger("focus");
+                    return;
+                }
+
+                if ($.trim(subject) === "" && $.trim(body) === "" && !formalEmailAttachments.length) {
+                    setFormalEmailStatus("Add a subject, message, or attachment before sending.", "error");
+                    $("#formalEmailBodyInput").trigger("focus");
+                    return;
+                }
+
+                formalEmailSending = true;
+                $("#sendFormalEmail").prop("disabled", true);
+                $("#addFormalEmailAttachment").prop("disabled", true);
+                $("#formalEmailToolbarAttach").prop("disabled", true);
+                $("#formalEmailToolbarRecipients").prop("disabled", true);
+                $("#formalEmailToolbarGmail").prop("disabled", true);
+                setFormalEmailStatus("Sending formal email...", "success");
+
+                var formData = new FormData();
+                formData.append("csrf_token", formalEmailCsrfToken);
+                formData.append("subject", subject);
+                formData.append("body", body);
+
+                for (var i = 0; i < formalEmailSelectedRecipientIds.length; i++) {
+                    formData.append("recipient_ids[]", formalEmailSelectedRecipientIds[i]);
+                }
+
+                for (var j = 0; j < formalEmailAttachments.length; j++) {
+                    if (formalEmailAttachments[j] && formalEmailAttachments[j].file) {
+                        formData.append("attachments[]", formalEmailAttachments[j].file, formalEmailAttachments[j].name || formalEmailAttachments[j].file.name || "attachment");
+                    }
+                }
+
+                $.ajax({
+                    url: 'app/ajax/sendGmailMessage.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: formData,
+                    processData: false,
+                    contentType: false
+                }).done(function(res){
+                    if (!res || !res.ok) {
+                        if (res && res.needs_gmail_auth) {
+                            if (res.connect_url) {
+                                formalEmailConnectUrl = res.connect_url;
+                            }
+                            setFormalEmailComposerEnabled(false);
+                            setFormalEmailStatus(res.message || "Reconnect Gmail to continue.", "error");
+                            return;
+                        }
+
+                        setFormalEmailStatus((res && res.message) ? res.message : "Unable to send the formal email right now.", "error");
+                        return;
+                    }
+
+                    setFormalEmailStatus(res.message || "Formal email sent successfully.", "success");
+                    if (typeof showToast === "function") {
+                        var toastMessage = "Formal email sent successfully.";
+                        var sentCount = parseInt((res && res.sent_count) || 0, 10) || 0;
+                        var attachmentCount = parseInt((res && res.attachment_count) || 0, 10) || 0;
+
+                        if (sentCount > 0) {
+                            toastMessage = "Formal email sent to " + sentCount + " member" + (sentCount === 1 ? "" : "s") + ".";
+                            if (attachmentCount > 0) {
+                                toastMessage += " " + attachmentCount + " attachment" + (attachmentCount === 1 ? "" : "s") + " included.";
+                            }
+                        }
+
+                        showToast(toastMessage, "success");
+                    }
+                    window.setTimeout(function(){
+                        closeFormalEmailComposer(true);
+                    }, 450);
+                }).fail(function(xhr){
+                    var response = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+                    if (response && response.needs_gmail_auth) {
+                        if (response.connect_url) {
+                            formalEmailConnectUrl = response.connect_url;
+                        }
+                        setFormalEmailComposerEnabled(false);
+                    }
+                    setFormalEmailStatus(response && response.message ? response.message : "Unable to send the formal email right now.", "error");
+                }).always(function(){
+                    formalEmailSending = false;
+                    $("#sendFormalEmail").prop("disabled", !formalEmailGmailReady);
+                    $("#addFormalEmailAttachment").prop("disabled", !formalEmailGmailReady);
+                    $("#formalEmailToolbarAttach").prop("disabled", !formalEmailGmailReady);
+                    $("#formalEmailToolbarRecipients").prop("disabled", !formalEmailGmailReady);
+                    $("#formalEmailToolbarGmail").prop("disabled", !formalEmailGmailConfigReady);
+                });
             }
 
             function openChatDeleteModal(target) {
@@ -1066,6 +1838,149 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 syncActiveChatHeader();
             }
 
+            if (formalEmailIsAdmin) {
+                $("#openFormalEmailComposer").on("click", function(){
+                    openFormalEmailComposer();
+                });
+
+                $("#closeFormalEmailComposer, #discardFormalEmail").on("click", function(){
+                    closeFormalEmailComposer(true);
+                });
+
+                $("#formalEmailBackdrop").on("click", function(e){
+                    if (e.target === this) {
+                        closeFormalEmailComposer(true);
+                    }
+                });
+
+                $("#formalEmailRecipientField").on("click", function(){
+                    if (formalEmailGmailReady) {
+                        $("#formalEmailRecipientInput").trigger("focus");
+                    }
+                });
+
+                $("#formalEmailRecipientInput").on("focus", function(){
+                    $("#formalEmailRecipientField").addClass("is-focused");
+                    refreshFormalEmailSuggestions();
+                });
+
+                $("#formalEmailRecipientInput").on("blur", function(){
+                    window.setTimeout(function(){
+                        $("#formalEmailRecipientField").removeClass("is-focused");
+                        hideFormalEmailSuggestions();
+                    }, 120);
+                });
+
+                $("#formalEmailRecipientInput").on("input", function(){
+                    clearFormalEmailStatus();
+                    refreshFormalEmailSuggestions();
+                });
+
+                $("#formalEmailSubjectInput, #formalEmailBodyInput").on("input", function(){
+                    clearFormalEmailStatus();
+                });
+
+                $("#addFormalEmailAttachment").on("click", function(){
+                    if (!formalEmailGmailReady || formalEmailSending) {
+                        return;
+                    }
+                    $("#formalEmailAttachmentInput").trigger("click");
+                });
+
+                $("#formalEmailToolbarAttach").on("click", function(){
+                    if (!formalEmailGmailReady || formalEmailSending) {
+                        return;
+                    }
+                    $("#formalEmailAttachmentInput").trigger("click");
+                });
+
+                $("#formalEmailToolbarRecipients").on("click", function(){
+                    if (!formalEmailGmailReady) {
+                        return;
+                    }
+                    $("#formalEmailRecipientInput").trigger("focus");
+                });
+
+                $("#formalEmailToolbarGmail").on("click", function(){
+                    if (!formalEmailGmailConfigReady || formalEmailSending) {
+                        return;
+                    }
+                    window.location.href = formalEmailConnectUrl || "app/google-gmail-init.php";
+                });
+
+                $("#connectFormalGmailBtn").on("click", function(e){
+                    if ($(this).attr("aria-disabled") === "true") {
+                        e.preventDefault();
+                    }
+                });
+
+                $("#formalEmailAttachmentInput").on("change", function(){
+                    addFormalEmailAttachments(this.files);
+                });
+
+                $("#formalEmailRecipientInput").on("keydown", function(e){
+                    if (e.which === 8 && $.trim($(this).val() || "") === "" && formalEmailSelectedRecipientIds.length > 0) {
+                        removeFormalEmailRecipient(formalEmailSelectedRecipientIds[formalEmailSelectedRecipientIds.length - 1]);
+                        e.preventDefault();
+                        return;
+                    }
+
+                    if ($("#formalEmailRecipientSuggestions").is(":visible")) {
+                        if (e.which === 40) {
+                            e.preventDefault();
+                            moveFormalEmailSelection(1);
+                            return;
+                        }
+
+                        if (e.which === 38) {
+                            e.preventDefault();
+                            moveFormalEmailSelection(-1);
+                            return;
+                        }
+
+                        if (e.which === 13) {
+                            e.preventDefault();
+                            applySelectedFormalEmailRecipient();
+                            return;
+                        }
+
+                        if (e.which === 27) {
+                            e.preventDefault();
+                            hideFormalEmailSuggestions();
+                        }
+                    }
+                });
+
+                $("#sendFormalEmail").on("click", function(){
+                    sendFormalEmailMessage();
+                });
+
+                $("#formalEmailBodyInput").on("keydown", function(e){
+                    if ((e.ctrlKey || e.metaKey) && e.which === 13) {
+                        e.preventDefault();
+                        sendFormalEmailMessage();
+                    }
+                });
+
+                $(document).on("mousedown", ".formal-email-suggestion", function(e){
+                    e.preventDefault();
+                    addFormalEmailRecipient($(this).attr("data-user-id"));
+                });
+
+                $(document).on("click", ".formal-email-recipient-remove", function(e){
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeFormalEmailRecipient($(this).attr("data-user-id"));
+                    $("#formalEmailRecipientInput").trigger("focus");
+                });
+
+                $(document).on("click", ".email-compose-attachment-remove", function(e){
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeFormalEmailAttachment($(this).attr("data-file-key"));
+                });
+            }
+
             $("#chatInfoToggle").click(function(){
                 loadCurrentChatInfoSidebar();
                 $("#rightSidebar").toggleClass("active");
@@ -1217,6 +2132,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             $(document).on("click", function(e){
                 if (!$(e.target).closest("#messageInput, #mentionSuggestions").length) {
                     hideMentionSuggestions();
+                }
+                if (formalEmailIsAdmin && !$(e.target).closest("#formalEmailRecipientField, #formalEmailRecipientSuggestions").length) {
+                    hideFormalEmailSuggestions();
                 }
                 if (!$(e.target).closest(".chat-item.show-delete-action, .chat-delete-modal-card").length) {
                     clearChatItemDeleteActions();
@@ -1627,6 +2545,20 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 inputEl.focus();
                 inputEl.setSelectionRange(newCaret, newCaret);
                 hideMentionSuggestions();
+            }
+
+            if (formalEmailIsAdmin) {
+                resetFormalEmailComposer();
+                if (formalEmailFlash && (formalEmailFlash.open || (formalEmailFlash.message || "") !== "")) {
+                    openFormalEmailComposer();
+                    if (window.history && window.history.replaceState) {
+                        var cleanUrl = new URL(window.location.href);
+                        cleanUrl.searchParams.delete("open_formal_email");
+                        cleanUrl.searchParams.delete("gmail_status");
+                        cleanUrl.searchParams.delete("gmail_error");
+                        window.history.replaceState({}, document.title, cleanUrl.toString());
+                    }
+                }
             }
 
             // Auto-open chat if ID is provided in URL
