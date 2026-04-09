@@ -6,6 +6,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     include "app/model/Task.php";
     include "app/model/Subtask.php";
     require_once "inc/csrf.php";
+    user_compensation_ensure_schema($pdo);
     
     $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
 
@@ -236,6 +237,24 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             line-height: 1.4;
         }
 
+        .rate-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: #DBEAFE;
+            color: #1D4ED8;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .rate-chip.empty {
+            background: #F3F4F6;
+            color: #6B7280;
+        }
+
         .action-row {
             margin-top: auto;
             display: flex;
@@ -422,6 +441,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                     $collab_scores = get_collaborative_scores_by_user($pdo, $user['id']);
                     $attendance_stats = get_todays_attendance_stats($pdo, $user['id']);
                 }
+                $hasHourlyRate = isset($user['hourly_rate']) && $user['hourly_rate'] !== null && $user['hourly_rate'] !== '';
             ?>
             <div class="user-card" data-user-id="<?=$user['id']?>" onclick="location.href='user_details.php?id=<?=$user['id']?>'" style="cursor: pointer;">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
@@ -450,6 +470,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                     <h3 class="user-name"><?= htmlspecialchars($user['full_name']) ?></h3>
                     <span class="user-email"><?= htmlspecialchars($user['username']) ?></span>
                     <span class="badge badge-in_progress" style="font-size: 10px; padding: 2px 8px;"><?= ucfirst($user['role']) ?></span>
+                    <div class="rate-chip<?= $hasHourlyRate ? '' : ' empty' ?>">
+                        <i class="fa fa-money"></i>
+                        <?= $hasHourlyRate ? number_format((float)$user['hourly_rate'], 2) . ' / hr' : 'Rate not set' ?>
+                    </div>
                 </div>
 
                 <!-- Stats Row -->

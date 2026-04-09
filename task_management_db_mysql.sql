@@ -184,6 +184,7 @@ CREATE TABLE users (
     google_sub varchar(255) DEFAULT NULL,
     password varchar(255) NOT NULL,
     role varchar(20) NOT NULL,
+    hourly_rate decimal(10,2) DEFAULT NULL,
     created_at timestamp DEFAULT CURRENT_TIMESTAMP,
     phone varchar(20) DEFAULT NULL,
     address text,
@@ -195,6 +196,39 @@ CREATE TABLE users (
     bio text,
     CONSTRAINT users_role_check CHECK ((role  IN ('admin', 'employee'))),
     CONSTRAINT users_pkey PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE payroll_deductions (
+    id int NOT NULL AUTO_INCREMENT,
+    user_id int NOT NULL,
+    deduction_date date NOT NULL,
+    deduction_type varchar(30) NOT NULL DEFAULT 'other',
+    title varchar(150) NOT NULL,
+    amount decimal(10,2) NOT NULL DEFAULT 0,
+    amount_mode varchar(20) NOT NULL DEFAULT 'fixed',
+    apply_period varchar(20) NOT NULL DEFAULT 'once',
+    notes text,
+    created_by int NOT NULL,
+    organization_id int DEFAULT NULL,
+    created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_payroll_deductions_user_date (user_id, deduction_date),
+    KEY idx_payroll_deductions_org (organization_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE payroll_government_settings (
+    id int NOT NULL AUTO_INCREMENT,
+    organization_id int DEFAULT NULL,
+    sss_enabled tinyint(1) NOT NULL DEFAULT 1,
+    philhealth_enabled tinyint(1) NOT NULL DEFAULT 1,
+    pagibig_enabled tinyint(1) NOT NULL DEFAULT 1,
+    withholding_tax_enabled tinyint(1) NOT NULL DEFAULT 1,
+    updated_by int DEFAULT NULL,
+    created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uniq_payroll_gov_settings_org (organization_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE user_google_oauth_tokens (

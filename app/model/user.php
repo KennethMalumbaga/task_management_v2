@@ -53,6 +53,37 @@ if (!function_exists('user_google_auth_ensure_schema')) {
     }
 }
 
+if (!function_exists('user_compensation_ensure_schema')) {
+    function user_compensation_ensure_schema($pdo)
+    {
+        static $cache = [];
+
+        $cacheKey = is_object($pdo) ? spl_object_hash($pdo) : 'default';
+        if (array_key_exists($cacheKey, $cache)) {
+            return (bool)$cache[$cacheKey];
+        }
+
+        if (tenant_column_exists($pdo, 'users', 'hourly_rate')) {
+            $cache[$cacheKey] = true;
+            return true;
+        }
+
+        try {
+            $driver = strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+            if ($driver === 'mysql') {
+                $pdo->exec("ALTER TABLE users ADD COLUMN hourly_rate DECIMAL(10,2) NULL DEFAULT NULL AFTER role");
+            } else {
+                $pdo->exec("ALTER TABLE users ADD COLUMN hourly_rate NUMERIC(10,2) DEFAULT NULL");
+            }
+        } catch (Throwable $e) {
+            // Another request may have added the column already.
+        }
+
+        $cache[$cacheKey] = tenant_column_exists($pdo, 'users', 'hourly_rate');
+        return (bool)$cache[$cacheKey];
+    }
+}
+
 if (!function_exists('user_get_by_google_sub_unscoped')) {
     function user_get_by_google_sub_unscoped($pdo, $googleSub)
     {

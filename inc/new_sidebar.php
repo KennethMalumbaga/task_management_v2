@@ -156,6 +156,7 @@
         'groups.php' => 'Groups',
         'screenshots.php' => 'Captures',
         'reports.php' => 'Reports',
+        'payroll.php' => 'Payroll',
         'profile.php' => 'Profile',
         'edit_profile.php' => 'Edit Profile',
         'notifications.php' => 'Notifications',
@@ -376,6 +377,9 @@
             </a>
             <a href="reports.php" class="dash-nav-item <?= isActive('reports.php') ?>">
                 <i class="fa fa-bar-chart"></i> Reports
+            </a>
+            <a href="payroll.php" class="dash-nav-item <?= isActive('payroll.php') ?>">
+                <i class="fa fa-money"></i> Payroll
             </a>
         <?php } ?>
     </nav>

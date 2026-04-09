@@ -3,8 +3,11 @@ session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "DB_connection.php";
     require_once "inc/tenant.php";
+    require_once "inc/csrf.php";
     include "app/model/user.php";
     include "app/model/Task.php";
+    user_compensation_ensure_schema($pdo);
+    $isAdmin = $_SESSION['role'] === 'admin';
 
     if (!isset($_GET['id'])) {
         header("Location: user.php");
@@ -64,6 +67,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     // Get total hours worked
     $attendance_stats = get_todays_attendance_stats($pdo, $user_id);
     $total_hours = $attendance_stats['overall_duration'];
+    $hasHourlyRate = isset($user['hourly_rate']) && $user['hourly_rate'] !== null && $user['hourly_rate'] !== '';
+    $hourlyRateDisplay = $hasHourlyRate ? number_format((float)$user['hourly_rate'], 2) : 'Not set';
  ?>
 <!DOCTYPE html>
 <html>
@@ -91,6 +96,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <i class="fa fa-arrow-left"></i> Back to Users
             </a>
         </div>
+        <?php if (isset($_GET['error'])) { ?>
+            <div style="max-width: 900px; margin: 0 auto 16px; background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; padding:14px 16px; border-radius:12px;">
+                <?= htmlspecialchars((string)$_GET['error']) ?>
+            </div>
+        <?php } ?>
+        <?php if (isset($_GET['success'])) { ?>
+            <div style="max-width: 900px; margin: 0 auto 16px; background:#ECFDF5; border:1px solid #BBF7D0; color:#166534; padding:14px 16px; border-radius:12px;">
+                <?= htmlspecialchars((string)$_GET['success']) ?>
+            </div>
+        <?php } ?>
 
         <div class="dash-card" style="padding: 0; overflow: hidden; max-width: 900px; margin: 0 auto;">
             <div class="profile-banner"></div>
@@ -110,6 +125,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <h2 class="profile-name-text"><?= htmlspecialchars($user['full_name']) ?></h2>
                     <span class="profile-role-text"><?= ucfirst($user['role']) ?></span>
                     <div class="profile-actions" style="margin-left: auto;">
+                        <?php if ($isAdmin && ($user['role'] ?? '') === 'employee') { ?>
+                        <a href="#compensationSection" class="btn-primary" style="background:#0f172a;">
+                            <i class="fa fa-money"></i> Set Rate
+                        </a>
+                        <?php } ?>
                         <a href="messages.php?id=<?=$user['id']?>" class="btn-primary" style="background: var(--primary);">
                             <i class="fa fa-comment"></i> Message
                         </a>
@@ -215,6 +235,37 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
                     <!-- Right Column -->
                     <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <?php if ($isAdmin) { ?>
+                        <div class="profile-field-group" id="compensationSection">
+                            <label>Hourly Rate</label>
+                            <div class="field-value" style="background: #EFF6FF; border-radius: 12px; padding: 16px; border: 1px solid #BFDBFE;">
+                                <div style="font-size: 28px; font-weight: 700; color: #1D4ED8; line-height: 1;"><?= htmlspecialchars($hourlyRateDisplay) ?></div>
+                                <div style="font-size: 12px; color: #1E40AF; margin-top: 8px;">Current rate per hour used for payroll.</div>
+                            </div>
+                            <?php if (($user['role'] ?? '') === 'employee') { ?>
+                            <form method="POST" action="app/update-user-rate.php" style="margin-top: 12px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end;">
+                                <?= csrf_field('update_user_hourly_rate_form') ?>
+                                <input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>">
+                                <div>
+                                    <label style="display:block; font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;">Rate Per Hour</label>
+                                    <input
+                                        type="number"
+                                        name="hourly_rate"
+                                        min="0"
+                                        step="0.01"
+                                        value="<?= $hasHourlyRate ? htmlspecialchars((string)$user['hourly_rate']) : '' ?>"
+                                        placeholder="0.00"
+                                        style="width:100%; border:1px solid #D1D5DB; border-radius:10px; padding:11px 13px; font:inherit; box-sizing:border-box;"
+                                    >
+                                </div>
+                                <button type="submit" class="btn-primary" style="border:none; cursor:pointer;">
+                                    <i class="fa fa-save"></i> Save Rate
+                                </button>
+                            </form>
+                            <div style="font-size:12px; color:#64748B; margin-top:8px;">Leave this blank if the employee should stay excluded from payroll computations for now.</div>
+                            <?php } ?>
+                        </div>
+                        <?php } ?>
 
                         
                         <div class="profile-field-group">
