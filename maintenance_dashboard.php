@@ -629,6 +629,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
     </style>
 </head>
 <body>
+<?php include_once __DIR__ . "/inc/loading_screen.php"; ?>
 <?php include "inc/toast.php"; ?>
 
 <!-- NAVBAR -->

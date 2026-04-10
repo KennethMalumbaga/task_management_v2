@@ -1,6 +1,7 @@
 <!-- Site-wide stylesheet (added for pages that include this header) -->
 <link rel="stylesheet" href="css/style.css">
 <?php include_once __DIR__ . "/workspace_theme_style.php"; ?>
+<?php include_once __DIR__ . "/loading_screen.php"; ?>
 <header class="header">
 	<h2 class="u-name">Task <b>Manager</b>
 		<label for="checkbox">

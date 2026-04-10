@@ -171,6 +171,8 @@
     include_once __DIR__ . "/workspace_theme_style.php";
 ?>
 
+<?php include_once __DIR__ . "/loading_screen.php"; ?>
+
 <!-- Mobile Navbar (Fixed Top) -->
 <div class="mobile-navbar">
     <div class="mobile-brand">

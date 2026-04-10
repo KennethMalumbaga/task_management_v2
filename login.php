@@ -228,6 +228,7 @@ $googleLoginEnabled = $googleClientId !== '';
     </style>
 </head>
 <body class="auth-body">
+      <?php include_once __DIR__ . "/inc/loading_screen.php"; ?>
       <?php include "inc/toast.php"; ?>
 
       <a href="landing.php" class="login-back-link-fixed">

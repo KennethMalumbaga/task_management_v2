@@ -24,6 +24,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <link rel="stylesheet" href="css/landing.css">
 </head>
 <body class="landing-page">
+    <?php include_once __DIR__ . "/inc/loading_screen.php"; ?>
 
     <!-- ===== NAVBAR ===== -->
     <nav class="landing-navbar" id="landingNav">
