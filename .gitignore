@@ -6,3 +6,4 @@ screenshots/
 *.backup
 screenshot_debug.log
 extension.pem
+tmp/google_identity_certs_cache.json

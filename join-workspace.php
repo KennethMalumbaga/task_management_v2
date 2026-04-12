@@ -154,6 +154,7 @@ if ($token === '') {
     </style>
 </head>
 <body class="auth-body">
+    <?php include_once __DIR__ . "/inc/loading_screen.php"; ?>
     <?php include "inc/toast.php"; ?>
     <div class="auth-container">
         <!-- Left Side: Branding -->
