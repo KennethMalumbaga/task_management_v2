@@ -55,6 +55,7 @@ if ($attendance) {
         'status' => 'success',
         'has_active_attendance' => true,
         'attendance_id' => $attendance['id'],
+        'attendance_record_id' => $durationStats['latest_attendance_id'] ?? $attendance['id'],
         'time_in' => $durationStats['time_in'] ?? '--:--',
         'time_out' => $durationStats['time_out'] ?? '--:--',
         'daily_duration' => $durationStats['daily_duration'] ?? null,
@@ -72,6 +73,7 @@ if ($attendance) {
     echo json_encode([
         'status' => 'success',
         'has_active_attendance' => false,
+        'attendance_record_id' => $durationStats['latest_attendance_id'] ?? null,
         'time_in' => $durationStats['time_in'] ?? '--:--',
         'time_out' => $durationStats['time_out'] ?? '--:--',
         'daily_duration' => $durationStats['daily_duration'] ?? null,
@@ -80,4 +82,3 @@ if ($attendance) {
         'clocked_out_by_admin' => !empty($durationStats['clocked_out_by_admin'])
     ]);
 }
-

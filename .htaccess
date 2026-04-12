@@ -1,5 +1,3 @@
-php_value upload_max_filesize 100M
-php_value post_max_size 100M
-php_value memory_limit 256M
-php_value max_execution_time 300
-php_value max_input_time 300
+# PHP limits are configured in `.user.ini` for Hostinger/shared hosting.
+# Keep this file minimal to avoid `500 Internal Server Error` from unsupported
+# `php_value` directives under FastCGI/PHP-FPM.

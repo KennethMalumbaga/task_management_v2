@@ -276,3 +276,119 @@ if (!function_exists('calendar_meetings_get_for_date')) {
         return calendar_meetings_get_between($pdo, $meetingDate, $meetingDate, $viewerUserId, $sessionRole);
     }
 }
+
+if (!function_exists('calendar_meetings_get_by_id')) {
+    function calendar_meetings_get_by_id($pdo, $meetingId)
+    {
+        if (!calendar_meetings_ensure_schema($pdo)) {
+            return null;
+        }
+
+        $meetingId = (int)$meetingId;
+        if ($meetingId <= 0) {
+            return null;
+        }
+
+        $sql = "SELECT cm.*,
+                       COALESCE(u.full_name, 'Workspace member') AS creator_name,
+                       u.profile_image AS creator_profile_image,
+                       g.name AS group_name,
+                       t.title AS task_name
+                FROM calendar_meetings cm
+                LEFT JOIN users u ON u.id = cm.created_by
+                LEFT JOIN groups g ON g.id = cm.group_id
+                LEFT JOIN tasks t ON t.id = cm.task_id
+                WHERE cm.id = ?";
+        [$sql, $params] = calendar_meetings_append_scope($pdo, $sql, [$meetingId], 'cm');
+        $sql .= " LIMIT 1";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+}
+
+if (!function_exists('calendar_meetings_user_can_manage')) {
+    function calendar_meetings_user_can_manage($meeting, $viewerUserId = 0, $sessionRole = 'employee')
+    {
+        if (!is_array($meeting) || empty($meeting['id'])) {
+            return false;
+        }
+
+        $sessionRole = strtolower(trim((string)$sessionRole));
+        if ($sessionRole === 'admin') {
+            return true;
+        }
+
+        return (int)($meeting['created_by'] ?? 0) === (int)$viewerUserId;
+    }
+}
+
+if (!function_exists('calendar_meetings_update')) {
+    function calendar_meetings_update($pdo, $meetingId, array $data)
+    {
+        if (!calendar_meetings_ensure_schema($pdo)) {
+            return false;
+        }
+
+        $meetingId = (int)$meetingId;
+        if ($meetingId <= 0) {
+            return false;
+        }
+
+        $sql = "UPDATE calendar_meetings
+                SET title = ?,
+                    description = ?,
+                    meeting_date = ?,
+                    start_time = ?,
+                    end_time = ?,
+                    timezone = ?,
+                    audience_type = ?,
+                    group_id = ?,
+                    task_id = ?,
+                    google_calendar_url = ?,
+                    google_meet_url = ?,
+                    google_conference_id = ?
+                WHERE id = ?";
+        $params = [
+            trim((string)($data['title'] ?? '')),
+            trim((string)($data['description'] ?? '')) ?: null,
+            trim((string)($data['meeting_date'] ?? '')),
+            trim((string)($data['start_time'] ?? '')),
+            trim((string)($data['end_time'] ?? '')),
+            trim((string)($data['timezone'] ?? '')) ?: 'Asia/Manila',
+            calendar_meetings_normalize_audience_type($data['audience_type'] ?? 'everyone'),
+            !empty($data['group_id']) ? (int)$data['group_id'] : null,
+            !empty($data['task_id']) ? (int)$data['task_id'] : null,
+            trim((string)($data['google_calendar_url'] ?? '')) ?: null,
+            trim((string)($data['google_meet_url'] ?? '')) ?: null,
+            trim((string)($data['google_conference_id'] ?? '')) ?: null,
+            $meetingId,
+        ];
+
+        [$sql, $params] = calendar_meetings_append_scope($pdo, $sql, $params);
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute($params);
+    }
+}
+
+if (!function_exists('calendar_meetings_delete')) {
+    function calendar_meetings_delete($pdo, $meetingId)
+    {
+        if (!calendar_meetings_ensure_schema($pdo)) {
+            return false;
+        }
+
+        $meetingId = (int)$meetingId;
+        if ($meetingId <= 0) {
+            return false;
+        }
+
+        $sql = "DELETE FROM calendar_meetings WHERE id = ?";
+        [$sql, $params] = calendar_meetings_append_scope($pdo, $sql, [$meetingId]);
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->rowCount() > 0;
+    }
+}

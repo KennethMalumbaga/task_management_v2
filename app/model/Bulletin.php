@@ -374,3 +374,27 @@ if (!function_exists('delete_bulletin_post')) {
         return $stmt->rowCount() > 0;
     }
 }
+
+if (!function_exists('delete_bulletin_posts_by_source')) {
+    function delete_bulletin_posts_by_source($pdo, $sourceType, $sourceId)
+    {
+        if (!bulletin_ensure_table($pdo)) {
+            return false;
+        }
+
+        $sourceType = trim((string)$sourceType);
+        $sourceId = (int)$sourceId;
+        if ($sourceType === '' || $sourceId <= 0) {
+            return false;
+        }
+
+        $sql = "DELETE FROM bulletin_posts WHERE source_type = ? AND source_id = ?";
+        $params = [$sourceType, $sourceId];
+        $scope = tenant_get_scope($pdo, 'bulletin_posts');
+        $sql .= $scope['sql'];
+        $params = array_merge($params, $scope['params']);
+
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute($params);
+    }
+}

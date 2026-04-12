@@ -665,6 +665,26 @@
 <?php
     $sharedIdleRole = (string)($_SESSION['role'] ?? '');
 ?>
+<?php if ($sharedIdleRole === 'employee') { ?>
+<div id="adminClockOutNoticeModal" onclick="if (event.target === this) closeAdminClockOutNoticeModal()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2201; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
+    <div style="background:white; padding:30px; border-radius:14px; width:min(420px, calc(100vw - 32px)); text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+        <div style="width:50px; height:50px; background:#FEE2E2; color:#DC2626; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; margin:0 auto 15px;">
+            <i class="fa fa-user-times"></i>
+        </div>
+        <h3 style="margin:0 0 10px; color:#111827;">Clocked Out by Admin</h3>
+        <p id="adminClockOutNoticeMessage" style="color:#6B7280; font-size:14px; margin-bottom:18px; line-height:1.5;">
+            You were clocked out by an admin.
+        </p>
+        <div style="text-align:left; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:14px; margin-bottom:22px;">
+            <div style="font-size:12px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Remark</div>
+            <div id="adminClockOutNoticeRemark" style="font-size:14px; color:#111827; line-height:1.6; white-space:pre-wrap;">No remark was provided.</div>
+        </div>
+        <div style="display:flex; justify-content:center;">
+            <button type="button" onclick="closeAdminClockOutNoticeModal()" style="background:#DC2626; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:600; cursor:pointer;">OK</button>
+        </div>
+    </div>
+</div>
+<?php } ?>
 <div id="sharedIdleCheckModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2200; align-items:center; justify-content:center;">
     <div style="background:white; padding:30px; border-radius:12px; width:370px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
         <div style="width:50px; height:50px; background:#DBEAFE; color:#1D4ED8; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; margin:0 auto 15px;">
@@ -681,6 +701,115 @@
     </div>
 </div>
 <script>
+    (function () {
+        if (window.__taskflowAdminClockOutNoticeInitialized) return;
+        window.__taskflowAdminClockOutNoticeInitialized = true;
+
+        var role = <?= json_encode($sharedIdleRole, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        if (role !== 'employee') return;
+
+        var ACK_KEY = 'taskflow_admin_clock_out_notice_seen_v1';
+        var fallbackSeenSignature = '';
+        var activeSignature = '';
+        var modal = document.getElementById('adminClockOutNoticeModal');
+        var message = document.getElementById('adminClockOutNoticeMessage');
+        var remarkEl = document.getElementById('adminClockOutNoticeRemark');
+
+        function normalizeSignaturePart(value) {
+            if (value == null) return '';
+            return String(value).trim();
+        }
+
+        function readSeenSignature() {
+            try {
+                return localStorage.getItem(ACK_KEY) || fallbackSeenSignature;
+            } catch (e) {
+                return fallbackSeenSignature;
+            }
+        }
+
+        function writeSeenSignature(signature) {
+            fallbackSeenSignature = signature;
+            try {
+                localStorage.setItem(ACK_KEY, signature);
+            } catch (e) {
+                // Ignore storage errors and rely on in-memory fallback.
+            }
+        }
+
+        function buildAdminClockOutNoticeSignature(payload) {
+            if (!payload || !payload.clocked_out_by_admin) return '';
+
+            var parts = [
+                normalizeSignaturePart(payload.attendance_record_id || payload.attendance_id || ''),
+                normalizeSignaturePart(payload.time_in || ''),
+                normalizeSignaturePart(payload.time_out || ''),
+                normalizeSignaturePart(payload.admin_clock_out_remark || '')
+            ];
+
+            if (!parts[0] && !parts[2] && !parts[3]) {
+                return '';
+            }
+
+            return parts.join('|');
+        }
+
+        window.openAdminClockOutNoticeModal = function (remark, timeOutLabel, signature) {
+            var cleanRemark = String(remark || '').trim();
+            activeSignature = signature || '';
+
+            if (message) {
+                message.textContent = timeOutLabel
+                    ? ('You were clocked out by an admin at ' + timeOutLabel + '.')
+                    : 'You were clocked out by an admin.';
+            }
+            if (remarkEl) {
+                remarkEl.textContent = cleanRemark || 'No remark was provided.';
+            }
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        };
+
+        window.closeAdminClockOutNoticeModal = function () {
+            if (activeSignature) {
+                writeSeenSignature(activeSignature);
+            }
+            activeSignature = '';
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        };
+
+        window.maybeShowAdminClockOutNotice = function (payload) {
+            var signature = buildAdminClockOutNoticeSignature(payload);
+            if (!signature) return false;
+            if (readSeenSignature() === signature) return false;
+
+            window.openAdminClockOutNoticeModal(
+                payload.admin_clock_out_remark || '',
+                payload.time_out || '',
+                signature
+            );
+            return true;
+        };
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && modal && modal.style.display === 'flex') {
+                window.closeAdminClockOutNoticeModal();
+            }
+        });
+
+        window.addEventListener('storage', function (event) {
+            if (event.key !== ACK_KEY) return;
+            if (!activeSignature || event.newValue !== activeSignature) return;
+            activeSignature = '';
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        });
+    })();
+
     (function () {
         if (window.__taskflowSharedIdleInitialized) return;
         window.__taskflowSharedIdleInitialized = true;
@@ -910,6 +1039,9 @@
                         activeAttendanceId = null;
                     }
                     evaluateIdleState();
+                    if (typeof window.maybeShowAdminClockOutNotice === 'function') {
+                        window.maybeShowAdminClockOutNotice(res);
+                    }
                 } catch (e) {
                     // no-op
                 }

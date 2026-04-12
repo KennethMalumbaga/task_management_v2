@@ -53,6 +53,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     $allSubtasks = get_calendar_subtasks_visible_to_user($pdo, (int)$_SESSION['id'], (string)$_SESSION['role'], $gridStartDate, $gridEndDate);
 
     $allMeetings = calendar_meetings_get_between($pdo, $gridStartDate, $gridEndDate, (int)$_SESSION['id'], (string)$_SESSION['role']);
+    $calendarCanManageAnyMeeting = false;
+    foreach ($allMeetings as $calendarMeetingRow) {
+        if (calendar_meetings_user_can_manage($calendarMeetingRow, (int)$_SESSION['id'], (string)$_SESSION['role'])) {
+            $calendarCanManageAnyMeeting = true;
+            break;
+        }
+    }
     $meetingsForSelectedDate = calendar_meetings_get_for_date($pdo, $currentDate, (int)$_SESSION['id'], (string)$_SESSION['role']);
     $meetingsByDate = [];
     foreach ($allMeetings as $meeting) {
@@ -62,6 +69,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         }
     }
     $calendarGroups = $_SESSION['role'] === 'admin' ? get_all_groups($pdo) : [];
+    $calendarMeetingModalEnabled = $calendarCanCreateMeeting || $calendarCanManageAnyMeeting;
+    $calendarDefaultTimezone = google_calendar_timezone();
 
     $calendarStatusError = trim((string)($_GET['error'] ?? ''));
     $calendarStatusSuccess = trim((string)($_GET['success'] ?? ''));
@@ -508,6 +517,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             gap: 10px;
             flex-wrap: wrap;
         }
+        .cal-inline-form {
+            margin: 0;
+        }
         .cal-inline-link {
             display: inline-flex;
             align-items: center;
@@ -517,6 +529,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             font-weight: 800;
             border-radius: 999px;
             padding: 8px 12px;
+            border: 1px solid transparent;
+            cursor: pointer;
         }
         .cal-inline-link.meet {
             background: #0f766e;
@@ -526,6 +540,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             background: #ffffff;
             color: #2563eb;
             border: 1px solid #bfdbfe;
+        }
+        .cal-inline-link.danger {
+            background: #fff1f2;
+            color: #be123c;
+            border-color: #fecdd3;
         }
         .cal-inline-link:hover {
             opacity: 0.92;
@@ -906,7 +925,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 </div>
                 <?php if ($calendarCanCreateMeeting) { ?>
                     <div class="calendar-actions">
-                        <button type="button" class="cal-action-btn" id="calendarCreateMeetingBtn" data-meeting-date="<?= htmlspecialchars($currentDate, ENT_QUOTES) ?>">
+                        <button type="button" class="cal-action-btn calendar-create-meeting-trigger" id="calendarCreateMeetingBtn" data-meeting-date="<?= htmlspecialchars($currentDate, ENT_QUOTES) ?>">
                             <i class="fa fa-video-camera"></i> Create Meeting
                         </button>
                     </div>
@@ -1038,7 +1057,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                             <p>Create a meeting straight from the selected date, then reopen the Meet link here anytime.</p>
                         </div>
                         <?php if ($calendarCanCreateMeeting) { ?>
-                            <button type="button" class="cal-action-btn secondary" data-meeting-date="<?= htmlspecialchars($currentDate, ENT_QUOTES) ?>">
+                            <button type="button" class="cal-action-btn secondary calendar-create-meeting-trigger" data-meeting-date="<?= htmlspecialchars($currentDate, ENT_QUOTES) ?>">
                                 <i class="fa fa-plus-circle"></i> Create Meeting
                             </button>
                         <?php } ?>
@@ -1062,6 +1081,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                     if ($meetingStart !== '' && $meetingEnd !== '') {
                                         $timeRange = date('g:i A', strtotime($meetingStart)) . ' - ' . date('g:i A', strtotime($meetingEnd));
                                     }
+                                    $calendarCanManageMeeting = calendar_meetings_user_can_manage($meeting, (int)$_SESSION['id'], (string)$_SESSION['role']);
                                 ?>
                                     <div class="cal-meeting-item">
                                         <div class="cal-meeting-top">
@@ -1099,6 +1119,35 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                                                 <a href="<?= htmlspecialchars((string)$meeting['google_calendar_url'], ENT_QUOTES) ?>" target="_blank" rel="noopener noreferrer" class="cal-inline-link secondary">
                                                     <i class="fa fa-calendar"></i> Open in Google Calendar
                                                 </a>
+                                            <?php } ?>
+                                            <?php if ($calendarCanManageMeeting && $calendarMeetingModalEnabled) { ?>
+                                                <button
+                                                    type="button"
+                                                    class="cal-inline-link secondary calendar-edit-meeting-trigger"
+                                                    data-meeting-id="<?= (int)($meeting['id'] ?? 0) ?>"
+                                                    data-meeting-date="<?= htmlspecialchars((string)($meeting['meeting_date'] ?? ''), ENT_QUOTES) ?>"
+                                                    data-title="<?= htmlspecialchars((string)($meeting['title'] ?? ''), ENT_QUOTES) ?>"
+                                                    data-description="<?= htmlspecialchars((string)($meeting['description'] ?? ''), ENT_QUOTES) ?>"
+                                                    data-start-time="<?= htmlspecialchars(substr((string)($meeting['start_time'] ?? ''), 0, 5), ENT_QUOTES) ?>"
+                                                    data-end-time="<?= htmlspecialchars(substr((string)($meeting['end_time'] ?? ''), 0, 5), ENT_QUOTES) ?>"
+                                                    data-timezone="<?= htmlspecialchars((string)($meeting['timezone'] ?? $calendarDefaultTimezone), ENT_QUOTES) ?>"
+                                                    data-audience-type="<?= htmlspecialchars((string)($meeting['audience_type'] ?? 'everyone'), ENT_QUOTES) ?>"
+                                                    data-group-id="<?= (int)($meeting['group_id'] ?? 0) ?>"
+                                                    data-task-id="<?= (int)($meeting['task_id'] ?? 0) ?>"
+                                                >
+                                                    <i class="fa fa-pencil"></i> Edit
+                                                </button>
+                                            <?php } ?>
+                                            <?php if ($calendarCanManageMeeting) { ?>
+                                                <form method="post" action="app/google-calendar-meeting.php" class="cal-inline-form" onsubmit="return confirm('Delete this meeting from TaskFlow and Google Calendar?');">
+                                                    <?= csrf_field('calendar_meeting_delete_form') ?>
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="meeting_id" value="<?= (int)($meeting['id'] ?? 0) ?>">
+                                                    <input type="hidden" name="meeting_date" value="<?= htmlspecialchars((string)($meeting['meeting_date'] ?? ''), ENT_QUOTES) ?>">
+                                                    <button type="submit" class="cal-inline-link danger">
+                                                        <i class="fa fa-trash"></i> Delete
+                                                    </button>
+                                                </form>
                                             <?php } ?>
                                         </div>
                                     </div>
@@ -1298,20 +1347,22 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         </div>
     </div>
 
-    <?php if ($calendarCanCreateMeeting) { ?>
+    <?php if ($calendarMeetingModalEnabled) { ?>
     <div class="cal-modal-shell" id="calendarMeetingModal" aria-hidden="true">
         <div class="cal-modal-card" role="dialog" aria-modal="true" aria-labelledby="calendarMeetingModalTitle">
             <div class="cal-modal-head">
                 <div>
                     <h3 id="calendarMeetingModalTitle">Create Meeting</h3>
-                    <p>Pick the selected calendar date, add the meeting title and time, and TaskFlow will create a Google Meet-backed event for you.</p>
+                    <p id="calendarMeetingModalIntro">Pick the selected calendar date, add the meeting title and time, and TaskFlow will create a Google Meet-backed event for you.</p>
                 </div>
                 <button type="button" class="cal-modal-close" id="calendarMeetingCloseBtn" aria-label="Close meeting form">
                     <i class="fa fa-times"></i>
                 </button>
             </div>
-            <form class="cal-modal-form" method="post" action="app/google-calendar-meeting.php">
+            <form class="cal-modal-form" method="post" action="app/google-calendar-meeting.php" id="calendarMeetingForm">
                 <?= csrf_field('calendar_meeting_form') ?>
+                <input type="hidden" name="action" id="calendarMeetingAction" value="create">
+                <input type="hidden" name="meeting_id" id="calendarMeetingId" value="">
                 <div class="cal-form-grid">
                     <div class="cal-form-field full">
                         <label for="calendarMeetingTitle">Meeting Name</label>
@@ -1323,7 +1374,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     </div>
                     <div class="cal-form-field">
                         <label for="calendarMeetingTimezone">Timezone</label>
-                        <input type="text" id="calendarMeetingTimezone" name="timezone" value="Asia/Manila" required>
+                        <input type="text" id="calendarMeetingTimezone" name="timezone" value="<?= htmlspecialchars($calendarDefaultTimezone, ENT_QUOTES) ?>" required>
                     </div>
                     <?php if ($_SESSION['role'] === 'admin') { ?>
                         <div class="cal-form-field">
@@ -1379,15 +1430,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 </div>
                 <div class="cal-form-help">
                     <?php if ($_SESSION['role'] === 'admin') { ?>
-                        Google Meet links are created through Google Calendar. Admins can target the whole workspace, one group, or one task team.
+                        Google Meet links are managed through Google Calendar. Admins can target the whole workspace, one group, or one task team.
                     <?php } else { ?>
-                        Leaders create meetings for one of their led tasks. Only the members assigned to that task, plus the leader and admins, will see the meeting in TaskFlow.
+                        Leaders manage meetings for one of their led tasks. Only the members assigned to that task, plus the leader and admins, will see the meeting in TaskFlow.
                     <?php } ?>
                 </div>
                 <div class="cal-modal-actions">
                     <button type="button" class="cal-action-btn secondary" id="calendarMeetingCancelBtn">Cancel</button>
                     <button type="submit" class="cal-action-btn">
-                        <i class="fa fa-video-camera"></i> Create in Google Meet
+                        <i class="fa fa-video-camera"></i> <span id="calendarMeetingSubmitLabel">Create in Google Meet</span>
                     </button>
                 </div>
             </form>
@@ -1397,23 +1448,33 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     <script>
         (function () {
             var modal = document.getElementById('calendarMeetingModal');
+            var form = document.getElementById('calendarMeetingForm');
             var closeBtn = document.getElementById('calendarMeetingCloseBtn');
             var cancelBtn = document.getElementById('calendarMeetingCancelBtn');
+            var modalTitle = document.getElementById('calendarMeetingModalTitle');
+            var modalIntro = document.getElementById('calendarMeetingModalIntro');
+            var actionInput = document.getElementById('calendarMeetingAction');
+            var meetingIdInput = document.getElementById('calendarMeetingId');
+            var titleInput = document.getElementById('calendarMeetingTitle');
             var dateInput = document.getElementById('calendarMeetingDate');
+            var timezoneInput = document.getElementById('calendarMeetingTimezone');
             var audienceInput = document.getElementById('calendarMeetingAudience');
             var groupField = document.getElementById('calendarMeetingGroupField');
             var groupSelect = document.getElementById('calendarMeetingGroup');
             var taskField = document.getElementById('calendarMeetingTaskField');
             var taskSelect = document.getElementById('calendarMeetingTask');
-            var openButtons = document.querySelectorAll('[data-meeting-date]');
+            var startInput = document.getElementById('calendarMeetingStart');
+            var endInput = document.getElementById('calendarMeetingEnd');
+            var descriptionInput = document.getElementById('calendarMeetingDescription');
+            var submitLabel = document.getElementById('calendarMeetingSubmitLabel');
+            var createButtons = document.querySelectorAll('.calendar-create-meeting-trigger');
+            var editButtons = document.querySelectorAll('.calendar-edit-meeting-trigger');
+            var defaultTimezone = <?= json_encode($calendarDefaultTimezone) ?>;
+            var defaultDate = <?= json_encode($currentDate) ?>;
 
-            function openMeetingModal(dateValue) {
+            function openMeetingModal() {
                 if (!modal) {
                     return;
-                }
-
-                if (dateInput && dateValue) {
-                    dateInput.value = dateValue;
                 }
 
                 modal.classList.add('is-open');
@@ -1427,6 +1488,94 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
                 modal.classList.remove('is-open');
                 modal.setAttribute('aria-hidden', 'true');
+            }
+
+            function resetMeetingForm(dateValue) {
+                if (form) {
+                    form.reset();
+                }
+                if (actionInput) {
+                    actionInput.value = 'create';
+                }
+                if (meetingIdInput) {
+                    meetingIdInput.value = '';
+                }
+                if (modalTitle) {
+                    modalTitle.textContent = 'Create Meeting';
+                }
+                if (modalIntro) {
+                    modalIntro.textContent = 'Pick the selected calendar date, add the meeting title and time, and TaskFlow will create a Google Meet-backed event for you.';
+                }
+                if (submitLabel) {
+                    submitLabel.textContent = 'Create in Google Meet';
+                }
+                if (dateInput) {
+                    dateInput.value = dateValue || defaultDate || '';
+                }
+                if (timezoneInput) {
+                    timezoneInput.value = defaultTimezone || 'Asia/Manila';
+                }
+                if (audienceInput) {
+                    audienceInput.value = 'everyone';
+                }
+                syncAudienceField();
+            }
+
+            function openCreateMeetingModal(dateValue) {
+                resetMeetingForm(dateValue);
+                openMeetingModal();
+            }
+
+            function openEditMeetingModal(button) {
+                if (!button) {
+                    return;
+                }
+
+                if (actionInput) {
+                    actionInput.value = 'update';
+                }
+                if (meetingIdInput) {
+                    meetingIdInput.value = button.getAttribute('data-meeting-id') || '';
+                }
+                if (modalTitle) {
+                    modalTitle.textContent = 'Edit Meeting';
+                }
+                if (modalIntro) {
+                    modalIntro.textContent = 'Update the saved meeting details and TaskFlow will sync the linked Google Meet event.';
+                }
+                if (submitLabel) {
+                    submitLabel.textContent = 'Save changes';
+                }
+                if (titleInput) {
+                    titleInput.value = button.getAttribute('data-title') || '';
+                }
+                if (dateInput) {
+                    dateInput.value = button.getAttribute('data-meeting-date') || defaultDate || '';
+                }
+                if (timezoneInput) {
+                    timezoneInput.value = button.getAttribute('data-timezone') || defaultTimezone || 'Asia/Manila';
+                }
+                if (startInput) {
+                    startInput.value = button.getAttribute('data-start-time') || '';
+                }
+                if (endInput) {
+                    endInput.value = button.getAttribute('data-end-time') || '';
+                }
+                if (descriptionInput) {
+                    descriptionInput.value = button.getAttribute('data-description') || '';
+                }
+                if (audienceInput) {
+                    audienceInput.value = button.getAttribute('data-audience-type') || 'everyone';
+                }
+                if (groupSelect) {
+                    groupSelect.value = button.getAttribute('data-group-id') || '';
+                }
+                if (taskSelect) {
+                    taskSelect.value = button.getAttribute('data-task-id') || '';
+                }
+
+                syncAudienceField();
+                openMeetingModal();
             }
 
             function syncAudienceField() {
@@ -1455,9 +1604,15 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 }
             }
 
-            openButtons.forEach(function (button) {
+            createButtons.forEach(function (button) {
                 button.addEventListener('click', function () {
-                    openMeetingModal(button.getAttribute('data-meeting-date') || '');
+                    openCreateMeetingModal(button.getAttribute('data-meeting-date') || '');
+                });
+            });
+
+            editButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    openEditMeetingModal(button);
                 });
             });
 

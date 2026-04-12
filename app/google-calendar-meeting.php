@@ -11,6 +11,7 @@ require_once "model/Group.php";
 require_once "model/Task.php";
 require_once "model/Bulletin.php";
 require_once "model/CalendarMeeting.php";
+require_once "model/CalendarMeetingReminder.php";
 
 function google_calendar_meeting_redirect($meetingDate, $message = '', $isError = true)
 {
@@ -39,6 +40,12 @@ function google_calendar_meeting_redirect($meetingDate, $message = '', $isError 
     exit();
 }
 
+function google_calendar_meeting_normalize_action($action)
+{
+    $action = strtolower(trim((string)$action));
+    return in_array($action, ['create', 'update', 'delete'], true) ? $action : '';
+}
+
 function google_calendar_meeting_pending_valid($pending, $currentUserId)
 {
     if (!is_array($pending)) {
@@ -47,17 +54,22 @@ function google_calendar_meeting_pending_valid($pending, $currentUserId)
 
     $createdAt = isset($pending['created_at']) ? (int)$pending['created_at'] : 0;
     $userId = isset($pending['user_id']) ? (int)$pending['user_id'] : 0;
-    $action = trim((string)($pending['action'] ?? ''));
+    $action = google_calendar_meeting_normalize_action($pending['action'] ?? '');
 
     return $createdAt > 0
         && (time() - $createdAt) <= 1800
         && $userId > 0
         && $userId === (int)$currentUserId
-        && $action === 'create_calendar_meeting';
+        && $action !== '';
 }
 
 function google_calendar_meeting_store_pending(array $payload, $userId)
 {
+    $action = google_calendar_meeting_normalize_action($payload['action'] ?? 'create');
+    if ($action === '') {
+        $action = 'create';
+    }
+
     try {
         $state = bin2hex(random_bytes(16));
     } catch (Throwable $e) {
@@ -65,7 +77,8 @@ function google_calendar_meeting_store_pending(array $payload, $userId)
     }
 
     $_SESSION['pending_google_calendar_meeting'] = [
-        'action' => 'create_calendar_meeting',
+        'action' => $action,
+        'meeting_id' => !empty($payload['meeting_id']) ? (int)$payload['meeting_id'] : null,
         'title' => trim((string)($payload['title'] ?? '')),
         'description' => trim((string)($payload['description'] ?? '')),
         'meeting_date' => trim((string)($payload['meeting_date'] ?? '')),
@@ -75,6 +88,7 @@ function google_calendar_meeting_store_pending(array $payload, $userId)
         'audience_type' => trim((string)($payload['audience_type'] ?? 'everyone')),
         'group_id' => !empty($payload['group_id']) ? (int)$payload['group_id'] : null,
         'task_id' => !empty($payload['task_id']) ? (int)$payload['task_id'] : null,
+        'google_event_id' => trim((string)($payload['google_event_id'] ?? '')),
         'user_id' => (int)$userId,
         'state' => $state,
         'created_at' => time(),
@@ -142,7 +156,236 @@ function google_calendar_meeting_validate_payload(array $payload)
     ];
 }
 
-function google_calendar_meeting_create_from_refresh_token($pdo, $currentUserId, array $payload, $refreshToken)
+function google_calendar_meeting_validate_existing_meeting($pdo, $meetingId, $currentUserId, $sessionRole)
+{
+    $meeting = calendar_meetings_get_by_id($pdo, $meetingId);
+    if (!$meeting) {
+        return [false, 'Meeting not found.', null];
+    }
+
+    if (!calendar_meetings_user_can_manage($meeting, $currentUserId, $sessionRole)) {
+        return [false, 'You do not have permission to manage that meeting.', null];
+    }
+
+    return [true, '', $meeting];
+}
+
+function google_calendar_meeting_sync_admin_bulletin($pdo, array $meetingData, $createdBy)
+{
+    $meetingId = (int)($meetingData['source_id'] ?? 0);
+    if ($meetingId <= 0) {
+        return;
+    }
+
+    delete_bulletin_posts_by_source($pdo, 'calendar_meeting', $meetingId);
+
+    $groupName = '';
+    $taskName = '';
+
+    if (!empty($meetingData['group_id'])) {
+        $groupRow = get_group_by_id($pdo, (int)$meetingData['group_id']);
+        if ($groupRow) {
+            $groupName = trim((string)($groupRow['name'] ?? ''));
+        }
+    }
+
+    if (!empty($meetingData['task_id'])) {
+        $taskRow = get_task_by_id($pdo, (int)$meetingData['task_id']);
+        if ($taskRow) {
+            $taskName = trim((string)($taskRow['title'] ?? ''));
+        }
+    }
+
+    try {
+        create_meeting_bulletin_reminder($pdo, [
+            'title' => (string)($meetingData['title'] ?? ''),
+            'meeting_date' => (string)($meetingData['meeting_date'] ?? ''),
+            'start_time' => (string)($meetingData['start_time'] ?? ''),
+            'end_time' => (string)($meetingData['end_time'] ?? ''),
+            'audience_type' => (string)($meetingData['audience_type'] ?? 'everyone'),
+            'group_id' => !empty($meetingData['group_id']) ? (int)$meetingData['group_id'] : null,
+            'task_id' => !empty($meetingData['task_id']) ? (int)$meetingData['task_id'] : null,
+            'group_name' => $groupName,
+            'task_name' => $taskName,
+            'source_id' => $meetingId,
+        ], (int)$createdBy);
+    } catch (Throwable $e) {
+        // Keep the meeting action successful even if bulletin sync fails.
+    }
+}
+
+function google_calendar_meeting_create_local($pdo, $currentUserId, array $payload, array $event)
+{
+    $meetingId = calendar_meetings_insert($pdo, [
+        'title' => (string)($payload['title'] ?? ''),
+        'description' => (string)($payload['description'] ?? ''),
+        'meeting_date' => (string)($payload['meeting_date'] ?? ''),
+        'start_time' => (string)($payload['start_time'] ?? ''),
+        'end_time' => (string)($payload['end_time'] ?? ''),
+        'timezone' => (string)($payload['timezone'] ?? google_calendar_timezone()),
+        'audience_type' => (string)($payload['audience_type'] ?? 'everyone'),
+        'group_id' => !empty($payload['group_id']) ? (int)$payload['group_id'] : null,
+        'task_id' => !empty($payload['task_id']) ? (int)$payload['task_id'] : null,
+        'google_event_id' => (string)($event['id'] ?? ''),
+        'google_calendar_url' => (string)($event['htmlLink'] ?? ''),
+        'google_meet_url' => (string)($event['hangoutLink'] ?? ''),
+        'google_conference_id' => google_calendar_extract_conference_id($event),
+        'created_by' => $currentUserId,
+    ]);
+
+    if ($meetingId <= 0) {
+        return 0;
+    }
+
+    $meeting = calendar_meetings_get_by_id($pdo, $meetingId);
+    if ($meeting) {
+        calendar_meeting_reminder_reset_for_meeting($pdo, $meeting, new DateTimeImmutable('now'));
+    }
+    if ((string)($_SESSION['role'] ?? '') === 'admin') {
+        google_calendar_meeting_sync_admin_bulletin($pdo, array_merge($payload, ['source_id' => $meetingId]), $currentUserId);
+    }
+
+    return $meetingId;
+}
+
+function google_calendar_meeting_update_local($pdo, array $existingMeeting, array $payload, array $event = [])
+{
+    $meetingId = (int)($existingMeeting['id'] ?? 0);
+    if ($meetingId <= 0) {
+        return false;
+    }
+
+    $updated = calendar_meetings_update($pdo, $meetingId, [
+        'title' => (string)($payload['title'] ?? ''),
+        'description' => (string)($payload['description'] ?? ''),
+        'meeting_date' => (string)($payload['meeting_date'] ?? ''),
+        'start_time' => (string)($payload['start_time'] ?? ''),
+        'end_time' => (string)($payload['end_time'] ?? ''),
+        'timezone' => (string)($payload['timezone'] ?? google_calendar_timezone()),
+        'audience_type' => (string)($payload['audience_type'] ?? 'everyone'),
+        'group_id' => !empty($payload['group_id']) ? (int)$payload['group_id'] : null,
+        'task_id' => !empty($payload['task_id']) ? (int)$payload['task_id'] : null,
+        'google_calendar_url' => !empty($event['htmlLink']) ? (string)$event['htmlLink'] : (string)($existingMeeting['google_calendar_url'] ?? ''),
+        'google_meet_url' => !empty($event['hangoutLink']) ? (string)$event['hangoutLink'] : (string)($existingMeeting['google_meet_url'] ?? ''),
+        'google_conference_id' => !empty($event) ? google_calendar_extract_conference_id($event) : (string)($existingMeeting['google_conference_id'] ?? ''),
+    ]);
+
+    if (!$updated) {
+        return false;
+    }
+
+    $meeting = calendar_meetings_get_by_id($pdo, $meetingId);
+    if ($meeting) {
+        calendar_meeting_reminder_reset_for_meeting($pdo, $meeting, new DateTimeImmutable('now'));
+    }
+    if ((string)($_SESSION['role'] ?? '') === 'admin') {
+        google_calendar_meeting_sync_admin_bulletin($pdo, array_merge($payload, ['source_id' => $meetingId]), (int)($existingMeeting['created_by'] ?? 0));
+    }
+
+    return true;
+}
+
+function google_calendar_meeting_delete_local($pdo, array $meeting)
+{
+    $meetingId = (int)($meeting['id'] ?? 0);
+    if ($meetingId <= 0) {
+        return false;
+    }
+
+    // Ensure optional tables exist before opening a transaction.
+    // MySQL can auto-commit when CREATE TABLE runs inside a transaction,
+    // which would make a later commit() throw even though the delete succeeded.
+    bulletin_ensure_table($pdo);
+    calendar_meeting_email_reminders_ensure_schema($pdo);
+
+    $startedTransaction = false;
+    try {
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $startedTransaction = true;
+        }
+
+        delete_bulletin_posts_by_source($pdo, 'calendar_meeting', $meetingId);
+        calendar_meeting_reminder_delete_for_meeting($pdo, $meetingId);
+        $deleted = calendar_meetings_delete($pdo, $meetingId);
+
+        if ($startedTransaction && $pdo->inTransaction()) {
+            $pdo->commit();
+        }
+
+        return $deleted;
+    } catch (Throwable $e) {
+        if ($startedTransaction && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return false;
+    }
+}
+
+function google_calendar_meeting_process_with_access_token($pdo, $currentUserId, array $payload, $accessToken)
+{
+    $action = google_calendar_meeting_normalize_action($payload['action'] ?? 'create');
+    $meetingDate = (string)($payload['meeting_date'] ?? '');
+
+    if ($action === 'create') {
+        $eventResult = google_calendar_create_meeting_event($accessToken, $payload);
+        if (!$eventResult['ok']) {
+            google_calendar_meeting_redirect($meetingDate, (string)($eventResult['error'] ?? 'Unable to create the Google Meet event.'));
+        }
+
+        $meetingId = google_calendar_meeting_create_local($pdo, $currentUserId, $payload, (array)($eventResult['event'] ?? []));
+        unset($_SESSION['pending_google_calendar_meeting']);
+
+        if ($meetingId <= 0) {
+            google_calendar_meeting_redirect($meetingDate, 'Google Meet was created, but TaskFlow could not save the meeting locally.');
+        }
+
+        google_calendar_meeting_redirect($meetingDate, 'Meeting created and linked to Google Meet.', false);
+    }
+
+    $existingMeeting = calendar_meetings_get_by_id($pdo, (int)($payload['meeting_id'] ?? 0));
+    if (!$existingMeeting || !calendar_meetings_user_can_manage($existingMeeting, $currentUserId, (string)($_SESSION['role'] ?? 'employee'))) {
+        unset($_SESSION['pending_google_calendar_meeting']);
+        google_calendar_meeting_redirect($meetingDate, 'That meeting was not found or you no longer have permission to manage it.');
+    }
+
+    if ($action === 'update') {
+        $event = [];
+        $googleEventId = trim((string)($existingMeeting['google_event_id'] ?? ''));
+        if ($googleEventId !== '') {
+            $eventResult = google_calendar_update_meeting_event($accessToken, $googleEventId, $payload);
+            if (!$eventResult['ok']) {
+                google_calendar_meeting_redirect($meetingDate, (string)($eventResult['error'] ?? 'Unable to update the Google Meet event.'));
+            }
+            $event = (array)($eventResult['event'] ?? []);
+        }
+
+        $updated = google_calendar_meeting_update_local($pdo, $existingMeeting, $payload, $event);
+        unset($_SESSION['pending_google_calendar_meeting']);
+
+        if (!$updated) {
+            google_calendar_meeting_redirect($meetingDate, 'TaskFlow could not save the updated meeting details.');
+        }
+
+        google_calendar_meeting_redirect($meetingDate, 'Meeting updated successfully.', false);
+    }
+
+    $deleteResult = google_calendar_delete_event($accessToken, (string)($existingMeeting['google_event_id'] ?? ''));
+    if (!$deleteResult['ok']) {
+        google_calendar_meeting_redirect($meetingDate, (string)($deleteResult['error'] ?? 'Unable to delete the Google Meet event.'));
+    }
+
+    $deleted = google_calendar_meeting_delete_local($pdo, $existingMeeting);
+    unset($_SESSION['pending_google_calendar_meeting']);
+
+    if (!$deleted) {
+        google_calendar_meeting_redirect($meetingDate, 'Google Meet was removed, but TaskFlow could not delete the saved meeting.');
+    }
+
+    google_calendar_meeting_redirect($meetingDate, 'Meeting deleted successfully.', false);
+}
+
+function google_calendar_meeting_process_with_refresh_token($pdo, $currentUserId, array $payload, $refreshToken)
 {
     $refresh = google_workspace_refresh_access_token($refreshToken);
     if (!$refresh['ok']) {
@@ -161,72 +404,7 @@ function google_calendar_meeting_create_from_refresh_token($pdo, $currentUserId,
         google_calendar_meeting_redirect((string)($payload['meeting_date'] ?? ''), 'Google did not return an access token.');
     }
 
-    $eventResult = google_calendar_create_meeting_event($accessToken, $payload);
-    if (!$eventResult['ok']) {
-        google_calendar_meeting_redirect((string)($payload['meeting_date'] ?? ''), (string)($eventResult['error'] ?? 'Unable to create the Google Meet event.'));
-    }
-
-    $event = (array)($eventResult['event'] ?? []);
-    $meetingId = calendar_meetings_insert($pdo, [
-        'title' => (string)($payload['title'] ?? ''),
-        'description' => (string)($payload['description'] ?? ''),
-        'meeting_date' => (string)($payload['meeting_date'] ?? ''),
-        'start_time' => (string)($payload['start_time'] ?? ''),
-        'end_time' => (string)($payload['end_time'] ?? ''),
-        'timezone' => (string)($payload['timezone'] ?? google_calendar_timezone()),
-        'audience_type' => (string)($payload['audience_type'] ?? 'everyone'),
-        'group_id' => !empty($payload['group_id']) ? (int)$payload['group_id'] : null,
-        'task_id' => !empty($payload['task_id']) ? (int)$payload['task_id'] : null,
-        'google_event_id' => (string)($event['id'] ?? ''),
-        'google_calendar_url' => (string)($event['htmlLink'] ?? ''),
-        'google_meet_url' => (string)($event['hangoutLink'] ?? ''),
-        'google_conference_id' => google_calendar_extract_conference_id($event),
-        'created_by' => $currentUserId,
-    ]);
-
-    unset($_SESSION['pending_google_calendar_meeting']);
-
-    if ($meetingId <= 0) {
-        google_calendar_meeting_redirect((string)($payload['meeting_date'] ?? ''), 'Google Meet was created, but TaskFlow could not save the meeting locally.');
-    }
-
-    if ((string)($_SESSION['role'] ?? '') === 'admin') {
-        $groupName = '';
-        $taskName = '';
-
-        if (!empty($payload['group_id'])) {
-            $groupRow = get_group_by_id($pdo, (int)$payload['group_id']);
-            if ($groupRow) {
-                $groupName = trim((string)($groupRow['name'] ?? ''));
-            }
-        }
-
-        if (!empty($payload['task_id'])) {
-            $taskRow = get_task_by_id($pdo, (int)$payload['task_id']);
-            if ($taskRow) {
-                $taskName = trim((string)($taskRow['title'] ?? ''));
-            }
-        }
-
-        try {
-            create_meeting_bulletin_reminder($pdo, [
-                'title' => (string)($payload['title'] ?? ''),
-                'meeting_date' => (string)($payload['meeting_date'] ?? ''),
-                'start_time' => (string)($payload['start_time'] ?? ''),
-                'end_time' => (string)($payload['end_time'] ?? ''),
-                'audience_type' => (string)($payload['audience_type'] ?? 'everyone'),
-                'group_id' => !empty($payload['group_id']) ? (int)$payload['group_id'] : null,
-                'task_id' => !empty($payload['task_id']) ? (int)$payload['task_id'] : null,
-                'group_name' => $groupName,
-                'task_name' => $taskName,
-                'source_id' => $meetingId,
-            ], $currentUserId);
-        } catch (Throwable $e) {
-            // Keep meeting creation successful even if the bulletin reminder fails.
-        }
-    }
-
-    google_calendar_meeting_redirect((string)($payload['meeting_date'] ?? ''), 'Meeting created and linked to Google Meet.', false);
+    google_calendar_meeting_process_with_access_token($pdo, $currentUserId, $payload, $accessToken);
 }
 
 if (!isset($_SESSION['id'], $_SESSION['role'])) {
@@ -249,20 +427,81 @@ if (isset($_GET['resume']) && $_GET['resume'] === '1') {
         google_calendar_meeting_start_oauth($pending, $currentUserId, true);
     }
 
-    google_calendar_meeting_create_from_refresh_token($pdo, $currentUserId, $pending, $refreshToken);
+    google_calendar_meeting_process_with_refresh_token($pdo, $currentUserId, $pending, $refreshToken);
 }
 
 if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
     google_calendar_meeting_redirect('', 'Invalid meeting request.');
 }
 
-if (!csrf_verify('calendar_meeting_form', $_POST['csrf_token'] ?? null, true)) {
+$action = google_calendar_meeting_normalize_action($_POST['action'] ?? 'create');
+if ($action === '') {
+    google_calendar_meeting_redirect((string)($_POST['meeting_date'] ?? ''), 'Invalid meeting action.');
+}
+
+$csrfFormKey = $action === 'delete' ? 'calendar_meeting_delete_form' : 'calendar_meeting_form';
+if (!csrf_verify($csrfFormKey, $_POST['csrf_token'] ?? null, true)) {
     google_calendar_meeting_redirect((string)($_POST['meeting_date'] ?? ''), 'Invalid or expired request. Please refresh and try again.');
+}
+
+if ($action === 'delete') {
+    $meetingId = (int)($_POST['meeting_id'] ?? 0);
+    [$ok, $message, $existingMeeting] = google_calendar_meeting_validate_existing_meeting($pdo, $meetingId, $currentUserId, (string)$_SESSION['role']);
+    if (!$ok) {
+        google_calendar_meeting_redirect((string)($_POST['meeting_date'] ?? ''), $message);
+    }
+
+    $meetingDate = (string)($existingMeeting['meeting_date'] ?? (string)($_POST['meeting_date'] ?? ''));
+    $googleEventId = trim((string)($existingMeeting['google_event_id'] ?? ''));
+
+    if ($googleEventId === '' || !google_calendar_is_enabled()) {
+        $deleted = google_calendar_meeting_delete_local($pdo, $existingMeeting);
+        if (!$deleted) {
+            google_calendar_meeting_redirect($meetingDate, 'TaskFlow could not delete the saved meeting.');
+        }
+
+        $successMessage = $googleEventId === ''
+            ? 'Meeting deleted successfully.'
+            : 'Meeting deleted from TaskFlow. Google Calendar sync is not available right now.';
+        google_calendar_meeting_redirect($meetingDate, $successMessage, false);
+    }
+
+    $payload = [
+        'action' => 'delete',
+        'meeting_id' => $meetingId,
+        'meeting_date' => $meetingDate,
+        'google_event_id' => $googleEventId,
+    ];
+
+    $tokenRecord = google_workspace_get_token_record($pdo, $currentUserId);
+    $refreshToken = trim((string)($tokenRecord['refresh_token'] ?? ''));
+    $grantedScopes = trim((string)($tokenRecord['scope'] ?? ''));
+    $hasCalendarScope = google_workspace_scope_contains($grantedScopes, google_calendar_required_scope());
+
+    if ($refreshToken === '' || !$hasCalendarScope) {
+        google_calendar_meeting_start_oauth($payload, $currentUserId, true);
+    }
+
+    google_calendar_meeting_process_with_refresh_token($pdo, $currentUserId, $payload, $refreshToken);
 }
 
 [$isValid, $validationMessage, $normalizedPayload] = google_calendar_meeting_validate_payload($_POST);
 if (!$isValid) {
     google_calendar_meeting_redirect((string)($_POST['meeting_date'] ?? ''), $validationMessage);
+}
+
+$normalizedPayload['action'] = $action;
+
+$existingMeeting = null;
+if ($action === 'update') {
+    $meetingId = (int)($_POST['meeting_id'] ?? 0);
+    [$ok, $message, $existingMeeting] = google_calendar_meeting_validate_existing_meeting($pdo, $meetingId, $currentUserId, (string)$_SESSION['role']);
+    if (!$ok) {
+        google_calendar_meeting_redirect((string)($normalizedPayload['meeting_date'] ?? ''), $message);
+    }
+
+    $normalizedPayload['meeting_id'] = $meetingId;
+    $normalizedPayload['google_event_id'] = (string)($existingMeeting['google_event_id'] ?? '');
 }
 
 if ((string)$_SESSION['role'] === 'admin') {
@@ -292,7 +531,7 @@ if ((string)$_SESSION['role'] === 'admin') {
     }
 
     if (empty($allowedTaskIds)) {
-        google_calendar_meeting_redirect((string)($normalizedPayload['meeting_date'] ?? ''), 'Only admins or task leaders can create meetings.');
+        google_calendar_meeting_redirect((string)($normalizedPayload['meeting_date'] ?? ''), 'Only admins or task leaders can manage meetings.');
     }
 
     $normalizedPayload['audience_type'] = 'task';
@@ -304,13 +543,36 @@ if ((string)$_SESSION['role'] === 'admin') {
     $normalizedPayload['task_id'] = $taskId;
 }
 
-$tokenRecord = google_workspace_get_token_record($pdo, $currentUserId);
-$refreshToken = trim((string)($tokenRecord['refresh_token'] ?? ''));
-$grantedScopes = trim((string)($tokenRecord['scope'] ?? ''));
-$hasCalendarScope = google_workspace_scope_contains($grantedScopes, google_calendar_required_scope());
-
-if ($refreshToken === '' || !$hasCalendarScope) {
-    google_calendar_meeting_start_oauth($normalizedPayload, $currentUserId, true);
+if ($action === 'update' && !empty($normalizedPayload['google_event_id']) && !google_calendar_is_enabled()) {
+    google_calendar_meeting_redirect((string)($normalizedPayload['meeting_date'] ?? ''), 'Google Calendar integration is not configured, so linked meetings cannot be edited right now.');
 }
 
-google_calendar_meeting_create_from_refresh_token($pdo, $currentUserId, $normalizedPayload, $refreshToken);
+$needsGoogleSync = $action === 'create' || !empty($normalizedPayload['google_event_id']);
+if ($needsGoogleSync) {
+    $tokenRecord = google_workspace_get_token_record($pdo, $currentUserId);
+    $refreshToken = trim((string)($tokenRecord['refresh_token'] ?? ''));
+    $grantedScopes = trim((string)($tokenRecord['scope'] ?? ''));
+    $hasCalendarScope = google_workspace_scope_contains($grantedScopes, google_calendar_required_scope());
+
+    if ($refreshToken === '' || !$hasCalendarScope) {
+        google_calendar_meeting_start_oauth($normalizedPayload, $currentUserId, true);
+    }
+
+    google_calendar_meeting_process_with_refresh_token($pdo, $currentUserId, $normalizedPayload, $refreshToken);
+}
+
+if ($action === 'update') {
+    $meeting = $existingMeeting ?: calendar_meetings_get_by_id($pdo, (int)($normalizedPayload['meeting_id'] ?? 0));
+    if (!$meeting) {
+        google_calendar_meeting_redirect((string)($normalizedPayload['meeting_date'] ?? ''), 'Meeting not found.');
+    }
+
+    $updated = google_calendar_meeting_update_local($pdo, $meeting, $normalizedPayload);
+    if (!$updated) {
+        google_calendar_meeting_redirect((string)($normalizedPayload['meeting_date'] ?? ''), 'TaskFlow could not save the updated meeting details.');
+    }
+
+    google_calendar_meeting_redirect((string)($normalizedPayload['meeting_date'] ?? ''), 'Meeting updated successfully.', false);
+}
+
+google_calendar_meeting_redirect((string)($normalizedPayload['meeting_date'] ?? ''), 'Invalid meeting request.');
