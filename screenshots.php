@@ -3,6 +3,7 @@ session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "admin") {
     include "DB_connection.php";
     require_once "inc/tenant.php";
+    require_once "inc/workspace_screenshot_retention.php";
     include "app/model/user.php";
 
     function capture_profile_image_url($profileImage) {
@@ -29,6 +30,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     $filter_user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : null;
     $open_user_id = isset($_GET['open_user_id']) ? intval($_GET['open_user_id']) : null;
     $filter_date = isset($_GET['date']) ? $_GET['date'] : null;
+
+    workspace_screenshot_retention_cleanup($pdo);
 
     $reset_url = 'screenshots.php';
     if ($open_user_id) {
