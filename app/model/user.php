@@ -935,6 +935,7 @@ function get_todays_attendance_stats($pdo, $user_id)
 
     return [
         'attendance_id' => (!empty($latest_out) && $latest_out != '00:00:00') ? null : $latest_attendance_id,
+        'latest_attendance_id' => $latest_attendance_id,
         'time_in' => $latest_in ? date("h:i A", strtotime($latest_in)) : '--:--',
         'time_out' => (!empty($latest_out) && $latest_out != '00:00:00') ? date("h:i A", strtotime($latest_out)) : '--:--',
         'total_duration' => "{$all_h}h {$all_m}m",

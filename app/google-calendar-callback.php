@@ -43,7 +43,12 @@ $pending = $_SESSION['pending_google_calendar_meeting'] ?? null;
 $currentUserId = (int)$_SESSION['id'];
 $meetingDate = trim((string)($pending['meeting_date'] ?? ''));
 
-if (!is_array($pending) || (int)($pending['user_id'] ?? 0) !== $currentUserId || trim((string)($pending['action'] ?? '')) !== 'create_calendar_meeting') {
+$pendingAction = trim((string)($pending['action'] ?? ''));
+if (
+    !is_array($pending)
+    || (int)($pending['user_id'] ?? 0) !== $currentUserId
+    || !in_array($pendingAction, ['create', 'update', 'delete'], true)
+) {
     unset($_SESSION['pending_google_calendar_meeting']);
     google_calendar_callback_redirect($meetingDate, 'Meeting request expired. Please try again.');
 }

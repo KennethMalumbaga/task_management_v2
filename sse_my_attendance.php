@@ -42,6 +42,7 @@ while (true) {
         'status' => 'success',
         'has_active_attendance' => (bool)$clocked_in,
         'attendance_id' => $clocked_in ? ($attendance['attendance_id'] ?? null) : null,
+        'attendance_record_id' => $attendance['latest_attendance_id'] ?? null,
         'time_in' => $attendance['time_in'] ?? '--:--',
         'time_out' => $attendance['time_out'] ?? '--:--',
         'daily_duration' => $attendance['daily_duration'] ?? null,

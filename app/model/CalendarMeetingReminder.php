@@ -384,3 +384,39 @@ if (!function_exists('calendar_meeting_reminder_mark_error')) {
         return $stmt->execute([mb_substr(trim((string)$errorMessage), 0, 4000), (int)$reminderId]);
     }
 }
+
+if (!function_exists('calendar_meeting_reminder_delete_for_meeting')) {
+    function calendar_meeting_reminder_delete_for_meeting($pdo, $meetingId)
+    {
+        if (!calendar_meeting_email_reminders_ensure_schema($pdo)) {
+            return false;
+        }
+
+        $meetingId = (int)$meetingId;
+        if ($meetingId <= 0) {
+            return false;
+        }
+
+        $sql = "DELETE FROM calendar_meeting_email_reminders WHERE meeting_id = ?";
+        $params = [$meetingId];
+        $scope = tenant_get_scope($pdo, 'calendar_meeting_email_reminders');
+        $sql .= $scope['sql'];
+        $params = array_merge($params, $scope['params']);
+
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute($params);
+    }
+}
+
+if (!function_exists('calendar_meeting_reminder_reset_for_meeting')) {
+    function calendar_meeting_reminder_reset_for_meeting($pdo, array $meeting, DateTimeImmutable $now = null)
+    {
+        $meetingId = (int)($meeting['id'] ?? 0);
+        if ($meetingId <= 0) {
+            return 0;
+        }
+
+        calendar_meeting_reminder_delete_for_meeting($pdo, $meetingId);
+        return calendar_meeting_reminder_sync_queue_for_meeting($pdo, $meeting, $now);
+    }
+}
