@@ -40,18 +40,18 @@ $isSuperAdmin = is_super_admin((int)$_SESSION['id'], $pdo);
 $organizationRole = strtolower(trim((string)($_SESSION['organization_role'] ?? '')));
 $canManageWorkspace = !$isSuperAdmin && ($organizationRole === '' || in_array($organizationRole, ['owner', 'admin'], true));
 if (!$canManageWorkspace) {
-    workspace_screenshot_retention_redirect('error', "You do not have permission to update screenshot retention.");
+    workspace_screenshot_retention_redirect('error', "You do not have permission to update screen capture retention.");
 }
 
 if (!workspace_screenshot_retention_schema_ready($pdo)) {
-    workspace_screenshot_retention_redirect('error', "Screenshot retention settings are unavailable. Run sql_add_workspace_screenshot_retention.sql.");
+    workspace_screenshot_retention_redirect('error', "Screen capture retention settings are unavailable. Run sql_add_workspace_screenshot_retention.sql.");
 }
 
 $retentionDays = workspace_screenshot_retention_normalize_days($_POST['screenshot_retention_days'] ?? null);
 if ($retentionDays === null) {
     workspace_screenshot_retention_redirect(
         'error',
-        "Screenshot retention must be between " . workspace_screenshot_retention_min_days() . " and " . workspace_screenshot_retention_max_days() . " days."
+        "Screen capture retention must be between " . workspace_screenshot_retention_min_days() . " and " . workspace_screenshot_retention_max_days() . " days."
     );
 }
 
@@ -63,7 +63,7 @@ try {
     );
     $stmt->execute([(int)$retentionDays, (int)$orgId]);
 } catch (Throwable $e) {
-    workspace_screenshot_retention_redirect('error', "Unable to update screenshot retention right now.");
+    workspace_screenshot_retention_redirect('error', "Unable to update screen capture retention right now.");
 }
 
-workspace_screenshot_retention_redirect('success', "Screenshot retention updated.");
+workspace_screenshot_retention_redirect('success', "Screen capture retention updated.");

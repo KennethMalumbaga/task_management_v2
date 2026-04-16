@@ -421,7 +421,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         <div class="captures-v2-shell">
             <div class="pg-head">
                 <h1>Employee Captures</h1>
-                <p>Monitor and review screenshot activity from your team.</p>
+                <p>Monitor and review screen capture activity from your team.</p>
             </div>
 
             <div class="stats">
@@ -567,7 +567,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                                             <div class="capture-thumb-wrap">
                                                 <?php if ($has_file) { ?>
                                                     <img src="<?= htmlspecialchars((string)$screenshot['image_url'], ENT_QUOTES, 'UTF-8') ?>"
-                                                        alt="Screenshot"
+                                                        alt="Screen capture"
                                                         class="capture-thumbnail">
                                                 <?php } else { ?>
                                                     <div class="capture-placeholder">
@@ -584,7 +584,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                                                     <button
                                                         type="button"
                                                         class="capture-card-download"
-                                                        title="Download screenshot"
+                                                        title="Download screen capture"
                                                         onclick='event.stopPropagation(); downloadCapture(<?= json_encode($screenshot["image_path"]) ?>);'
                                                     >
                                                         <i class="fa fa-download"></i>
@@ -600,8 +600,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <?php } else { ?>
                     <div class="empty-captures" id="emptyState">
                         <i class="fa fa-camera"></i>
-                        <h3>No screenshots found</h3>
-                        <p>No screenshots match this filter yet. Try a different date or reset filters.</p>
+                        <h3>No screen captures found</h3>
+                        <p>No screen captures match this filter yet. Try a different date or reset filters.</p>
                     </div>
                 <?php } ?>
             </div>
@@ -613,13 +613,13 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
         <div class="capture-lightbox-wrap">
             <div class="capture-lightbox-img-wrap">
                 <button type="button" class="capture-lightbox-close" onclick="closeModal()" aria-label="Close">&times;</button>
-                <button type="button" class="capture-modal-nav capture-modal-prev" onclick="showPrevImage()" aria-label="Previous screenshot">
+                <button type="button" class="capture-modal-nav capture-modal-prev" onclick="showPrevImage()" aria-label="Previous screen capture">
                     <i class="fa fa-chevron-left"></i>
                 </button>
-                <button type="button" class="capture-modal-nav capture-modal-next" onclick="showNextImage()" aria-label="Next screenshot">
+                <button type="button" class="capture-modal-nav capture-modal-next" onclick="showNextImage()" aria-label="Next screen capture">
                     <i class="fa fa-chevron-right"></i>
                 </button>
-                <img id="modalImage" class="modal-image" alt="Screenshot preview">
+                <img id="modalImage" class="modal-image" alt="Screen capture preview">
                 <div id="modalInfo"></div>
             </div>
             <div class="capture-modal-controls">
@@ -1256,7 +1256,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             if (hasFile) {
                 var image = document.createElement("img");
                 image.src = screenshot.image_url;
-                image.alt = "Screenshot";
+                image.alt = "Screen capture";
                 image.className = "capture-thumbnail";
                 thumbWrap.appendChild(image);
             } else {
@@ -1288,7 +1288,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 var downloadBtn = document.createElement("button");
                 downloadBtn.type = "button";
                 downloadBtn.className = "capture-card-download";
-                downloadBtn.title = "Download screenshot";
+                downloadBtn.title = "Download screen capture";
                 downloadBtn.innerHTML = "<i class='fa fa-download'></i>";
                 downloadBtn.addEventListener("click", function(event) {
                     event.stopPropagation();
@@ -1378,7 +1378,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 var emptyState = document.createElement("div");
                 emptyState.className = "empty-captures";
                 emptyState.id = "emptyState";
-                emptyState.innerHTML = "<i class='fa fa-camera'></i><h3>No screenshots found</h3><p>No screenshots match this filter yet. Try a different date or reset filters.</p>";
+                emptyState.innerHTML = "<i class='fa fa-camera'></i><h3>No screen captures found</h3><p>No screen captures match this filter yet. Try a different date or reset filters.</p>";
                 container.appendChild(emptyState);
                 activeUserId = null;
                 setEmployeeFilterVisibility(true);

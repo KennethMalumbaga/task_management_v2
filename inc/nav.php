@@ -157,7 +157,7 @@ if (isset($_SESSION['role'], $_SESSION['id']) && isset($pdo)) {
 				<li>
 					<a href="screenshots.php">
 						<i class="fa fa-camera" aria-hidden="true"></i>
-						<span>Screenshots</span>
+						<span>Screen Captures</span>
 					</a>
 				</li>
 				<li>

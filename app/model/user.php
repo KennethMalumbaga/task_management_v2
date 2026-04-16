@@ -838,12 +838,12 @@ if (!function_exists('get_active_user_dashboard_detail')) {
             'last_screenshot_path' => $lastScreenshotPath !== '' ? $lastScreenshotPath : null,
             'last_screenshot_url' => $lastScreenshotUrl,
             'last_screenshot_taken_at' => $lastScreenshotTakenAt !== '' ? $lastScreenshotTakenAt : null,
-            'last_screenshot_label' => $lastScreenshotTs ? date('M d, Y h:i A', $lastScreenshotTs) : 'No screenshots yet',
+            'last_screenshot_label' => $lastScreenshotTs ? date('M d, Y h:i A', $lastScreenshotTs) : 'No screen captures yet',
             'last_screenshot_note' => $lastScreenshotTs
                 ? (($attendanceId > 0 && !empty($latestScreenshot['attendance_id']) && (int)$latestScreenshot['attendance_id'] === $attendanceId)
-                    ? 'Latest screenshot from this session.'
-                    : 'Latest saved screenshot on record.')
-                : 'No screenshot available yet.',
+                    ? 'Latest screen capture from this session.'
+                    : 'Latest saved screen capture on record.')
+                : 'No screen capture available yet.',
             'captures_url' => 'screenshots.php?open_user_id=' . rawurlencode((string)$userId) . '&user_id=' . rawurlencode((string)$userId),
         ];
     }
