@@ -74,11 +74,80 @@ if (!function_exists('paymongo_is_configured')) {
     }
 }
 
+if (!function_exists('paymongo_is_local_host')) {
+    function paymongo_is_local_host($host)
+    {
+        $host = strtolower(trim((string)$host));
+        if ($host === '') {
+            return true;
+        }
+
+        $host = preg_replace('/:\d+$/', '', $host);
+        return in_array($host, ['localhost', '127.0.0.1', '::1'], true);
+    }
+}
+
+if (!function_exists('paymongo_url_is_local')) {
+    function paymongo_url_is_local($url)
+    {
+        $url = trim((string)$url);
+        if ($url === '') {
+            return true;
+        }
+
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!is_string($host) || trim($host) === '') {
+            return true;
+        }
+
+        return paymongo_is_local_host($host);
+    }
+}
+
+if (!function_exists('paymongo_detect_app_url')) {
+    function paymongo_detect_app_url()
+    {
+        $scheme = 'http';
+        $forwardedProto = strtolower(trim((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
+        if (in_array($forwardedProto, ['http', 'https'], true)) {
+            $scheme = $forwardedProto;
+        } elseif (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off') {
+            $scheme = 'https';
+        }
+
+        $host = trim((string)($_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? ''));
+        if ($host === '') {
+            return '';
+        }
+
+        $scriptDir = str_replace('\\', '/', (string)dirname((string)($_SERVER['SCRIPT_NAME'] ?? '')));
+        if ($scriptDir === '.' || $scriptDir === '/') {
+            $scriptDir = '';
+        }
+        if ($scriptDir !== '' && str_ends_with($scriptDir, '/app')) {
+            $scriptDir = substr($scriptDir, 0, -4);
+        }
+
+        return rtrim($scheme . '://' . $host . $scriptDir, '/');
+    }
+}
+
 if (!function_exists('paymongo_app_url')) {
     function paymongo_app_url()
     {
-        $appUrl = rtrim(paymongo_env('APP_URL', 'http://localhost/task_management'), '/');
-        return $appUrl !== '' ? $appUrl : 'http://localhost/task_management';
+        $configuredUrl = rtrim(paymongo_env('APP_URL', ''), '/');
+        $detectedUrl = rtrim(paymongo_detect_app_url(), '/');
+
+        if ($configuredUrl === '') {
+            return $detectedUrl !== '' ? $detectedUrl : 'http://localhost/task_management';
+        }
+
+        // If a live request reaches a public host, don't keep redirecting PayMongo back to localhost.
+        if ($detectedUrl !== '' && paymongo_url_is_local($configuredUrl) && !paymongo_url_is_local($detectedUrl)) {
+            return $detectedUrl;
+        }
+
+        return $configuredUrl;
     }
 }
 
