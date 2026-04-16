@@ -38,7 +38,7 @@
 .dash-content-topbar-title .captures-topbar-main {
     font-size: 22px;
     font-weight: 700;
-    color: #111827;
+    color: inherit;
     line-height: 1.2;
 }
 

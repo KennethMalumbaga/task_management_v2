@@ -17,6 +17,7 @@
     if (!function_exists('tenant_workspace_requires_payment')) {
         require_once __DIR__ . "/tenant.php";
     }
+    require_once __DIR__ . "/workspace_screenshot_retention.php";
 
     if (isset($_SESSION['role'], $_SESSION['id']) && isset($pdo)) {
         $currentPageForBillingGate = basename($_SERVER['PHP_SELF'] ?? 'index.php');
@@ -57,6 +58,10 @@
                 exit();
             }
         }
+    }
+
+    if (isset($_SESSION['id']) && isset($pdo) && function_exists('workspace_screenshot_retention_maybe_cleanup')) {
+        workspace_screenshot_retention_maybe_cleanup($pdo);
     }
 
     include_once "app/model/Message.php";

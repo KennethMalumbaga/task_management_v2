@@ -27,6 +27,12 @@ $tenantScripts = [
         'destructive' => true,
     ],
     [
+        'path' => 'run_cleanup_screenshot_retention.php',
+        'label' => 'Cleanup Expired Screenshots',
+        'description' => 'Deletes screenshots older than this tenant\'s retention window.',
+        'destructive' => true,
+    ],
+    [
         'path' => 'debug_task_chats.php',
         'label' => 'Debug Task Chats',
         'description' => 'Inspects task_chat groups for this tenant.',
@@ -1109,6 +1115,20 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                             <div class="md-cli-cmd">php run_cleanup_orphan_task_chats.php --org-id=1</div>
                         </div>
                         <button type="button" class="md-cli-copy" onclick="navigator.clipboard.writeText('php run_cleanup_orphan_task_chats.php --org-id=1')" title="Copy"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                    <div class="md-cli-item">
+                        <div class="md-cli-info">
+                            <div class="md-cli-label"><i class="fa-solid fa-camera destructive"></i> Cleanup expired screenshots</div>
+                            <div class="md-cli-cmd">php run_cleanup_screenshot_retention.php --org-id=1</div>
+                        </div>
+                        <button type="button" class="md-cli-copy" onclick="navigator.clipboard.writeText('php run_cleanup_screenshot_retention.php --org-id=1')" title="Copy"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                    <div class="md-cli-item">
+                        <div class="md-cli-info">
+                            <div class="md-cli-label"><i class="fa-solid fa-clock destructive"></i> Cleanup expired screenshots for all workspaces</div>
+                            <div class="md-cli-cmd">php run_cleanup_screenshot_retention.php</div>
+                        </div>
+                        <button type="button" class="md-cli-copy" onclick="navigator.clipboard.writeText('php run_cleanup_screenshot_retention.php')" title="Copy"><i class="fa-regular fa-copy"></i></button>
                     </div>
                     <div class="md-cli-item">
                         <div class="md-cli-info">

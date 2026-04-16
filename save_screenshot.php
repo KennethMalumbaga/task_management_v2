@@ -101,41 +101,11 @@ if (tenant_column_exists($pdo, 'screenshots', 'organization_id') && $organizatio
 }
 
 // CLEANUP: Delete screenshots older than the configured retention window.
-// This runs on every save to keep storage managed without a separate scheduler.
-$retentionDays = workspace_screenshot_retention_fetch_days($pdo, $organization_id);
-$retentionCutoff = date('Y-m-d H:i:s', strtotime('-' . $retentionDays . ' days'));
-
-// 1. Get files to delete
-$sql_cleanup = "SELECT id, image_path FROM screenshots WHERE taken_at < ?";
-$cleanupParams = [$retentionCutoff];
-$scope = tenant_get_scope($pdo, 'screenshots', '', 'AND', 'organization_id', $organization_id);
-$sql_cleanup .= $scope['sql'];
-$cleanupParams = array_merge($cleanupParams, $scope['params']);
-$stmt_cleanup = $pdo->prepare($sql_cleanup);
-$stmt_cleanup->execute($cleanupParams);
-$old_records = $stmt_cleanup->fetchAll(PDO::FETCH_ASSOC);
-
-if (!empty($old_records)) {
-    // 2. Delete physical files
-    foreach ($old_records as $rec) {
-        if (!empty($rec['image_path'])) {
-            $file_to_delete = __DIR__ . DIRECTORY_SEPARATOR . $rec['image_path'];
-            if (file_exists($file_to_delete)) {
-                @unlink($file_to_delete);
-            }
-        }
-    }
-    
-    // 3. Delete DB records
-    $sql_del_cleanup = "DELETE FROM screenshots WHERE taken_at < ?";
-    $scope = tenant_get_scope($pdo, 'screenshots', '', 'AND', 'organization_id', $organization_id);
-    $sql_del_cleanup .= $scope['sql'];
-    $stmt_del_cleanup = $pdo->prepare($sql_del_cleanup);
-    $stmt_del_cleanup->execute(array_merge([$retentionCutoff], $scope['params']));
-    
-    // Log cleanup
-    $count = count($old_records);
-    $logEntry .= "Cleanup: Deleted $count old screenshots (> {$retentionDays} days)\n";
+// This still runs on save, and the same helper is also reused by screenshot read paths.
+$cleanupResult = workspace_screenshot_retention_cleanup($pdo, $organization_id);
+if (($cleanupResult['deleted_count'] ?? 0) > 0) {
+    $logEntry .= "Cleanup: Deleted " . (int)$cleanupResult['deleted_count']
+        . " old screenshots (> " . (int)$cleanupResult['retention_days'] . " days)\n";
     file_put_contents($logFile, $logEntry, FILE_APPEND);
 }
 

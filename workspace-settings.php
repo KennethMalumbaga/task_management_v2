@@ -462,7 +462,7 @@ $intervalRangeLabel = workspace_screenshot_interval_min_allowed_minutes() . ' to
 
                         <div class="workspace-field">
                             <label>Automatic Cleanup</label>
-                            <div class="workspace-input">Screenshots older than <?= htmlspecialchars($screenshotRetentionLabel) ?> are deleted the next time a new screenshot is uploaded for this workspace.</div>
+                            <div class="workspace-input">Screenshots older than <?= htmlspecialchars($screenshotRetentionLabel) ?> are deleted automatically during normal app use, and they are also purged when new captures are saved or when this workspace's captures are opened.</div>
                         </div>
 
                         <div class="workspace-field">

@@ -9,6 +9,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] != "admin") {
 
 include "DB_connection.php";
 require_once "inc/tenant.php";
+require_once "inc/workspace_screenshot_retention.php";
 include "app/model/user.php";
 
 function capture_profile_image_url($profileImage) {
@@ -34,6 +35,8 @@ function capture_profile_image_url($profileImage) {
 // Get filter parameters
 $filter_user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : null;
 $filter_date = isset($_GET['date']) ? $_GET['date'] : null;
+
+workspace_screenshot_retention_cleanup($pdo);
 
 // Build query
 $sql = "SELECT s.*, u.full_name, u.username, u.profile_image, a.time_in, a.time_out 
