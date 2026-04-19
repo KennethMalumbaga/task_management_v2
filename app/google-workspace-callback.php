@@ -148,5 +148,11 @@ google_workspace_save_refresh_token(
     $mergedScopes
 );
 
+$_SESSION['pending_google_workspace_access_token'] = [
+    'user_id' => $currentUserId,
+    'access_token' => $accessToken,
+    'created_at' => time(),
+];
+
 header("Location: google-subtask-doc.php?resume=1");
 exit();

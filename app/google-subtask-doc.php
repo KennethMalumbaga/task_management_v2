@@ -75,6 +75,56 @@ function google_subtask_doc_start_oauth($subtaskId, $taskId, $userId, $forceCons
     exit();
 }
 
+function google_subtask_doc_token_has_workspace_scope($tokenRecord)
+{
+    return google_workspace_scope_contains(
+        (string)($tokenRecord['scope'] ?? ''),
+        google_workspace_required_scope()
+    );
+}
+
+function google_subtask_doc_take_pending_access_token($currentUserId)
+{
+    $pending = $_SESSION['pending_google_workspace_access_token'] ?? null;
+    if (!is_array($pending)) {
+        return '';
+    }
+
+    $createdAt = isset($pending['created_at']) ? (int)$pending['created_at'] : 0;
+    $userId = isset($pending['user_id']) ? (int)$pending['user_id'] : 0;
+    $accessToken = trim((string)($pending['access_token'] ?? ''));
+
+    unset($_SESSION['pending_google_workspace_access_token']);
+
+    if ($createdAt <= 0 || (time() - $createdAt) > 1800) {
+        return '';
+    }
+
+    if ($userId !== (int)$currentUserId || $accessToken === '') {
+        return '';
+    }
+
+    return $accessToken;
+}
+
+function google_subtask_doc_create_from_access_token($pdo, array $context, $accessToken)
+{
+    $accessToken = trim((string)$accessToken);
+    if ($accessToken === '') {
+        google_subtask_doc_redirect((int)$context['task_id'], "Google did not return an access token.");
+    }
+
+    $result = subtask_google_doc_create_and_store($pdo, $context, $accessToken);
+    if (!$result['ok']) {
+        google_subtask_doc_redirect((int)$context['task_id'], (string)($result['error'] ?? 'Unable to create the Google Workspace file.'));
+    }
+
+    unset($_SESSION['pending_google_workspace']);
+    unset($_SESSION['pending_google_workspace_access_token']);
+    header("Location: " . (string)$result['url']);
+    exit();
+}
+
 function google_subtask_doc_create_from_refresh_token($pdo, $currentUserId, array $context, $refreshToken)
 {
     $refresh = google_workspace_refresh_access_token($refreshToken);
@@ -90,18 +140,7 @@ function google_subtask_doc_create_from_refresh_token($pdo, $currentUserId, arra
 
     $tokens = (array)($refresh['tokens'] ?? []);
     $accessToken = trim((string)($tokens['access_token'] ?? ''));
-    if ($accessToken === '') {
-        google_subtask_doc_redirect((int)$context['task_id'], "Google did not return an access token.");
-    }
-
-    $result = subtask_google_doc_create_and_store($pdo, $context, $accessToken);
-    if (!$result['ok']) {
-        google_subtask_doc_redirect((int)$context['task_id'], (string)($result['error'] ?? 'Unable to create the Google Workspace file.'));
-    }
-
-    unset($_SESSION['pending_google_workspace']);
-    header("Location: " . (string)$result['url']);
-    exit();
+    google_subtask_doc_create_from_access_token($pdo, $context, $accessToken);
 }
 
 if (!isset($_SESSION['id'], $_SESSION['role'])) {
@@ -133,9 +172,15 @@ if (isset($_GET['resume']) && $_GET['resume'] === '1') {
         google_subtask_doc_redirect((int)$context['task_id'], "Only the assigned member can create the Google Doc for this phase.");
     }
 
+    $pendingAccessToken = google_subtask_doc_take_pending_access_token($currentUserId);
+    if ($pendingAccessToken !== '') {
+        google_subtask_doc_create_from_access_token($pdo, $context, $pendingAccessToken);
+    }
+
     $tokenRecord = google_workspace_get_token_record($pdo, $currentUserId);
     $refreshToken = trim((string)($tokenRecord['refresh_token'] ?? ''));
-    if ($refreshToken === '') {
+    $hasWorkspaceScope = google_subtask_doc_token_has_workspace_scope($tokenRecord);
+    if ($refreshToken === '' || !$hasWorkspaceScope) {
         google_subtask_doc_start_oauth((int)$context['id'], (int)$context['task_id'], $currentUserId, true);
     }
 
@@ -170,9 +215,15 @@ if ($existingUrl !== '') {
     exit();
 }
 
+$pendingAccessToken = google_subtask_doc_take_pending_access_token($currentUserId);
+if ($pendingAccessToken !== '') {
+    google_subtask_doc_create_from_access_token($pdo, $context, $pendingAccessToken);
+}
+
 $tokenRecord = google_workspace_get_token_record($pdo, $currentUserId);
 $refreshToken = trim((string)($tokenRecord['refresh_token'] ?? ''));
-if ($refreshToken === '') {
+$hasWorkspaceScope = google_subtask_doc_token_has_workspace_scope($tokenRecord);
+if ($refreshToken === '' || !$hasWorkspaceScope) {
     google_subtask_doc_start_oauth((int)$context['id'], (int)$context['task_id'], $currentUserId, true);
 }
 

@@ -24,6 +24,13 @@ if (!function_exists('google_workspace_redirect_uri')) {
     }
 }
 
+if (!function_exists('google_workspace_required_scope')) {
+    function google_workspace_required_scope()
+    {
+        return 'https://www.googleapis.com/auth/drive.file';
+    }
+}
+
 if (!function_exists('google_workspace_scopes')) {
     function google_workspace_scopes()
     {
@@ -31,7 +38,7 @@ if (!function_exists('google_workspace_scopes')) {
             'openid',
             'email',
             'profile',
-            'https://www.googleapis.com/auth/drive.file',
+            google_workspace_required_scope(),
         ];
     }
 }
