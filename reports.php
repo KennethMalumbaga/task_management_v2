@@ -10,6 +10,9 @@ if (!$isAdmin && !$isEmployee) {
     header('Location: login.php?error=First login');
     exit;
 }
+$isDtrOnly = defined('REPORTS_DTR_ONLY') && REPORTS_DTR_ONLY;
+$reportsPage = 'reports.php';
+$dtrPage = 'dtr_records.php';
 
 require_once "DB_connection.php";
 require_once "inc/tenant.php";
@@ -611,7 +614,7 @@ if ($userId > 0) {
 }
 $queryBaseNoUser = $queryBase;
 unset($queryBaseNoUser['dtr_user_id']);
-$overviewLink = 'reports.php?' . http_build_query($queryBaseNoUser) . '#dtrSection';
+$overviewLink = $dtrPage . '?' . http_build_query($queryBaseNoUser) . '#dtrSection';
 
 $prevMonthLink = null;
 $nextMonthLink = null;
@@ -631,8 +634,8 @@ if ($dtrUserId > 0 && $dtrUser) {
         $nextQuery['end'] = $nextMonth->format('Y-m-t');
         $prevQuery['dtr_user_id'] = $dtrUserId;
         $nextQuery['dtr_user_id'] = $dtrUserId;
-        $prevMonthLink = 'reports.php?' . http_build_query($prevQuery) . '#dtrSection';
-        $nextMonthLink = 'reports.php?' . http_build_query($nextQuery) . '#dtrSection';
+        $prevMonthLink = $dtrPage . '?' . http_build_query($prevQuery) . '#dtrSection';
+        $nextMonthLink = $dtrPage . '?' . http_build_query($nextQuery) . '#dtrSection';
     }
 }
 
@@ -768,7 +771,7 @@ if ($exportType === 'dtr_csv' && $dtrUserId > 0 && !empty($dtrRows)) {
 
 if ($exportType === 'dtr_pdf') {
     if (!$dtrUser || empty($dtrRows)) {
-        header('Location: reports.php?error=Select a user and date range for DTR export.');
+        header('Location: ' . $dtrPage . '?error=Select a user and date range for DTR export.');
         exit;
     }
 
@@ -1054,12 +1057,12 @@ $exportLink = null;
 $dtrExportLink = null;
 $dtrPdfLink = null;
 if ($isAdmin) {
-    $exportLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'csv']));
+    $exportLink = $reportsPage . '?' . http_build_query(array_merge($queryBase, ['export' => 'csv']));
     if ($dtrUserId > 0 && $dtrUser) {
-        $dtrExportLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_csv', 'dtr_user_id' => $dtrUserId]));
+        $dtrExportLink = $dtrPage . '?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_csv', 'dtr_user_id' => $dtrUserId]));
     }
     if ($dtrUserId > 0 && $dtrUser) {
-        $dtrPdfLink = 'reports.php?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_pdf', 'dtr_user_id' => $dtrUserId]));
+        $dtrPdfLink = $dtrPage . '?' . http_build_query(array_merge($queryBase, ['export' => 'dtr_pdf', 'dtr_user_id' => $dtrUserId]));
     }
 }
 $dtrCsrfToken = csrf_token('attendance_deduction_form');
@@ -1070,13 +1073,119 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reports | TaskFlow</title>
+    <title><?= $isDtrOnly ? 'DTR' : 'Reports' ?> | TaskFlow</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/reports-page.css">
+    <?php if ($isDtrOnly) { ?>
+    <style>
+        .dtr-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 28px 16px;
+            overflow: auto;
+        }
+        .dtr-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.58);
+            backdrop-filter: blur(5px);
+        }
+        .dtr-modal-panel {
+            position: relative;
+            width: min(1180px, 100%);
+            max-height: calc(100vh - 56px);
+            overflow: auto;
+            border: 1px solid var(--border, #e5e7eb);
+            border-radius: 20px;
+            background: var(--surface, #fff);
+            box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
+        }
+        .dtr-modal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 18px 20px 0;
+        }
+        .dtr-modal-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 800;
+        }
+        .dtr-modal-sub {
+            margin-top: 5px;
+            color: var(--text-secondary, #64748b);
+            font-size: 13px;
+        }
+        .dtr-modal-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .dtr-modal-close {
+            width: 38px;
+            height: 38px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: var(--text-primary, #111827);
+            background: var(--surface-2, #f8fafc);
+            font-size: 18px;
+            font-weight: 800;
+        }
+        .dtr-modal-panel #dtrContent {
+            padding: 0 20px 22px;
+        }
+        @media (max-width: 720px) {
+            .dtr-modal {
+                padding: 16px 8px;
+            }
+            .dtr-modal-panel {
+                max-height: calc(100vh - 32px);
+                border-radius: 16px;
+            }
+            .dtr-modal-head {
+                flex-direction: column;
+            }
+        }
+        @media print {
+            .dtr-modal {
+                position: static;
+                display: block;
+                padding: 0;
+                overflow: visible;
+            }
+            .dtr-modal-panel {
+                position: static;
+                width: 100%;
+                max-height: none;
+                overflow: visible;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+            }
+            .dtr-modal-backdrop,
+            .dtr-modal-head {
+                display: none !important;
+            }
+            .dtr-modal-panel #dtrContent {
+                padding: 0;
+            }
+        }
+    </style>
+    <?php } ?>
 </head>
 <body class="reports-page">
     <?php include "inc/new_sidebar.php"; ?>
@@ -1086,17 +1195,19 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
             <?php if ($isAdmin) { ?>
             <div class="report-header reports-header">
                 <div class="report-header-left">
-                    <h1>Weekly Performance &amp; Utilization</h1>
+                    <h1><?= $isDtrOnly ? 'Daily Time Records' : 'Weekly Performance &amp; Utilization' ?></h1>
                     <p>
                         <?= htmlspecialchars(report_format_range($startDate, $endDate)) ?>
                         <span class="tz-badge"><i class="fa fa-globe"></i> Asia/Manila</span>
                     </p>
                 </div>
                 <div class="report-actions reports-actions">
+                    <?php if (!$isDtrOnly) { ?>
                     <a class="btn btn-outline" href="<?= htmlspecialchars($exportLink, ENT_QUOTES) ?>">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         Export CSV
                     </a>
+                    <?php } ?>
                     <button type="button" class="btn btn-outline" onclick="window.print()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                         Print
@@ -1104,7 +1215,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                 </div>
             </div>
 
-            <form class="filters-card reports-filters" method="GET" action="reports.php">
+            <form class="filters-card reports-filters" method="GET" action="<?= $isDtrOnly ? 'dtr_records.php' : 'reports.php' ?>">
                 <div class="filter-group report-field">
                     <label for="startDate">Start Date</label>
                     <input type="date" id="startDate" name="start" value="<?= htmlspecialchars($startDate) ?>">
@@ -1158,7 +1269,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                         Apply Filters
                     </button>
-                    <a class="btn btn-ghost" href="reports.php">Reset</a>
+                    <a class="btn btn-ghost" href="<?= $isDtrOnly ? 'dtr_records.php' : 'reports.php' ?>">Reset</a>
                 </div>
             </form>
 
@@ -1183,6 +1294,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                 </div>
             <?php } ?>
 
+            <?php if (!$isDtrOnly) { ?>
             <div class="metrics-grid reports-stats-grid">
                 <div class="metric-card stat-card">
                     <div class="metric-icon green">
@@ -1288,7 +1400,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                 }
                                 $profileLink = $uid > 0 ? ("user_details.php?id=" . urlencode((string)$uid)) : '';
                                 $viewDtrLink = $uid > 0
-                                    ? ('reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $uid])) . '#dtrSection')
+                                    ? ($dtrPage . '?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $uid])) . '#dtrSection')
                                     : '#';
                                 $userTitle = 'Captures: ' . number_format($row['captures']) . ' | Needs rating: ' . number_format($row['unrated_completed']);
                             ?>
@@ -1347,8 +1459,10 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                     </table>
                 </div>
             </div>
+            <?php } ?>
 
             <?php } ?>
+            <?php if ($isDtrOnly || !$isAdmin) { ?>
             <div class="dtr-section" id="dtrSection">
                 <div class="dtr-header">
                     <div class="dtr-title-area">
@@ -1357,7 +1471,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                             <?= $isAdmin ? 'Compare all users at a glance, or drill into individual records to view and adjust.' : 'View your daily time record for the selected range.' ?>
                         </div>
                     </div>
-                    <div class="dtr-header-actions" <?= ($dtrUserId > 0 && $dtrUser) ? '' : 'style="display:none;"' ?>>
+                    <div class="dtr-header-actions" <?= ($dtrUserId > 0 && $dtrUser && !$isDtrOnly) ? '' : 'style="display:none;"' ?>>
                         <?php if ($isAdmin && $dtrExportLink) { ?>
                             <a class="btn btn-outline" href="<?= htmlspecialchars($dtrExportLink, ENT_QUOTES) ?>">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1377,7 +1491,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                     </div>
                 </div>
 
-                <?php if ($isAdmin) { ?>
+                <?php if ($isAdmin && !$isDtrOnly) { ?>
                 <div class="user-tabs" id="userTabs">
                     <a class="user-tab <?= $dtrUserId > 0 ? '' : 'active' ?>" href="<?= htmlspecialchars($overviewLink, ENT_QUOTES) ?>" id="tab-overview">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -1394,12 +1508,81 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                         }
                         $tabVisual = $userVisuals[$tabUid] ?? ['initials' => report_get_initials($tabName), 'color' => report_get_color_for_index($tabIndex)];
                         $tabAvatarUrl = trim((string)($tabVisual['avatar_url'] ?? ''));
-                        $tabLink = 'reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $tabUid])) . '#dtrSection';
+                        $tabLink = $dtrPage . '?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $tabUid])) . '#dtrSection';
                     ?>
                         <a class="user-tab <?= $tabUid === $dtrUserId ? 'active' : '' ?>" href="<?= htmlspecialchars($tabLink, ENT_QUOTES) ?>" id="tab-<?= $tabUid ?>">
                             <div class="tab-avatar<?= $tabAvatarUrl !== '' ? ' has-image' : '' ?>" style="background:<?= htmlspecialchars($tabVisual['color'], ENT_QUOTES) ?>"><?= report_render_avatar_inner($tabAvatarUrl, $tabName, $tabVisual['initials']) ?></div>
                             <?= htmlspecialchars($tabName) ?>
                         </a>
+                    <?php } ?>
+                </div>
+                <?php } ?>
+
+                <?php if ($isAdmin && $isDtrOnly) { ?>
+                <div class="table-card report-table-card">
+                    <div class="table-card-header report-table-header">
+                        <div>
+                            <div class="section-title">Employee DTR</div>
+                            <div class="section-sub">Select an employee to preview their daily time record for the selected range.</div>
+                        </div>
+                        <span class="badge badge-purple">
+                            <?= number_format(count($reportRows)) ?> user<?= count($reportRows) === 1 ? '' : 's' ?>
+                        </span>
+                    </div>
+                    <?php if (empty($reportRows)) { ?>
+                        <div class="dtr-empty">
+                            <div class="dtr-empty-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 11h8M8 15h5M8 7h8"/></svg>
+                            </div>
+                            <h3>No DTR data yet</h3>
+                            <p>No users match the selected filters for this date range.</p>
+                        </div>
+                    <?php } else { ?>
+                        <div class="table-scroll report-table-wrap">
+                            <table class="report-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Gross Hours</th>
+                                        <th>Deducted</th>
+                                        <th>Net Hours</th>
+                                        <th>Active Days</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($reportRows as $row) {
+                                        $user = $row['user'];
+                                        $uid = (int)($user['id'] ?? 0);
+                                        if ($uid <= 0) {
+                                            continue;
+                                        }
+                                        $name = trim((string)($user['full_name'] ?? ''));
+                                        if ($name === '') {
+                                            $name = 'User #' . $uid;
+                                        }
+                                        $email = trim((string)($user['username'] ?? ''));
+                                        $viewDtrLink = $dtrPage . '?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $uid])) . '#dtrSection';
+                                    ?>
+                                        <tr>
+                                            <td>
+                                                <div class="user-cell">
+                                                    <div class="user-name"><?= htmlspecialchars($name) ?></div>
+                                                    <div class="user-email"><?= htmlspecialchars($email) ?></div>
+                                                </div>
+                                            </td>
+                                            <td><?= report_format_value($row['hours_raw'], 2, '0.00') ?></td>
+                                            <td class="<?= $row['deducted'] > 0 ? 'cell-warning' : 'num-zero' ?>"><?= report_format_value($row['deducted'], 2, '0.00') ?></td>
+                                            <td><strong><?= report_format_value($row['hours'], 2, '0.00') ?></strong></td>
+                                            <td><?= number_format((int)$row['days']) ?></td>
+                                            <td>
+                                                <a class="view-btn" href="<?= htmlspecialchars($viewDtrLink, ENT_QUOTES) ?>">View DTR</a>
+                                            </td>
+                                        </tr>
+                                    <?php } ?>
+                                </tbody>
+                            </table>
+                        </div>
                     <?php } ?>
                 </div>
                 <?php } ?>
@@ -1415,6 +1598,36 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                     $selectedAvatarUrl = trim((string)($selectedVisual['avatar_url'] ?? ''));
                     $selectedDays = $selectedMetrics ? (int)$selectedMetrics['days'] : 0;
                 ?>
+                    <?php if ($isDtrOnly && $isAdmin) { ?>
+                    <div class="dtr-modal" role="dialog" aria-modal="true" aria-labelledby="dtrPreviewTitle">
+                        <a class="dtr-modal-backdrop" href="<?= htmlspecialchars($overviewLink, ENT_QUOTES) ?>" aria-label="Close DTR preview"></a>
+                        <div class="dtr-modal-panel">
+                            <div class="dtr-modal-head">
+                                <div>
+                                    <h3 class="dtr-modal-title" id="dtrPreviewTitle">DTR Preview</h3>
+                                    <div class="dtr-modal-sub"><?= htmlspecialchars($selectedName) ?> &middot; <?= htmlspecialchars($dtrMonthLabel) ?></div>
+                                </div>
+                                <div class="dtr-modal-actions">
+                                    <?php if ($dtrExportLink) { ?>
+                                        <a class="btn btn-outline" href="<?= htmlspecialchars($dtrExportLink, ENT_QUOTES) ?>">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                            CSV
+                                        </a>
+                                    <?php } ?>
+                                    <?php if ($dtrPdfLink) { ?>
+                                        <a class="btn btn-outline" href="<?= htmlspecialchars($dtrPdfLink, ENT_QUOTES) ?>" target="_blank" rel="noopener">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                            PDF
+                                        </a>
+                                    <?php } ?>
+                                    <button type="button" class="btn btn-outline" onclick="printDtrOnly()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                        Print
+                                    </button>
+                                    <a class="dtr-modal-close" href="<?= htmlspecialchars($overviewLink, ENT_QUOTES) ?>" aria-label="Close DTR preview">&times;</a>
+                                </div>
+                            </div>
+                    <?php } ?>
                     <div id="dtrContent">
                         <div class="dtr-user-bar">
                             <div class="dtr-user-info">
@@ -1649,7 +1862,11 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                             </div>
                         </div>
                     </div>
-                <?php } else { ?>
+                    <?php if ($isDtrOnly && $isAdmin) { ?>
+                        </div>
+                    </div>
+                    <?php } ?>
+                <?php } elseif (!$isDtrOnly) { ?>
                     <div id="dtrOverview">
                         <?php if (empty($reportRows)) { ?>
                             <div class="dtr-empty">
@@ -1675,7 +1892,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                         $email = trim((string)($user['username'] ?? ''));
                                         $visual = $userVisuals[$uid] ?? ['initials' => report_get_initials($name), 'color' => report_get_color_for_index(0)];
                                         $cardAvatarUrl = trim((string)($visual['avatar_url'] ?? ''));
-                                        $cardLink = 'reports.php?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $uid])) . '#dtrSection';
+                                        $cardLink = $dtrPage . '?' . http_build_query(array_merge($queryBaseNoUser, ['dtr_user_id' => $uid])) . '#dtrSection';
                                         $deductedClass = $row['deducted'] > 0 ? 'red' : '';
                                     ?>
                                         <a class="user-summary-card" href="<?= htmlspecialchars($cardLink, ENT_QUOTES) ?>">
@@ -1727,8 +1944,9 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                     </div>
                 <?php } ?>
             </div>
+            <?php } ?>
 
-            <?php if ($isAdmin) { ?>
+            <?php if ($isAdmin && !$isDtrOnly) { ?>
             <div class="alerts-grid">
                 <div class="alert-card">
                     <div class="alert-icon amber">
@@ -1756,6 +1974,14 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
     </div>
 
     <script>
+        <?php if ($isDtrOnly && $dtrUserId > 0 && $dtrUser) { ?>
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                window.location.href = <?= json_encode($overviewLink) ?>;
+            }
+        });
+        <?php } ?>
+
         function printDtrOnly() {
             document.body.classList.add('print-dtr-only');
             window.print();
