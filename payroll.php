@@ -1,12 +1,18 @@
 <?php
 session_start();
-if (!isset($_SESSION['role'], $_SESSION['id']) || $_SESSION['role'] !== 'admin') {
+$isPayslipsOnly = defined('PAYSLIPS_ONLY') && PAYSLIPS_ONLY;
+$isEmployeePayslipsOnly = defined('EMPLOYEE_PAYSLIPS_ONLY') && EMPLOYEE_PAYSLIPS_ONLY;
+if (
+    !isset($_SESSION['role'], $_SESSION['id'])
+    || ($isEmployeePayslipsOnly ? $_SESSION['role'] !== 'employee' : $_SESSION['role'] !== 'admin')
+) {
     header('Location: login.php?error=First login');
     exit;
 }
-$isPayslipsOnly = defined('PAYSLIPS_ONLY') && PAYSLIPS_ONLY;
+$isPayslipPage = $isPayslipsOnly || $isEmployeePayslipsOnly;
 $payrollPage = 'payroll.php';
 $payslipsPage = 'payslips.php';
+$employeePayslipsPage = 'my_payslips.php';
 
 require_once "DB_connection.php";
 require_once "inc/tenant.php";
@@ -83,7 +89,7 @@ function payroll_normalize_section($raw)
 
 function payroll_build_url($month, $userId = 0, $section = 'computation')
 {
-    global $payrollPage, $payslipsPage;
+    global $payrollPage, $payslipsPage, $employeePayslipsPage, $isEmployeePayslipsOnly;
     $query = [
         'month' => payroll_normalize_month($month),
         'section' => payroll_normalize_section($section),
@@ -94,7 +100,12 @@ function payroll_build_url($month, $userId = 0, $section = 'computation')
         $query['user_id'] = $userId;
     }
 
-    $basePage = payroll_normalize_section($section) === 'payslip' ? $payslipsPage : $payrollPage;
+    if ($isEmployeePayslipsOnly) {
+        $basePage = $employeePayslipsPage;
+        unset($query['user_id']);
+    } else {
+        $basePage = payroll_normalize_section($section) === 'payslip' ? $payslipsPage : $payrollPage;
+    }
     return $basePage . '?' . http_build_query($query);
 }
 
@@ -113,19 +124,27 @@ if ($workspaceName === '') {
 }
 
 $month = payroll_normalize_month($_GET['month'] ?? date('Y-m'));
-$activeSection = $isPayslipsOnly ? 'payslip' : payroll_normalize_section($_GET['section'] ?? 'computation');
+$activeSection = $isPayslipPage ? 'payslip' : payroll_normalize_section($_GET['section'] ?? 'computation');
 $monthDate = DateTime::createFromFormat('Y-m', $month) ?: new DateTime('first day of this month');
 $startDate = $monthDate->format('Y-m-01');
 $endDate = $monthDate->format('Y-m-t');
 $periodLabel = $monthDate->format('F Y');
-$selectedUserId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
-if (!$isPayslipsOnly && $activeSection === 'payslip') {
+$selectedUserId = $isEmployeePayslipsOnly ? (int)$_SESSION['id'] : (isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0);
+if (!$isPayslipPage && $activeSection === 'payslip') {
     header('Location: ' . payroll_build_url($month, $selectedUserId, 'payslip'));
     exit;
 }
-$allUsers = array_values(array_filter(get_all_users($pdo, 'employee'), function ($user) {
-    return (int)($user['id'] ?? 0) > 0;
-}));
+$allUsers = [];
+if ($isEmployeePayslipsOnly) {
+    $currentEmployee = get_user_by_id($pdo, (int)$_SESSION['id']);
+    if ($currentEmployee && ($currentEmployee['role'] ?? '') === 'employee') {
+        $allUsers = [$currentEmployee];
+    }
+} else {
+    $allUsers = array_values(array_filter(get_all_users($pdo, 'employee'), function ($user) {
+        return (int)($user['id'] ?? 0) > 0;
+    }));
+}
 
 $selectedUser = null;
 foreach ($allUsers as $employee) {
@@ -324,7 +343,7 @@ $generatedAtLabel = date('M j, Y g:i A');
 <html>
 <head>
     <meta charset="utf-8">
-    <title><?= $isPayslipsOnly ? 'Payslips' : 'Payroll' ?> | TaskFlow</title>
+    <title><?= $isPayslipPage ? 'Payslips' : 'Payroll' ?> | TaskFlow</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -924,9 +943,9 @@ $generatedAtLabel = date('M j, Y g:i A');
     <div class="payroll-shell">
         <section class="payroll-card payroll-hero payroll-screen-only">
             <div>
-                <span class="payroll-eyebrow"><i class="fa <?= $isPayslipsOnly ? 'fa-file-text-o' : 'fa-money' ?>"></i> <?= $isPayslipsOnly ? 'Payslips' : 'Payroll System' ?></span>
-                <h2><?= $isPayslipsOnly ? 'Preview and print employee payslips for the selected payroll month.' : 'Compute payroll from hourly rate, time deductions, government deductions, and custom deductions.' ?></h2>
-                <p><?= $isPayslipsOnly ? 'Select one employee to generate a payslip using the same payroll computation, attendance deductions, government deductions, and custom deductions.' : "Each employee's pay is calculated from their hourly rate, reduced by attendance deduction hours, then reduced again by standard government deductions and custom deductions like cash advances, loans, laptops, uniforms, smartphones, or other recurring items for the selected month." ?></p>
+                <span class="payroll-eyebrow"><i class="fa <?= $isPayslipPage ? 'fa-file-text-o' : 'fa-money' ?>"></i> <?= $isPayslipPage ? 'Payslips' : 'Payroll System' ?></span>
+                <h2><?= $isEmployeePayslipsOnly ? 'View and print your payslip for the selected payroll month.' : ($isPayslipsOnly ? 'Preview and print employee payslips for the selected payroll month.' : 'Compute payroll from hourly rate, time deductions, government deductions, and custom deductions.') ?></h2>
+                <p><?= $isEmployeePayslipsOnly ? 'Your payslip uses your attendance, approved time deductions, government deductions, and any custom deductions for the selected month.' : ($isPayslipsOnly ? 'Select one employee to generate a payslip using the same payroll computation, attendance deductions, government deductions, and custom deductions.' : "Each employee's pay is calculated from their hourly rate, reduced by attendance deduction hours, then reduced again by standard government deductions and custom deductions like cash advances, loans, laptops, uniforms, smartphones, or other recurring items for the selected month.") ?></p>
             </div>
             <div class="payroll-meta">
                 <div class="payroll-meta-item">
@@ -934,7 +953,7 @@ $generatedAtLabel = date('M j, Y g:i A');
                     <strong><?= htmlspecialchars($periodLabel) ?></strong>
                 </div>
                 <div class="payroll-meta-item">
-                    <span>Employees</span>
+                    <span><?= $isEmployeePayslipsOnly ? 'Employee' : 'Employees' ?></span>
                     <strong><?= (int)$displaySummary['employees'] ?></strong>
                 </div>
                 <div class="payroll-meta-item">
@@ -955,7 +974,7 @@ $generatedAtLabel = date('M j, Y g:i A');
                     <label for="month">Month</label>
                     <input id="month" type="month" name="month" value="<?= htmlspecialchars($month) ?>">
                 </div>
-                <?php if (!$isPayslipsOnly) { ?>
+                <?php if (!$isPayslipPage) { ?>
                     <div class="payroll-field">
                         <label for="user_id">Focus Employee</label>
                         <select id="user_id" name="user_id">
@@ -975,7 +994,7 @@ $generatedAtLabel = date('M j, Y g:i A');
                     <a class="payroll-btn secondary" href="<?= htmlspecialchars(payroll_build_url(date('Y-m'), 0, $activeSection), ENT_QUOTES) ?>">
                         <i class="fa fa-refresh"></i> Reset
                     </a>
-                    <?php if (!$isPayslipsOnly || $selectedPayrollRow) { ?>
+                    <?php if (!$isPayslipPage || $selectedPayrollRow) { ?>
                         <button class="payroll-btn secondary" type="button" onclick="window.print()">
                             <i class="fa fa-print"></i> Print
                         </button>
@@ -983,7 +1002,7 @@ $generatedAtLabel = date('M j, Y g:i A');
                 </div>
             </form>
 
-            <?php if (!$isPayslipsOnly) { ?>
+            <?php if (!$isPayslipPage) { ?>
             <div class="payroll-tab-nav">
                 <a class="payroll-tab-link <?= $activeSection === 'computation' ? 'active' : '' ?>" href="<?= htmlspecialchars(payroll_build_url($month, $selectedUserId, 'computation'), ENT_QUOTES) ?>"><i class="fa fa-calculator"></i> Computation</a>
                 <a class="payroll-tab-link <?= $activeSection === 'table' ? 'active' : '' ?>" href="<?= htmlspecialchars(payroll_build_url($month, $selectedUserId, 'table'), ENT_QUOTES) ?>"><i class="fa fa-table"></i> Payroll Table</a>
@@ -1573,8 +1592,8 @@ $generatedAtLabel = date('M j, Y g:i A');
             <?php } ?>
             <div class="payroll-section-head">
                 <div>
-                    <h3 id="payslipPreviewTitle">Payslip Preview</h3>
-                    <p><?= $isPayslipsOnly ? 'Use View Payslip from the employee table to show the payslip preview.' : 'This preview uses the same payroll computation and deduction lines as the printable payslip.' ?></p>
+                    <h3 id="payslipPreviewTitle"><?= $isEmployeePayslipsOnly ? 'My Payslip' : 'Payslip Preview' ?></h3>
+                    <p><?= $isEmployeePayslipsOnly ? 'This payslip is based on your recorded attendance and deductions for the selected month.' : ($isPayslipsOnly ? 'Use View Payslip from the employee table to show the payslip preview.' : 'This preview uses the same payroll computation and deduction lines as the printable payslip.') ?></p>
                 </div>
                 <?php if ($isPayslipsOnly) { ?>
                     <a class="payroll-modal-close" href="<?= htmlspecialchars($payslipListLink, ENT_QUOTES) ?>" aria-label="Close payslip preview">&times;</a>
@@ -1582,7 +1601,7 @@ $generatedAtLabel = date('M j, Y g:i A');
             </div>
 
             <?php if (!$selectedPayrollRow) { ?>
-                <div class="payroll-empty"><?= $isPayslipsOnly ? 'Choose View Payslip beside an employee to preview their payslip.' : 'Select one employee from the payroll filter to preview a payslip.' ?></div>
+                <div class="payroll-empty"><?= $isEmployeePayslipsOnly ? 'Your payslip is not available for this workspace.' : ($isPayslipsOnly ? 'Choose View Payslip beside an employee to preview their payslip.' : 'Select one employee from the payroll filter to preview a payslip.') ?></div>
             <?php } else { ?>
                 <div class="payroll-section">
                     <div class="payroll-payslip-sheet preview">

@@ -103,6 +103,12 @@ if (isset($_SESSION['role'], $_SESSION['id']) && isset($pdo)) {
 	                    </a>
 	                </li>
 				<li>
+					<a href="my_payslips.php">
+						<i class="fa fa-file-text-o" aria-hidden="true"></i>
+						<span>Payslips</span>
+					</a>
+				</li>
+				<li>
 					<a href="notifications.php">
 						<i class="fa fa-bell" aria-hidden="true"></i>
 						<span>Notifications</span>

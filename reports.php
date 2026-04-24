@@ -11,6 +11,7 @@ if (!$isAdmin && !$isEmployee) {
     exit;
 }
 $isDtrOnly = defined('REPORTS_DTR_ONLY') && REPORTS_DTR_ONLY;
+$isDtrView = $isDtrOnly || $isEmployee;
 $reportsPage = 'reports.php';
 $dtrPage = 'dtr_records.php';
 
@@ -175,15 +176,22 @@ if ($monthInput) {
 
 if (!isset($startDate) || !isset($endDate)) {
     if (!$startInput || !$endInput) {
-        $today = date('Y-m-d');
-        $ts = strtotime($today);
-        $weekStart = strtotime('monday this week', $ts);
-        if (date('N', $ts) == 1) {
-            $weekStart = strtotime(date('Y-m-d', $ts));
+        if ($isDtrView) {
+            $monthInput = date('Y-m');
+            $monthStart = DateTime::createFromFormat('Y-m', $monthInput);
+            $startDate = $monthStart->format('Y-m-01');
+            $endDate = $monthStart->format('Y-m-t');
+        } else {
+            $today = date('Y-m-d');
+            $ts = strtotime($today);
+            $weekStart = strtotime('monday this week', $ts);
+            if (date('N', $ts) == 1) {
+                $weekStart = strtotime(date('Y-m-d', $ts));
+            }
+            $weekEnd = strtotime('+6 days', $weekStart);
+            $startDate = date('Y-m-d', $weekStart);
+            $endDate = date('Y-m-d', $weekEnd);
         }
-        $weekEnd = strtotime('+6 days', $weekStart);
-        $startDate = date('Y-m-d', $weekStart);
-        $endDate = date('Y-m-d', $weekEnd);
     } else {
         $startDate = $startInput;
         $endDate = $endInput;
@@ -195,15 +203,22 @@ if ($monthInput === null && $startDate && $endDate && substr($startDate, 0, 7) =
 }
 
 if (!$startDate || !$endDate) {
-    $today = date('Y-m-d');
-    $ts = strtotime($today);
-    $weekStart = strtotime('monday this week', $ts);
-    if (date('N', $ts) == 1) {
-        $weekStart = strtotime(date('Y-m-d', $ts));
+    if ($isDtrView) {
+        $monthInput = date('Y-m');
+        $monthStart = DateTime::createFromFormat('Y-m', $monthInput);
+        $startDate = $monthStart->format('Y-m-01');
+        $endDate = $monthStart->format('Y-m-t');
+    } else {
+        $today = date('Y-m-d');
+        $ts = strtotime($today);
+        $weekStart = strtotime('monday this week', $ts);
+        if (date('N', $ts) == 1) {
+            $weekStart = strtotime(date('Y-m-d', $ts));
+        }
+        $weekEnd = strtotime('+6 days', $weekStart);
+        $startDate = date('Y-m-d', $weekStart);
+        $endDate = date('Y-m-d', $weekEnd);
     }
-    $weekEnd = strtotime('+6 days', $weekStart);
-    $startDate = date('Y-m-d', $weekStart);
-    $endDate = date('Y-m-d', $weekEnd);
 }
 
 if ($startDate > $endDate) {
@@ -1090,7 +1105,7 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
             align-items: flex-start;
             justify-content: center;
             padding: 28px 16px;
-            overflow: auto;
+            overflow: hidden;
         }
         .dtr-modal-backdrop {
             position: fixed;
@@ -1102,11 +1117,13 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
             position: relative;
             width: min(1180px, 100%);
             max-height: calc(100vh - 56px);
-            overflow: auto;
+            overflow: hidden;
             border: 1px solid var(--border, #e5e7eb);
             border-radius: 20px;
             background: var(--surface, #fff);
             box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
+            display: flex;
+            flex-direction: column;
         }
         .dtr-modal-head {
             display: flex;
@@ -1147,6 +1164,13 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
         }
         .dtr-modal-panel #dtrContent {
             padding: 0 20px 22px;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .dtr-modal-panel .dtr-table-wrap {
+            max-height: min(46vh, 520px);
         }
         @media (max-width: 720px) {
             .dtr-modal {
@@ -1158,6 +1182,9 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
             }
             .dtr-modal-head {
                 flex-direction: column;
+            }
+            .dtr-modal-panel .dtr-table-wrap {
+                max-height: 340px;
             }
         }
         @media print {
@@ -1702,7 +1729,10 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                         </div>
 
                         <div class="dtr-table-wrap">
-                            <?php $dtrTableColspan = $dtrHasSegmented ? 10 : 6; ?>
+                            <?php
+                                $dtrShowActionColumn = $isAdmin;
+                                $dtrTableColspan = ($dtrHasSegmented ? 13 : 9) + ($dtrShowActionColumn ? 1 : 0);
+                            ?>
                             <table class="dtr-table">
                                 <thead>
                                     <?php if ($dtrHasSegmented) { ?>
@@ -1720,7 +1750,9 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                             <th rowspan="2" class="dtr-signature-col">Signature</th>
                                             <th rowspan="2" class="dtr-col-adjust">Adj. Deduction</th>
                                             <th rowspan="2" class="dtr-col-reason">Reason</th>
-                                            <th rowspan="2" class="dtr-col-action">Action</th>
+                                            <?php if ($dtrShowActionColumn) { ?>
+                                                <th rowspan="2" class="dtr-col-action">Action</th>
+                                            <?php } ?>
                                         </tr>
                                         <tr>
                                             <th>In</th>
@@ -1744,7 +1776,9 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                             <th class="dtr-signature-col">Signature</th>
                                             <th class="dtr-col-adjust">Adj. Deduction</th>
                                             <th class="dtr-col-reason">Reason</th>
-                                            <th class="dtr-col-action">Action</th>
+                                            <?php if ($dtrShowActionColumn) { ?>
+                                                <th class="dtr-col-action">Action</th>
+                                            <?php } ?>
                                         </tr>
                                     <?php } ?>
                                 </thead>
@@ -1825,7 +1859,6 @@ $dtrCsrfToken = csrf_token('attendance_deduction_form');
                                         <?php } else { ?>
                                             <td class="deduct-cell dtr-col-adjust <?= $row['deducted'] > 0 ? '' : 'none' ?>"><?= $deductedValue ?></td>
                                             <td class="dtr-reason-cell dtr-col-reason"><?= $row['reason'] !== '' ? htmlspecialchars($row['reason']) : '&mdash;' ?></td>
-                                            <td class="dtr-col-action">&mdash;</td>
                                         <?php } ?>
                                     </tr>
                                     <?php } ?>
