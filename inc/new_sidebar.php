@@ -161,7 +161,10 @@
         'groups.php' => 'Groups',
         'screenshots.php' => 'Captures',
         'reports.php' => 'Reports',
+        'dtr_records.php' => 'DTR',
         'payroll.php' => 'Payroll',
+        'payslips.php' => 'Payslips',
+        'my_payslips.php' => 'Payslips',
         'profile.php' => 'Profile',
         'edit_profile.php' => 'Edit Profile',
         'notifications.php' => 'Notifications',
@@ -331,9 +334,6 @@
             <a href="calendar.php" class="dash-nav-item <?= isActive('calendar.php') ?>">
                 <i class="fa fa-calendar"></i> Calendar
             </a>
-            <a href="reports.php" class="dash-nav-item <?= isActive('reports.php') ?>">
-                <i class="fa fa-clock-o"></i> DTR
-            </a>
             <a href="timeline.php" class="dash-nav-item <?= isActive('timeline.php') ?>">
                 <i class="fa fa-line-chart"></i> Timeline
             </a>
@@ -342,6 +342,14 @@
                 <?php if($totalUnread > 0){ ?>
                     <span class="dash-nav-badge"><?=$totalUnread?></span>
                 <?php } ?>
+            </a>
+
+            <div class="dash-nav-section-label">RECORDS</div>
+            <a href="reports.php" class="dash-nav-item <?= isActive('reports.php') ?>">
+                <i class="fa fa-clock-o"></i> DTR
+            </a>
+            <a href="my_payslips.php" class="dash-nav-item <?= isActive('my_payslips.php') ?>">
+                <i class="fa fa-file-text-o"></i> Payslips
             </a>
         <?php } else { ?>
             <!-- Admin Nav -->
@@ -385,8 +393,14 @@
             <a href="reports.php" class="dash-nav-item <?= isActive('reports.php') ?>">
                 <i class="fa fa-bar-chart"></i> Reports
             </a>
+            <a href="dtr_records.php" class="dash-nav-item <?= isActive('dtr_records.php') ?>">
+                <i class="fa fa-clock-o"></i> DTR
+            </a>
             <a href="payroll.php" class="dash-nav-item <?= isActive('payroll.php') ?>">
                 <i class="fa fa-money"></i> Payroll
+            </a>
+            <a href="payslips.php" class="dash-nav-item <?= isActive('payslips.php') ?>">
+                <i class="fa fa-file-text-o"></i> Payslips
             </a>
         <?php } ?>
     </nav>

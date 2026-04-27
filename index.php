@@ -1264,8 +1264,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                         <strong id="adminUserDetailTimeIn">--</strong>
                     </div>
                     <div class="admin-user-detail-stat">
-                        <span class="admin-user-detail-label">Last Screenshot</span>
-                        <strong id="adminUserDetailLastScreenshot">No screenshots yet</strong>
+                        <span class="admin-user-detail-label">Last Screen Capture</span>
+                        <strong id="adminUserDetailLastScreenshot">No screen captures yet</strong>
                     </div>
                     <div class="admin-user-detail-stat">
                         <span class="admin-user-detail-label">Status</span>
@@ -1280,16 +1280,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
                 <div class="admin-user-detail-capture-shell">
                     <a class="admin-user-detail-capture-preview is-empty" id="adminUserDetailCapturePreviewLink" href="screenshots.php">
-                        <img id="adminUserDetailCapturePreviewImage" alt="Latest screenshot preview" hidden>
+                        <img id="adminUserDetailCapturePreviewImage" alt="Latest screen capture preview" hidden>
                         <div class="admin-user-detail-capture-empty" id="adminUserDetailCaptureEmpty">
                             <i class="fa fa-picture-o"></i>
-                            <span>No screenshot available yet.</span>
+                            <span>No screen capture available yet.</span>
                         </div>
                     </a>
                     <div class="admin-user-detail-capture-copy">
                         <div class="admin-user-detail-label">Latest Capture</div>
-                        <strong id="adminUserDetailCaptureTitle">Waiting for first screenshot</strong>
-                        <p id="adminUserDetailCaptureMeta">As soon as a screenshot is captured, it will appear here.</p>
+                        <strong id="adminUserDetailCaptureTitle">Waiting for first screen capture</strong>
+                        <p id="adminUserDetailCaptureMeta">As soon as a screen capture is saved, it will appear here.</p>
                     </div>
                 </div>
 
@@ -3424,7 +3424,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 detailTimeIn.textContent = '--';
             }
             if (detailLastScreenshot) {
-                detailLastScreenshot.textContent = 'No screenshots yet';
+                detailLastScreenshot.textContent = 'No screen captures yet';
             }
             if (detailStatusChip) {
                 detailStatusChip.textContent = 'Active';
@@ -3448,10 +3448,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 detailCaptureEmpty.hidden = false;
             }
             if (detailCaptureTitle) {
-                detailCaptureTitle.textContent = 'Waiting for first screenshot';
+                detailCaptureTitle.textContent = 'Waiting for first screen capture';
             }
             if (detailCaptureMeta) {
-                detailCaptureMeta.textContent = 'As soon as a screenshot is captured, it will appear here.';
+                detailCaptureMeta.textContent = 'As soon as a screen capture is saved, it will appear here.';
             }
             if (detailCaptureLink) {
                 detailCaptureLink.href = 'screenshots.php';
@@ -3524,7 +3524,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 detailTimeIn.textContent = detail.last_time_in_label || '--';
             }
             if (detailLastScreenshot) {
-                detailLastScreenshot.textContent = detail.last_screenshot_label || 'No screenshots yet';
+                detailLastScreenshot.textContent = detail.last_screenshot_label || 'No screen captures yet';
             }
             if (detailStatusChip) {
                 detailStatusChip.textContent = detail.status_label || 'Active';
@@ -3556,10 +3556,10 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 detailCaptureEmpty.hidden = !!detail.last_screenshot_url;
             }
             if (detailCaptureTitle) {
-                detailCaptureTitle.textContent = detail.last_screenshot_label || 'No screenshots yet';
+                detailCaptureTitle.textContent = detail.last_screenshot_label || 'No screen captures yet';
             }
             if (detailCaptureMeta) {
-                detailCaptureMeta.textContent = detail.last_screenshot_note || 'No screenshot available yet.';
+                detailCaptureMeta.textContent = detail.last_screenshot_note || 'No screen capture available yet.';
             }
 
             showDetailContent();

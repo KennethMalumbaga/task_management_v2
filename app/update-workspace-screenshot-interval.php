@@ -40,11 +40,11 @@ $isSuperAdmin = is_super_admin((int)$_SESSION['id'], $pdo);
 $organizationRole = strtolower(trim((string)($_SESSION['organization_role'] ?? '')));
 $canManageWorkspace = !$isSuperAdmin && ($organizationRole === '' || in_array($organizationRole, ['owner', 'admin'], true));
 if (!$canManageWorkspace) {
-    workspace_screenshot_interval_redirect('error', "You do not have permission to update screenshot timing.");
+    workspace_screenshot_interval_redirect('error', "You do not have permission to update screen capture timing.");
 }
 
 if (!workspace_screenshot_interval_schema_ready($pdo)) {
-    workspace_screenshot_interval_redirect('error', "Screenshot timing settings are unavailable. Run sql_add_workspace_screenshot_interval.sql.");
+    workspace_screenshot_interval_redirect('error', "Screen capture timing settings are unavailable. Run sql_add_workspace_screenshot_interval.sql.");
 }
 
 $minMinutes = workspace_screenshot_interval_normalize_minutes($_POST['screenshot_interval_min_minutes'] ?? null);
@@ -52,7 +52,7 @@ $maxMinutes = workspace_screenshot_interval_normalize_minutes($_POST['screenshot
 if ($minMinutes === null || $maxMinutes === null) {
     workspace_screenshot_interval_redirect(
         'error',
-        "Screenshot timing must stay between "
+        "Screen capture timing must stay between "
         . workspace_screenshot_interval_min_allowed_minutes()
         . " and "
         . workspace_screenshot_interval_max_allowed_minutes()
@@ -72,7 +72,7 @@ try {
     );
     $stmt->execute([(int)$minMinutes, (int)$maxMinutes, (int)$orgId]);
 } catch (Throwable $e) {
-    workspace_screenshot_interval_redirect('error', "Unable to update screenshot timing right now.");
+    workspace_screenshot_interval_redirect('error', "Unable to update screen capture timing right now.");
 }
 
-workspace_screenshot_interval_redirect('success', "Screenshot timing updated.");
+workspace_screenshot_interval_redirect('success', "Screen capture timing updated.");

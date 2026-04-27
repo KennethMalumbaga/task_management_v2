@@ -27,7 +27,7 @@ if ($requestedOrgId !== null) {
     $result = workspace_screenshot_retention_cleanup($pdo, $requestedOrgId);
     $deletedCount = (int)($result['deleted_count'] ?? 0);
     $retentionDays = (int)($result['retention_days'] ?? workspace_screenshot_retention_default_days());
-    $message = "Screenshot retention cleanup done (org_id={$requestedOrgId}). Deleted rows: {$deletedCount}. Retention: {$retentionDays} day(s).";
+    $message = "Screen capture retention cleanup done (org_id={$requestedOrgId}). Deleted rows: {$deletedCount}. Retention: {$retentionDays} day(s).";
     screenshot_retention_cleanup_write_log($message);
     echo $message . PHP_EOL;
     exit;
@@ -42,6 +42,6 @@ if (PHP_SAPI !== 'cli') {
 $summary = workspace_screenshot_retention_cleanup_all($pdo);
 $workspaceCount = count($summary['results'] ?? []);
 $deletedCount = (int)($summary['total_deleted_count'] ?? 0);
-$message = "Screenshot retention cleanup done (all workspaces). Deleted rows: {$deletedCount}. Workspaces checked: {$workspaceCount}.";
+$message = "Screen capture retention cleanup done (all workspaces). Deleted rows: {$deletedCount}. Workspaces checked: {$workspaceCount}.";
 screenshot_retention_cleanup_write_log($message);
 echo $message . PHP_EOL;

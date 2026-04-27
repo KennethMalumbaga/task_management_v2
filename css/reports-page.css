@@ -1081,6 +1081,10 @@ body.reports-page {
     overflow: hidden;
 }
 
+#dtrContent {
+    min-height: 0;
+}
+
 .dtr-header {
     padding: 18px 24px;
     border-bottom: 1px solid var(--border);
@@ -1310,12 +1314,25 @@ body.reports-page {
 .view-dtr-link:hover { background: var(--accent-light); }
 .view-dtr-link svg { width: 12px; height: 12px; }
 
-.dtr-table-wrap { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
-.dtr-table-wrap::-webkit-scrollbar { height: 5px; }
+.dtr-table-wrap {
+    overflow: auto;
+    width: 100%;
+    max-height: clamp(280px, 42vh, 520px);
+    -webkit-overflow-scrolling: touch;
+}
+.dtr-table-wrap::-webkit-scrollbar { width: 7px; height: 7px; }
 .dtr-table-wrap::-webkit-scrollbar-track { background: var(--surface-2); }
 .dtr-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 table.dtr-table { min-width: 700px; width: 100%; border-collapse: collapse; }
-table.dtr-table thead th { background: #faf9fd; padding: 9px 12px; font-size: 9.5px; white-space: nowrap; }
+table.dtr-table thead th {
+    background: #faf9fd;
+    padding: 9px 12px;
+    font-size: 9.5px;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
 table.dtr-table td { padding: 9px 12px; white-space: nowrap; vertical-align: middle; }
 .dtr-print-only-row { display: none; }
 .dtr-print-month-title {
@@ -1556,6 +1573,10 @@ body.print-dtr-only .dtr-form-header { display: block; }
     }
 
     .alerts-grid { grid-template-columns: 1fr; }
+
+    .dtr-table-wrap {
+        max-height: 360px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1688,6 +1709,8 @@ body.print-dtr-only .dtr-form-header { display: block; }
         padding: 0;
         width: 100%;
         margin: 0;
+        max-height: none;
+        overflow: visible;
     }
 
     body.print-dtr-only .dtr-form-header,
@@ -1714,6 +1737,7 @@ body.print-dtr-only .dtr-form-header { display: block; }
 
     body.print-dtr-only table.dtr-table thead th {
         background: #fff;
+        position: static;
     }
 
     body.print-dtr-only table.dtr-table thead th {
