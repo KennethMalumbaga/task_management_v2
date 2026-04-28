@@ -105,9 +105,16 @@ try {
         throw new RuntimeException('Missing database setting(s): ' . implode(', ', $missing) . '. Check .env.local or your hosting settings.');
     }
 
-    $dsn = "mysql:host={$config['host']};port={$config['port']};dbname={$config['name']};charset=utf8mb4";
+    $timeout = (int) $env(['DB_TIMEOUT', 'MYSQL_TIMEOUT'], '5');
+    if ($timeout < 1) {
+        $timeout = 5;
+    }
 
-    $pdo = new PDO($dsn, $config['user'], $config['pass']);
+    $dsn = "mysql:host={$config['host']};port={$config['port']};dbname={$config['name']};charset=utf8mb4;connect_timeout={$timeout}";
+
+    $pdo = new PDO($dsn, $config['user'], $config['pass'], [
+        PDO::ATTR_TIMEOUT => $timeout,
+    ]);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (Throwable $e) {
     die('Database connection failed: ' . $e->getMessage());

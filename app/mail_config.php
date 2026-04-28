@@ -43,6 +43,50 @@ if (!function_exists('tm_load_env_file')) {
 tm_load_env_file(dirname(__DIR__) . '/.env.local');
 tm_load_env_file(dirname(__DIR__) . '/.env');
 
+if (!function_exists('tm_app_url_read_configured')) {
+    function tm_app_url_read_configured(): string
+    {
+        $value = getenv('APP_URL');
+        if ($value !== false && trim((string) $value) !== '') {
+            return trim((string) $value);
+        }
+
+        if (array_key_exists('APP_URL', $_ENV) && trim((string) $_ENV['APP_URL']) !== '') {
+            return trim((string) $_ENV['APP_URL']);
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('tm_request_host_is_local')) {
+    function tm_request_host_is_local(): bool
+    {
+        if (PHP_SAPI === 'cli') {
+            return true;
+        }
+
+        $host = strtolower(trim((string) ($_SERVER['HTTP_HOST'] ?? '')));
+        if ($host === '') {
+            return true;
+        }
+
+        if ($host === 'localhost' || str_starts_with($host, '127.') || str_starts_with($host, '[::1')) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('tm_configured_app_url_is_local_placeholder')) {
+    function tm_configured_app_url_is_local_placeholder(string $url): bool
+    {
+        $lower = strtolower($url);
+        return str_contains($lower, 'localhost') || str_contains($lower, '127.0.0.1');
+    }
+}
+
 if (!function_exists('tm_detect_app_url')) {
     function tm_detect_app_url()
     {
@@ -61,7 +105,7 @@ if (!function_exists('tm_detect_app_url')) {
             $host = 'localhost';
         }
 
-        $scriptDir = str_replace('\\', '/', (string)dirname((string)($_SERVER['SCRIPT_NAME'] ?? '')));
+        $scriptDir = str_replace('\\', '/', (string) dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')));
         if ($scriptDir === '.' || $scriptDir === '/') {
             $scriptDir = '';
         }
@@ -69,19 +113,17 @@ if (!function_exists('tm_detect_app_url')) {
             $scriptDir = substr($scriptDir, 0, -4);
         }
 
-        if ($scriptDir === '') {
-            $projectDirName = basename(dirname(__DIR__));
-            if ($projectDirName !== '') {
-                $scriptDir = '/' . $projectDirName;
-            }
-        }
+        // Shared hosts often map the domain root directly to this folder.
+        // Keep detected public URLs based on the request path, not the disk folder name.
 
         return rtrim($scheme . '://' . $host . $scriptDir, '/');
     }
 }
 
-$appUrl = trim((string)(getenv('APP_URL') ?: ''));
+$appUrl = tm_app_url_read_configured();
 if ($appUrl === '') {
+    $appUrl = tm_detect_app_url();
+} elseif (!tm_request_host_is_local() && tm_configured_app_url_is_local_placeholder($appUrl)) {
     $appUrl = tm_detect_app_url();
 }
 

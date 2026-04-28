@@ -12,15 +12,35 @@ if (!function_exists('login_verification_truthy')) {
     }
 }
 
+if (!function_exists('login_verification_env')) {
+    function login_verification_env($name, $default = '')
+    {
+        $value = getenv($name);
+        if ($value !== false) {
+            return $value;
+        }
+
+        if (array_key_exists($name, $_ENV)) {
+            return $_ENV[$name];
+        }
+
+        return $default;
+    }
+}
+
 if (!function_exists('login_verification_is_temporarily_disabled')) {
     function login_verification_is_temporarily_disabled()
     {
-        $railwayEnv = getenv('RAILWAY_ENVIRONMENT');
+        if (login_verification_truthy(login_verification_env('DISABLE_LOGIN_VERIFICATION'))) {
+            return true;
+        }
+
+        $railwayEnv = login_verification_env('RAILWAY_ENVIRONMENT');
         if ($railwayEnv === false || trim((string)$railwayEnv) === '') {
             return false;
         }
 
-        return login_verification_truthy(getenv('DISABLE_LOGIN_VERIFICATION_ON_RAILWAY'));
+        return login_verification_truthy(login_verification_env('DISABLE_LOGIN_VERIFICATION_ON_RAILWAY'));
     }
 }
 
