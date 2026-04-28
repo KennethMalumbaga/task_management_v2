@@ -28,6 +28,10 @@ if (!function_exists('tm_mail_send_via_smtp')) {
     function tm_mail_send_via_smtp($toEmail, $toName, $subject, $htmlBody, $textBody, $errorPrefix)
     {
         $mail = new PHPMailer(true);
+        $timeout = (int)(getenv('MAIL_TIMEOUT') ?: 10);
+        if ($timeout < 1) {
+            $timeout = 10;
+        }
 
         try {
             $mail->isSMTP();
@@ -37,6 +41,7 @@ if (!function_exists('tm_mail_send_via_smtp')) {
             $mail->Password   = MAIL_PASSWORD;
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = MAIL_PORT;
+            $mail->Timeout    = $timeout;
 
             $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
             $mail->addAddress($toEmail, $toName);
