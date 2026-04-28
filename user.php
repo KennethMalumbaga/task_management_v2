@@ -9,26 +9,75 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
     user_compensation_ensure_schema($pdo);
     
     $is_super_admin = is_super_admin($_SESSION['id'], $pdo);
+    $org_id = tenant_get_current_org_id();
+    $workspace_role = user_get_workspace_member_role($pdo, $_SESSION['id'], $org_id);
+    $is_owner = $workspace_role === 'owner';
+    $can_manage_admins = $is_super_admin || $is_owner;
 
-    // Modifying logic to exclude admins by default from the directory view
-    $role_filter = isset($_GET['role']) ? $_GET['role'] : 'employee'; 
-    if ($role_filter == 'all') {
-        // If 'all' is requested, we still might want to hide admins based on user request "admin is not in users directory"
-        // So we force 'employee' or we filter the result. 
-        // Let's assume 'all' means all non-admins for this directory context.
-        $role_filter = 'employee';
+    $role_filter = isset($_GET['role']) ? trim((string)$_GET['role']) : 'all';
+    if (!in_array($role_filter, ['all', 'employee', 'admin'], true)) {
+        $role_filter = 'all';
     }
-    
-    // Only super admin can see other admins
-    if ($role_filter == 'admin' && !$is_super_admin) {
-        $role_filter = 'employee';
+
+    $owner_user_ids = [];
+    if ($org_id > 0 && tenant_table_exists($pdo, 'organization_members')) {
+        $ownerStmt = $pdo->prepare(
+            "SELECT user_id
+             FROM organization_members
+             WHERE organization_id = ?
+               AND role = 'owner'"
+        );
+        $ownerStmt->execute([$org_id]);
+        $ownerIds = $ownerStmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        foreach ($ownerIds as $ownerId) {
+            $owner_user_ids[(int)$ownerId] = true;
+        }
     }
-    
-    // However, if we want to show 'all' as in 'all employees' vs 'specific role employees', but we only have 'employee' role really besides admin.
-    // The previous code had "Admin" button. User said "admin is not in users directory".
-    // So usually directory is for employees.
     
     $users = get_all_users($pdo, $role_filter);
+    $visible_users = [];
+    foreach ($users as $user) {
+        if (($user['username'] ?? '') === 'admin') {
+            continue;
+        }
+
+        if (isset($owner_user_ids[(int)($user['id'] ?? 0)])) {
+            continue;
+        }
+
+        $visible_users[] = $user;
+    }
+
+    $admin_users = [];
+    $member_users = [];
+    foreach ($visible_users as $user) {
+        if (($user['role'] ?? '') === 'admin') {
+            $admin_users[] = $user;
+            continue;
+        }
+
+        $member_users[] = $user;
+    }
+
+    $user_sections = [];
+    if ($role_filter !== 'employee' && !empty($admin_users)) {
+        $user_sections[] = [
+            'key' => 'admin',
+            'title' => 'Admins',
+            'description' => 'Users with admin access in this workspace.',
+            'users' => $admin_users,
+        ];
+    }
+    if ($role_filter !== 'admin' && !empty($member_users)) {
+        $user_sections[] = [
+            'key' => 'member',
+            'title' => 'Members',
+            'description' => 'Workspace members and employees.',
+            'users' => $member_users,
+        ];
+    }
+
+    $has_visible_users = !empty($user_sections);
 
     // Helper to get rating (Fix: Use task_assignees to include members)
     // function get_user_avg_rating($pdo, $user_id) ... REMOVED, using Model function now
@@ -68,6 +117,44 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             margin-bottom: 24px;
         }
 
+        .user-section {
+            margin-bottom: 32px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .section-caption {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: #6B7280;
+        }
+
+        .section-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #F3F4F6;
+            color: #374151;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
         @media (max-width: 768px) {
             .grid-container {
                 grid-template-columns: repeat(2, 1fr) !important;
@@ -90,6 +177,14 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             }
             .header-card h2 {
                 font-size: 18px !important;
+            }
+            .section-header {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 8px !important;
+            }
+            .section-title {
+                font-size: 17px !important;
             }
             .user-card {
                 padding: 10px !important;
@@ -411,25 +506,28 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
 
     <!-- Main Content -->
     <div class="dash-main">
-        <?php if ($is_super_admin) { ?>
         <div class="header-card">
             <div style="display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 20px;">
                 <div style="display: flex; gap: 10px; align-items: center;">
+                    <a href="user.php?role=all" class="btn-outline <?= ($role_filter == 'all') ? 'filter-active' : '' ?>">All</a>
+                    <a href="user.php?role=employee" class="btn-outline <?= ($role_filter == 'employee') ? 'filter-active' : '' ?>">Members</a>
                     <a href="user.php?role=admin" class="btn-outline <?= ($role_filter == 'admin') ? 'filter-active' : '' ?>">Admins</a>
                 </div>
             </div>
         </div>
-        <?php } ?>
 
-        <?php if (!empty($users)) { ?>
-        <div class="grid-container">
-            <?php foreach ($users as $user) { 
-                // Skip the super admin itself ('admin' username)
-                if ($user['username'] == 'admin') continue;
-                
-                // If not super admin, skip other admins
-                if (!$is_super_admin && $user['role'] == 'admin') continue;
-
+        <?php if ($has_visible_users) { ?>
+        <?php foreach ($user_sections as $section) { ?>
+        <div class="user-section">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title"><?= htmlspecialchars($section['title']) ?></h2>
+                    <p class="section-caption"><?= htmlspecialchars($section['description']) ?></p>
+                </div>
+                <span class="section-count"><?= count($section['users']) ?> <?= count($section['users']) === 1 ? 'user' : 'users' ?></span>
+            </div>
+            <div class="grid-container">
+            <?php foreach ($section['users'] as $user) {
                 $is_clocked_in = is_user_clocked_in($pdo, $user['id']);
 
                 $rating_stats = ['avg' => '0.0', 'count' => 0];
@@ -442,6 +540,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                     $attendance_stats = get_todays_attendance_stats($pdo, $user['id']);
                 }
                 $hasHourlyRate = isset($user['hourly_rate']) && $user['hourly_rate'] !== null && $user['hourly_rate'] !== '';
+                $roleLabel = $user['role'] === 'employee' ? 'Member' : ucfirst((string)$user['role']);
             ?>
             <div class="user-card" data-user-id="<?=$user['id']?>" onclick="location.href='user_details.php?id=<?=$user['id']?>'" style="cursor: pointer;">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
@@ -452,7 +551,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 </div>
                 
                 <!-- Edit Role Absolute Button -->
-                <?php if ($is_super_admin) { ?>
+                <?php if ($can_manage_admins || $user['role'] === 'employee') { ?>
                 <button onclick="event.stopPropagation(); openModal('<?=$user['id']?>', '<?=addslashes($user['full_name'])?>', '<?=$user['role']?>')" class="btn-edit-absolute" title="Edit Role">
                     <i class="fa fa-pencil"></i>
                 </button>
@@ -469,7 +568,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <div class="user-info-text">
                     <h3 class="user-name"><?= htmlspecialchars($user['full_name']) ?></h3>
                     <span class="user-email"><?= htmlspecialchars($user['username']) ?></span>
-                    <span class="badge badge-in_progress" style="font-size: 10px; padding: 2px 8px;"><?= ucfirst($user['role']) ?></span>
+                    <span class="badge badge-in_progress" style="font-size: 10px; padding: 2px 8px;"><?= htmlspecialchars($roleLabel) ?></span>
                     <div class="rate-chip<?= $hasHourlyRate ? '' : ' empty' ?>">
                         <i class="fa fa-money"></i>
                         <?= $hasHourlyRate ? number_format((float)$user['hourly_rate'], 2) . ' / hr' : 'Rate not set' ?>
@@ -508,6 +607,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
             </div>
             <?php } ?>
         </div>
+        </div>
+        <?php } ?>
         <?php } else { ?>
              <div style="padding: 40px; text-align: center; color: var(--text-gray);">
                 <h3>No users found</h3>
@@ -555,7 +656,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] == "
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">Select New Role</label>
                     <select name="role" id="modalUserRole" style="width: 100%; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; outline: none;">
-                        <option value="employee">Employee</option>
+                        <?php if ($can_manage_admins) { ?>
+                        <option value="employee">Member</option>
+                        <?php } ?>
                         <option value="admin">Admin</option>
                     </select>
                 </div>

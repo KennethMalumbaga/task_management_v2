@@ -576,6 +576,97 @@ function get_user_by_id($pdo, $id)
     return $user ?: 0;
 }
 
+if (!function_exists('user_get_workspace_member_role')) {
+    function user_get_workspace_member_role($pdo, $userId, $orgId = null)
+    {
+        $userId = (int)$userId;
+        $orgId = $orgId !== null ? (int)$orgId : tenant_get_current_org_id();
+
+        if ($userId <= 0 || $orgId <= 0 || !tenant_table_exists($pdo, 'organization_members')) {
+            return null;
+        }
+
+        $stmt = $pdo->prepare(
+            "SELECT role FROM organization_members WHERE organization_id = ? AND user_id = ? LIMIT 1"
+        );
+        $stmt->execute([$orgId, $userId]);
+        $role = $stmt->fetchColumn();
+
+        return $role !== false ? (string)$role : null;
+    }
+}
+
+if (!function_exists('update_user_role_as_admin')) {
+    function update_user_role_as_admin($pdo, $actorId, $targetUserId, $newRole)
+    {
+        $actorId = (int)$actorId;
+        $targetUserId = (int)$targetUserId;
+        $newRole = strtolower(trim((string)$newRole));
+
+        if ($actorId <= 0 || $targetUserId <= 0) {
+            return ['ok' => false, 'message' => 'Invalid user.'];
+        }
+
+        if (!in_array($newRole, ['admin', 'employee'], true)) {
+            return ['ok' => false, 'message' => 'Invalid role.'];
+        }
+
+        $targetUser = get_user_by_id($pdo, $targetUserId);
+        if (!$targetUser) {
+            return ['ok' => false, 'message' => 'User not found.'];
+        }
+
+        $orgId = tenant_get_current_org_id();
+        $isSuperAdmin = is_super_admin($actorId, $pdo);
+        $actorMemberRole = user_get_workspace_member_role($pdo, $actorId, $orgId);
+        $targetMemberRole = user_get_workspace_member_role($pdo, $targetUserId, $orgId);
+        $isOwner = $actorMemberRole === 'owner';
+
+        if ($orgId && tenant_table_exists($pdo, 'organization_members')) {
+            if ($actorMemberRole === null || $targetMemberRole === null) {
+                return ['ok' => false, 'message' => 'User is not in this workspace.'];
+            }
+        }
+
+        if ($targetMemberRole === 'owner') {
+            return ['ok' => false, 'message' => 'Cannot change workspace owner role.'];
+        }
+
+        if (!$orgId && isset($targetUser['username']) && $targetUser['username'] === 'admin') {
+            return ['ok' => false, 'message' => 'Cannot change Super Admin role.'];
+        }
+
+        $currentRole = strtolower((string)($targetUser['role'] ?? ''));
+        $isPromotion = $currentRole === 'employee' && $newRole === 'admin';
+
+        if (!$isSuperAdmin && !$isOwner && !$isPromotion) {
+            return ['ok' => false, 'message' => 'Access denied.'];
+        }
+
+        $sql = "UPDATE users SET role = ? WHERE id = ?";
+        $params = [$newRole, $targetUserId];
+        $scope = tenant_get_scope($pdo, 'users');
+        $sql .= $scope['sql'];
+        $params = array_merge($params, $scope['params']);
+        $stmt = $pdo->prepare($sql);
+        $updated = $stmt->execute($params);
+
+        if (!$updated) {
+            return ['ok' => false, 'message' => 'Failed to update role.'];
+        }
+
+        if ($orgId && tenant_table_exists($pdo, 'organization_members')) {
+            $memberRole = $newRole === 'admin' ? 'admin' : 'member';
+            $stmt = $pdo->prepare(
+                "UPDATE organization_members SET role = ? WHERE organization_id = ? AND user_id = ?"
+            );
+            $stmt->execute([$memberRole, $orgId, $targetUserId]);
+        }
+
+        return ['ok' => true, 'message' => 'Role updated successfully.'];
+    }
+}
+
 function update_profile($pdo, $data)
 {
     $sql = "UPDATE users
