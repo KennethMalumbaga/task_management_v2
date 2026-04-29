@@ -20,8 +20,10 @@ if (!function_exists('invite_is_valid_full_name')) {
             return false;
         }
 
+        $namePart = "[\\p{L}](?:[\\p{L}\\p{M}'\\-]*[\\p{L}\\p{M}])?\\.?";
+
         return preg_match(
-            "/^(?=.{3,80}$)[\\p{L}](?:[\\p{L}\\p{M}'.\\-]*[\\p{L}\\p{M}])?(?:\\s+[\\p{L}](?:[\\p{L}\\p{M}'.\\-]*[\\p{L}\\p{M}])?)+$/u",
+            "/^(?=.{3,80}$){$namePart}(?:\\s+{$namePart})+$/u",
             $value
         ) === 1;
     }

@@ -794,7 +794,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
         var normalized = normalizeInviteName(value);
         if (normalized.length < 3 || normalized.length > 80) return false;
         if (normalized.indexOf(' ') === -1) return false;
-        var namePattern = /^[A-Za-z\u00C0-\u024F](?:[A-Za-z\u00C0-\u024F'.\-]*[A-Za-z\u00C0-\u024F])?(?:\s+[A-Za-z\u00C0-\u024F](?:[A-Za-z\u00C0-\u024F'.\-]*[A-Za-z\u00C0-\u024F])?)+$/;
+        var namePart = "[A-Za-z\\u00C0-\\u024F](?:[A-Za-z\\u00C0-\\u024F'\\-]*[A-Za-z\\u00C0-\\u024F])?\\.?";
+        var namePattern = new RegExp("^" + namePart + "(?:\\s+" + namePart + ")+$");
         return namePattern.test(normalized);
     }
 
@@ -815,7 +816,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
             return true;
         }
 
-        sendInviteFullName.setCustomValidity('Enter a valid full name (first and last name, letters only).');
+        sendInviteFullName.setCustomValidity('Enter a valid full name (first and last name, letters and initials only).');
         return false;
     }
 
