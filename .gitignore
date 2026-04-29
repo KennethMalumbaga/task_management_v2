@@ -7,3 +7,4 @@ screenshots/
 screenshot_debug.log
 extension.pem
 tmp/google_identity_certs_cache.json
+tmp/screenshot_retention_self_cleanup_*.json

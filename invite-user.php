@@ -21,6 +21,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
     $seatUsed = (int)($capacity['seat_used'] ?? 0);
     $seatLimit = isset($capacity['seat_limit']) ? (int)$capacity['seat_limit'] : null;
     $seatsLeft = isset($capacity['seats_left']) ? (int)$capacity['seats_left'] : null;
+    $seatLimitDisplay = tenant_format_seat_limit($seatLimit, '');
+    $seatsLeftDisplay = tenant_format_seats_left($seatLimit, $seatsLeft);
     $subscriptionStatus = isset($capacity['subscription_status']) && $capacity['subscription_status'] !== null
         ? strtoupper((string)$capacity['subscription_status'])
         : 'N/A';
@@ -101,9 +103,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id']) && $_SESSION['role'] === 
                 </div>
                 <div class="workspace-hero-stat">
                     <span>Seat Usage</span>
-                    <strong><?= $seatUsed ?><?= $seatLimit !== null ? "/" . $seatLimit : "" ?></strong>
+                    <strong><?= $seatUsed ?><?= $seatLimitDisplay !== '' ? "/" . htmlspecialchars($seatLimitDisplay) : "" ?></strong>
                     <?php if ($seatsLeft !== null) { ?>
-                        <small><?= max(0, $seatsLeft) ?> seat<?= max(0, $seatsLeft) === 1 ? '' : 's' ?> left</small>
+                        <small><?= htmlspecialchars($seatsLeftDisplay) ?> seat<?= $seatsLeftDisplay === '1' ? '' : 's' ?> left</small>
                     <?php } ?>
                 </div>
                 <div class="workspace-hero-stat">

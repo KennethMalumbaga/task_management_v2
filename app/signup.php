@@ -84,6 +84,16 @@ $selectedPlan = tenant_resolve_workspace_plan($incomingPlanCode !== '' ? $incomi
 $selectedPlanCode = (string)($selectedPlan['code'] ?? 'starter');
 $selectedPlanName = (string)($selectedPlan['name'] ?? 'Starter');
 $selectedPlanSeatLimit = max(1, (int)($selectedPlan['seat_limit'] ?? 10));
+$enterpriseRequestedCapacity = null;
+if ($selectedPlanCode === 'enterprise') {
+    $enterpriseRequestedCapacity = (int)($_POST['enterprise_requested_capacity'] ?? 0);
+    if ($enterpriseRequestedCapacity < 40) {
+        signup_redirect_error("Enterprise capacity must be at least 40 members.", $selectedPlanCode, $signupMode);
+    }
+    if ($enterpriseRequestedCapacity > 100000) {
+        signup_redirect_error("Enterprise capacity cannot exceed 100,000 members.", $selectedPlanCode, $signupMode);
+    }
+}
 
 $pendingGoogleSignup = isset($_SESSION['pending_google_signup']) && is_array($_SESSION['pending_google_signup'])
     ? $_SESSION['pending_google_signup']
@@ -291,6 +301,7 @@ if ($hasTenantTables) {
             'plan_code' => (string)$selectedPlanCode,
             'plan_name' => (string)$selectedPlanName,
             'seat_limit' => (int)$selectedPlanSeatLimit,
+            'enterprise_requested_capacity' => $enterpriseRequestedCapacity,
             'created_at' => time(),
         ];
 

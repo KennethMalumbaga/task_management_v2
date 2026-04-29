@@ -269,7 +269,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <span class="period">/mo</span>
                 </div>
                 <ul class="plan-features">
-                    <li><span class="feat-check">&#10003;</span> Up to 40 team members</li>
+                    <li><span class="feat-check">&#10003;</span> 40+ team members</li>
                 </ul>
                 <a href="signup.php?signup_mode=paid&plan=enterprise" class="landing-btn-plan">Contact Sales</a>
             </div>

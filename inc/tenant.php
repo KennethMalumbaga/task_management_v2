@@ -52,21 +52,156 @@ if (!function_exists('tenant_workspace_plan_catalog')) {
                 'code' => 'starter',
                 'name' => 'Starter',
                 'seat_limit' => 10,
+                'seat_display' => '10',
                 'summary' => 'Up to 10 team members',
             ],
             'professional' => [
                 'code' => 'professional',
                 'name' => 'Professional',
                 'seat_limit' => 20,
+                'seat_display' => '20',
                 'summary' => 'Up to 20 team members',
             ],
             'enterprise' => [
                 'code' => 'enterprise',
                 'name' => 'Enterprise',
                 'seat_limit' => 40,
-                'summary' => 'Up to 40 team members',
+                'seat_display' => '40+',
+                'summary' => '40+ team members with Super Admin-approved capacity',
             ],
         ];
+    }
+}
+
+if (!function_exists('tenant_unlimited_seat_limit')) {
+    function tenant_unlimited_seat_limit()
+    {
+        return 999999;
+    }
+}
+
+if (!function_exists('tenant_seat_limit_is_unlimited')) {
+    function tenant_seat_limit_is_unlimited($seatLimit)
+    {
+        return $seatLimit !== null && (int)$seatLimit >= tenant_unlimited_seat_limit();
+    }
+}
+
+if (!function_exists('tenant_format_seat_limit')) {
+    function tenant_format_seat_limit($seatLimit, $fallback = 'N/A')
+    {
+        if ($seatLimit === null || $seatLimit === '') {
+            return (string)$fallback;
+        }
+        if (tenant_seat_limit_is_unlimited($seatLimit)) {
+            return '40+';
+        }
+        return (string)(int)$seatLimit;
+    }
+}
+
+if (!function_exists('tenant_format_seats_left')) {
+    function tenant_format_seats_left($seatLimit, $seatsLeft, $fallback = 'N/A')
+    {
+        if (tenant_seat_limit_is_unlimited($seatLimit)) {
+            return 'Unlimited';
+        }
+        if ($seatsLeft === null || $seatsLeft === '') {
+            return (string)$fallback;
+        }
+        return (string)max(0, (int)$seatsLeft);
+    }
+}
+
+if (!function_exists('tenant_ensure_enterprise_capacity_requests_table')) {
+    function tenant_ensure_enterprise_capacity_requests_table($pdo)
+    {
+        if (tenant_table_exists($pdo, 'enterprise_capacity_requests')) {
+            return true;
+        }
+
+        try {
+            $driver = strtolower((string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+            if ($driver === 'mysql') {
+                $pdo->exec(
+                    "CREATE TABLE IF NOT EXISTS enterprise_capacity_requests (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        organization_id INT NOT NULL,
+                        user_id INT NULL,
+                        requested_seat_limit INT NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        reviewer_note TEXT NULL,
+                        reviewed_at DATETIME NULL,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_enterprise_capacity_org (organization_id),
+                        INDEX idx_enterprise_capacity_status (status),
+                        CONSTRAINT fk_enterprise_capacity_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_enterprise_capacity_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                );
+            } else {
+                $pdo->exec(
+                    "CREATE TABLE IF NOT EXISTS enterprise_capacity_requests (
+                        id SERIAL PRIMARY KEY,
+                        organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+                        user_id INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+                        requested_seat_limit INTEGER NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        reviewer_note TEXT NULL,
+                        reviewed_at TIMESTAMP NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )"
+                );
+            }
+        } catch (Throwable $e) {
+            return tenant_table_exists($pdo, 'enterprise_capacity_requests');
+        }
+
+        return tenant_table_exists($pdo, 'enterprise_capacity_requests');
+    }
+}
+
+if (!function_exists('tenant_create_enterprise_capacity_request')) {
+    function tenant_create_enterprise_capacity_request($pdo, $orgId, $userId, $requestedSeatLimit)
+    {
+        $orgId = (int)$orgId;
+        $userId = (int)$userId;
+        $requestedSeatLimit = (int)$requestedSeatLimit;
+
+        if ($orgId <= 0 || $requestedSeatLimit < 40) {
+            return false;
+        }
+        if (!tenant_ensure_enterprise_capacity_requests_table($pdo)) {
+            return false;
+        }
+
+        $stmt = $pdo->prepare(
+            "SELECT id
+             FROM enterprise_capacity_requests
+             WHERE organization_id = ?
+               AND status = 'pending'
+             ORDER BY id DESC
+             LIMIT 1"
+        );
+        $stmt->execute([$orgId]);
+        $existingId = (int)$stmt->fetchColumn();
+
+        if ($existingId > 0) {
+            $update = $pdo->prepare(
+                "UPDATE enterprise_capacity_requests
+                 SET requested_seat_limit = ?, user_id = ?, updated_at = NOW()
+                 WHERE id = ?"
+            );
+            return $update->execute([$requestedSeatLimit, $userId > 0 ? $userId : null, $existingId]);
+        }
+
+        $insert = $pdo->prepare(
+            "INSERT INTO enterprise_capacity_requests (organization_id, user_id, requested_seat_limit, status)
+             VALUES (?, ?, ?, 'pending')"
+        );
+        return $insert->execute([$orgId, $userId > 0 ? $userId : null, $requestedSeatLimit]);
     }
 }
 
@@ -770,6 +905,7 @@ if (!function_exists('tenant_check_workspace_capacity')) {
 
         $seatUsed = tenant_count_workspace_members($pdo, $orgId);
         $seatLimit = isset($subscription['seat_limit']) ? (int)$subscription['seat_limit'] : null;
+
         $seatsLeft = $seatLimit === null ? null : ($seatLimit - $seatUsed);
 
         if (!empty($summary['requires_payment'])) {

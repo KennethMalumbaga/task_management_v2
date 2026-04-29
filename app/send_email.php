@@ -209,6 +209,62 @@ function send_workspace_subscription_reminder_email($to_email, $full_name, $work
     );
 }
 
+function send_enterprise_capacity_decision_email($to_email, $full_name, $workspace_name, $requested_capacity, $status, $reviewer_note = '') {
+    $safeName = trim((string)$full_name) !== '' ? (string)$full_name : 'Workspace Owner';
+    $safeWorkspace = trim((string)$workspace_name) !== '' ? (string)$workspace_name : 'your workspace';
+    $requestedCapacity = max(40, (int)$requested_capacity);
+    $status = strtolower(trim((string)$status));
+    $approved = $status === 'approved';
+    $decisionLabel = $approved ? 'approved' : 'declined';
+    $billingUrl = APP_URL . '/workspace-billing.php';
+
+    $safeNameHtml = htmlspecialchars($safeName, ENT_QUOTES);
+    $safeWorkspaceHtml = htmlspecialchars($safeWorkspace, ENT_QUOTES);
+    $note = trim((string)$reviewer_note);
+    $noteHtml = htmlspecialchars($note, ENT_QUOTES);
+    $billingUrlHtml = htmlspecialchars($billingUrl, ENT_QUOTES);
+
+    $htmlBody = "
+        <h2>Enterprise Capacity Request " . ucfirst($decisionLabel) . "</h2>
+        <p>Hello {$safeNameHtml},</p>
+        <p>Your Enterprise capacity request for <strong>{$safeWorkspaceHtml}</strong> was <strong>{$decisionLabel}</strong>.</p>
+        <p><strong>Requested capacity:</strong> {$requestedCapacity} members</p>
+    ";
+
+    if ($approved) {
+        $htmlBody .= "<p>Your workspace capacity has been updated. You can now invite members up to the approved limit.</p>";
+    } else {
+        $htmlBody .= "<p>Your workspace remains on the default Enterprise capacity while this request is declined.</p>";
+    }
+
+    if ($note !== '') {
+        $htmlBody .= "<p><strong>Super Admin note:</strong> {$noteHtml}</p>";
+    }
+
+    $htmlBody .= "
+        <p><a href='{$billingUrlHtml}'>Open Workspace Billing</a></p>
+        <br>
+        <p>Regards,<br>The Team</p>
+    ";
+
+    $textBody =
+        "Hello {$safeName},\n\n" .
+        "Your Enterprise capacity request for {$safeWorkspace} was {$decisionLabel}.\n" .
+        "Requested capacity: {$requestedCapacity} members\n" .
+        ($note !== '' ? "Super Admin note: {$note}\n" : '') .
+        "Billing: {$billingUrl}\n\n" .
+        "Regards,\nThe Team";
+
+    return tm_send_app_mail(
+        $to_email,
+        $safeName,
+        "TaskFlow Enterprise capacity request " . ucfirst($decisionLabel),
+        $htmlBody,
+        $textBody,
+        'Enterprise capacity decision email failed'
+    );
+}
+
 function send_meeting_reminder_email($to_email, $full_name, array $meetingData) {
     if (MAIL_USERNAME === '' || MAIL_PASSWORD === '') {
         error_log('Mail not configured: set MAIL_USERNAME and MAIL_PASSWORD environment variables.');

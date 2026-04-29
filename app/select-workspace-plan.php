@@ -60,5 +60,6 @@ if (empty($result['ok'])) {
 $selectedPlan = $result['plan'] ?? tenant_resolve_workspace_plan($planCode, 'starter');
 $selectedPlanName = (string)($selectedPlan['name'] ?? 'Plan');
 $selectedSeatLimit = (int)($selectedPlan['seat_limit'] ?? 0);
+$selectedSeatDisplay = (string)($selectedPlan['seat_display'] ?? tenant_format_seat_limit($selectedSeatLimit, 'N/A'));
 
-plan_redirect_success("Workspace plan updated to {$selectedPlanName} ({$selectedSeatLimit} seats).");
+plan_redirect_success("Workspace plan updated to {$selectedPlanName} ({$selectedSeatDisplay} seats).");

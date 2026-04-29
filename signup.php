@@ -25,6 +25,8 @@ $selectedPlan = tenant_resolve_workspace_plan($planSeed, 'starter');
 $selectedPlanCode = (string)($selectedPlan['code'] ?? 'starter');
 $selectedPlanName = (string)($selectedPlan['name'] ?? 'Starter');
 $selectedPlanSeatLimit = (int)($selectedPlan['seat_limit'] ?? 10);
+$selectedPlanSeatDisplay = (string)($selectedPlan['seat_display'] ?? tenant_format_seat_limit($selectedPlanSeatLimit, 'N/A'));
+$isEnterpriseSignup = $selectedPlanCode === 'enterprise';
 $isTrialSignup = $incomingMode === 'trial';
 $googleClientId = trim((string)(getenv('GOOGLE_CLIENT_ID') ?: ''));
 $googleSignupEnabled = $googleClientId !== '';
@@ -184,10 +186,16 @@ $prefillEmail = $googleSignupActive
                 <div class="auth-info-box">
                     This form is for workspace owners/admins. Employees should join using an invite link from their admin.
                     <?php if ($isTrialSignup) { ?>
-                        <br><strong>Selected offer:</strong> Free Trial (2 days, up to <?= $selectedPlanSeatLimit ?> team members).
+                        <br><strong>Selected offer:</strong> Free Trial (2 days, <?= htmlspecialchars($selectedPlanSeatDisplay) ?> team members).
+                        <?php if ($isEnterpriseSignup) { ?>
+                            <br>Enterprise capacity requests are reviewed after paid checkout.
+                        <?php } ?>
                         <br>No payment is required before first login. After trial ends, billing lock will require plan payment.
                     <?php } else { ?>
-                        <br><strong>Selected plan:</strong> <?= htmlspecialchars($selectedPlanName) ?> (up to <?= $selectedPlanSeatLimit ?> team members).
+                        <br><strong>Selected plan:</strong> <?= htmlspecialchars($selectedPlanName) ?> (<?= htmlspecialchars($selectedPlanSeatDisplay) ?> team members).
+                        <?php if ($isEnterpriseSignup) { ?>
+                            <br>Enter the workspace capacity you want. Super Admin will review it after payment.
+                        <?php } ?>
                         <br>After signup, you will continue to PayMongo test checkout before first login.
                     <?php } ?>
                 </div>
@@ -223,6 +231,25 @@ $prefillEmail = $googleSignupActive
                         <label class="form-label">Workspace Name</label>
                         <input type="text" class="form-control" name="organization_name" placeholder="Acme Team" required>
                     </div>
+
+                    <?php if ($isEnterpriseSignup) { ?>
+                    <div class="form-group">
+                        <label class="form-label">Requested Workspace Capacity</label>
+                        <input
+                            type="number"
+                            class="form-control"
+                            name="enterprise_requested_capacity"
+                            min="40"
+                            max="100000"
+                            step="1"
+                            placeholder="Example: 75"
+                            required
+                        >
+                        <small style="display:block; margin-top:8px; color:#6B7280;">
+                            Minimum 40 members. Super Admin approves the final Enterprise capacity after payment.
+                        </small>
+                    </div>
+                    <?php } ?>
 
                     <div class="form-group">
                         <label class="form-label">Full Name</label>

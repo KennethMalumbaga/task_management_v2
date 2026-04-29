@@ -30,6 +30,9 @@ $planCode = strtolower(trim((string)($pending['plan_code'] ?? 'starter')));
 $selectedPlan = $planCatalog[$planCode] ?? tenant_resolve_workspace_plan($planCode, 'starter');
 $planName = (string)($selectedPlan['name'] ?? ($pending['plan_name'] ?? 'Starter'));
 $seatLimit = max(1, (int)($selectedPlan['seat_limit'] ?? ($pending['seat_limit'] ?? 10)));
+$seatLimitDisplay = (string)($selectedPlan['seat_display'] ?? tenant_format_seat_limit($seatLimit, 'N/A'));
+$enterpriseRequestedCapacity = (int)($pending['enterprise_requested_capacity'] ?? 0);
+$isEnterpriseCheckout = $planCode === 'enterprise';
 $planPrice = paymongo_plan_price_php($planCode, 'post_signup');
 $workspaceName = (string)($pending['workspace_name'] ?? 'Workspace');
 $billingEmail = (string)($pending['billing_email'] ?? '');
@@ -70,7 +73,12 @@ $paymongoMethodOptions = paymongo_checkout_method_options();
                     <div class="auth-feature-icon"><i class="fa fa-cubes"></i></div>
                     <div class="auth-feature-text">
                         <h4>Selected Plan</h4>
-                        <p><?= htmlspecialchars($planName) ?> (<?= $seatLimit ?> seats)</p>
+                        <p>
+                            <?= htmlspecialchars($planName) ?> (<?= htmlspecialchars($seatLimitDisplay) ?> seats)
+                            <?php if ($isEnterpriseCheckout && $enterpriseRequestedCapacity >= 40) { ?>
+                                <br>Requested capacity: <?= (int)$enterpriseRequestedCapacity ?> members
+                            <?php } ?>
+                        </p>
                     </div>
                 </div>
                 <div class="auth-feature-item">
@@ -101,7 +109,11 @@ $paymongoMethodOptions = paymongo_checkout_method_options();
         <div class="auth-info-box">
             <strong>Plan:</strong> <?= htmlspecialchars($planName) ?><br>
             <strong>Price:</strong> PHP <?= number_format($planPrice) ?>/month (test mode)<br>
-            <strong>Seats:</strong> Up to <?= $seatLimit ?> members
+            <strong>Seats:</strong> <?= htmlspecialchars($seatLimitDisplay) ?> members
+            <?php if ($isEnterpriseCheckout && $enterpriseRequestedCapacity >= 40) { ?>
+                <br><strong>Requested Capacity:</strong> <?= (int)$enterpriseRequestedCapacity ?> members
+                <br>Super Admin will review this capacity after payment.
+            <?php } ?>
             <?php if ($billingEmail !== '') { ?>
                 <br><strong>Billing Email:</strong> <?= htmlspecialchars($billingEmail) ?>
             <?php } ?>

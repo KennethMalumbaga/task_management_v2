@@ -121,7 +121,7 @@ if (!$tenantEnabled) {
             $seatUsed = (int)($capacity['seat_used'] ?? 0);
             $seatLimit = isset($capacity['seat_limit']) ? (int)$capacity['seat_limit'] : null;
             $seatsLeft = isset($capacity['seats_left']) ? (int)$capacity['seats_left'] : null;
-            if ($seatLimit !== null && $seatLimit > 0) {
+            if ($seatLimit !== null && $seatLimit > 0 && !tenant_seat_limit_is_unlimited($seatLimit)) {
                 $seatUsagePct = (int)min(100, round(($seatUsed / $seatLimit) * 100));
             }
 
@@ -173,7 +173,9 @@ $subscriptionBadgeClass = wb_status_badge_class($subscription['status'] ?? 'acti
 if ($isFreeTrialExpired) {
     $subscriptionBadgeClass = 'warn';
 }
-$seatUsageDisplay = $seatLimit !== null ? ($seatUsed . "/" . $seatLimit) : (string)$seatUsed;
+$seatLimitDisplay = tenant_format_seat_limit($seatLimit, '?');
+$seatsLeftDisplay = tenant_format_seats_left($seatLimit, $seatsLeft);
+$seatUsageDisplay = $seatLimit !== null ? ($seatUsed . "/" . $seatLimitDisplay) : (string)$seatUsed;
 $availablePlans = tenant_workspace_plan_catalog();
 $resolvedWorkspacePlan = tenant_resolve_workspace_plan($workspacePlanCode, 'starter');
 $currentWorkspacePlanCode = (string)($resolvedWorkspacePlan['code'] ?? 'starter');
@@ -280,7 +282,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Contin
                         <?php if ($isSubscriptionBlocked) { ?>
                             Access paused
                         <?php } elseif ($seatsLeft !== null) { ?>
-                            <?= max(0, $seatsLeft) ?> seat<?= max(0, $seatsLeft) === 1 ? '' : 's' ?> left
+                            <?= htmlspecialchars($seatsLeftDisplay) ?> seat<?= $seatsLeftDisplay === '1' ? '' : 's' ?> left
                         <?php } else { ?>
                             Seat limit not configured
                         <?php } ?>
@@ -349,14 +351,14 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Contin
                                 <?php if ($isSubscriptionBlocked) { ?>
                                     &mdash;
                                 <?php } else { ?>
-                                    <?= $seatUsed ?><span>/<?= $seatLimit !== null ? $seatLimit : '?' ?></span>
+                                    <?= $seatUsed ?><span>/<?= htmlspecialchars($seatLimitDisplay) ?></span>
                                 <?php } ?>
                             </div>
                             <p class="billing-v2-stat-sub">
                                 <?php if ($isSubscriptionBlocked) { ?>
                                     Access inactive
                                 <?php } else { ?>
-                                    Used <?= $seatUsed ?> &middot; <?= $seatsLeft !== null ? max(0, $seatsLeft) : 'N/A' ?> left
+                                    Used <?= $seatUsed ?> &middot; <?= htmlspecialchars($seatsLeftDisplay) ?> left
                                 <?php } ?>
                             </p>
                         </div>
@@ -464,6 +466,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Contin
                             $planName = (string)($plan['name'] ?? $planCode);
                             $planSummary = (string)($plan['summary'] ?? '');
                             $planSeatLimit = (int)($plan['seat_limit'] ?? 0);
+                            $planSeatDisplay = (string)($plan['seat_display'] ?? tenant_format_seat_limit($planSeatLimit, 'N/A'));
                             $isCurrentPlan = !$isFreeTrialStatus && strtolower($planCode) === strtolower($currentWorkspacePlanCode);
                             $isPopularPlan = strtolower($planCode) === 'professional';
                             $planPrice = (int)($workspacePlanPrices[strtolower($planCode)] ?? $currentPlanPrice);
@@ -481,7 +484,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Contin
                                         <span class="billing-v2-current-tag"><?= $isSubscriptionBlocked ? 'Was Plan' : 'Current' ?></span>
                                     <?php } ?>
                                 </div>
-                                <div class="billing-v2-plan-seats"><?= $planSeatLimit ?></div>
+                                <div class="billing-v2-plan-seats"><?= htmlspecialchars($planSeatDisplay) ?></div>
                                 <p class="billing-v2-plan-desc"><?= htmlspecialchars($planSummary) ?></p>
                                 <p class="billing-v2-plan-price">PHP <?= number_format($planPrice) ?><span>/mo</span></p>
 

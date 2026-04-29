@@ -161,12 +161,25 @@ if (empty($activation['ok'])) {
 }
 
 $planName = trim((string)($pending['plan_name'] ?? 'selected'));
+$planCode = strtolower(trim((string)($pending['plan_code'] ?? '')));
+$enterpriseRequestedCapacity = (int)($pending['enterprise_requested_capacity'] ?? 0);
+if ($planCode === 'enterprise' && $enterpriseRequestedCapacity >= 40) {
+    tenant_create_enterprise_capacity_request(
+        $pdo,
+        (int)($pending['organization_id'] ?? 0),
+        (int)($pending['user_id'] ?? 0),
+        $enterpriseRequestedCapacity
+    );
+}
 unset($_SESSION['post_signup_checkout']);
 
 $message = "PayMongo test payment successful";
 if ($planName !== '') {
     $message .= " for {$planName}";
 }
+$message .= ($planCode === 'enterprise' && $enterpriseRequestedCapacity >= 40)
+    ? ". Your requested {$enterpriseRequestedCapacity}-member Enterprise capacity was sent to Super Admin for review."
+    : "";
 $message .= ". You can now log in.";
 
 paymongo_return_redirect("../login.php", [

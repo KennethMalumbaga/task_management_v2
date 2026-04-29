@@ -1,6 +1,7 @@
 <?php
 include "maintenance_guard.php";
 include "DB_connection.php";
+require_once "inc/csrf.php";
 
 enforce_maintenance_script_access();
 
@@ -64,6 +65,11 @@ $globalScripts = [
         'description' => 'Creates workspace_invites table and indexes.',
     ],
     [
+        'path' => 'run_migration_enterprise_capacity_requests.php',
+        'label' => 'Run Enterprise Capacity Migration',
+        'description' => 'Creates the Enterprise capacity request review table.',
+    ],
+    [
         'path' => 'debug_schema.php',
         'label' => 'Debug Schema',
         'description' => 'Inspects subtasks table columns.',
@@ -81,6 +87,8 @@ $selectedWorkspaceId = isset($_GET['workspace_id']) ? (int)$_GET['workspace_id']
 $selectedWorkspace = null;
 $selectedWorkspaceUsers = [];
 $selectedWorkspaceError = null;
+$enterpriseCapacityRequests = [];
+$enterpriseCapacityRequestError = null;
 
 try {
     if ($tenantEnabled && tenant_table_exists($pdo, 'organizations')) {
@@ -127,6 +135,35 @@ try {
     }
 } catch (Throwable $e) {
     $queryError = $e->getMessage();
+}
+
+try {
+    if ($tenantEnabled && tenant_table_exists($pdo, 'organizations') && tenant_ensure_enterprise_capacity_requests_table($pdo)) {
+        $stmtRequests = $pdo->query(
+            "SELECT
+                ecr.id,
+                ecr.organization_id,
+                ecr.user_id,
+                ecr.requested_seat_limit,
+                ecr.status,
+                ecr.reviewer_note,
+                ecr.created_at,
+                o.name AS workspace_name,
+                o.slug AS workspace_slug,
+                s.seat_limit AS current_seat_limit,
+                u.full_name AS owner_name,
+                u.username AS owner_email
+             FROM enterprise_capacity_requests ecr
+             JOIN organizations o ON o.id = ecr.organization_id
+             LEFT JOIN subscriptions s ON s.organization_id = ecr.organization_id
+             LEFT JOIN users u ON u.id = ecr.user_id
+             WHERE ecr.status = 'pending'
+             ORDER BY ecr.created_at ASC, ecr.id ASC"
+        );
+        $enterpriseCapacityRequests = $stmtRequests ? $stmtRequests->fetchAll(PDO::FETCH_ASSOC) : [];
+    }
+} catch (Throwable $e) {
+    $enterpriseCapacityRequestError = 'Unable to load Enterprise capacity requests right now.';
 }
 
 function maintenance_build_link(string $path, ?int $orgId = null, bool $global = false): string
@@ -295,6 +332,13 @@ function maintenance_workspace_seat_meta(array $workspace): array
     }
 
     $seatsLeft = $seatLimit - $memberCount;
+    if (tenant_seat_limit_is_unlimited($seatLimit)) {
+        return [
+            'value' => '40+',
+            'detail' => $memberCount . ' members counted',
+            'tone' => 'ok',
+        ];
+    }
     if ($seatsLeft > 0) {
         return [
             'value' => $seatsLeft . ' left',
@@ -630,8 +674,25 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
         .md-run-log-time { color: #94a3b8; margin-right: 7px; font-family: Consolas, monospace; }
         .md-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
         .md-filter-bar select { height: 36px; border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; background: #fff; color: #374151; font-size: 13px; outline: none; }
+        .md-request-panel { background:#fff; border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:24px; box-shadow:0 4px 16px rgba(15,23,42,.05); }
+        .md-request-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px; }
+        .md-request-card { border:1px solid var(--border); border-radius:14px; padding:16px; background:#fafbff; }
+        .md-request-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:10px; }
+        .md-request-title { font-size:15px; font-weight:800; color:var(--text); margin-bottom:3px; }
+        .md-request-meta { font-size:12px; color:var(--muted); line-height:1.5; }
+        .md-request-capacity { text-align:right; font-size:12px; color:var(--muted); white-space:nowrap; }
+        .md-request-capacity strong { display:block; color:var(--brand); font-size:24px; line-height:1.1; }
+        .md-request-form { display:grid; gap:10px; margin-top:12px; }
+        .md-request-form textarea { width:100%; min-height:68px; resize:vertical; border:1px solid var(--border); border-radius:10px; padding:10px 12px; font:inherit; font-size:13px; outline:none; }
+        .md-request-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .md-request-btn { border:none; border-radius:10px; padding:9px 13px; font-size:12px; font-weight:800; cursor:pointer; color:#fff; }
+        .md-request-btn.approve { background:#16a34a; }
+        .md-request-btn.decline { background:#dc2626; }
+        .md-flash { border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px; font-weight:600; }
+        .md-flash.success { background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
+        .md-flash.error { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
         @media (max-width: 1024px) { .md-workspaces-grid { grid-template-columns: repeat(2,1fr); } .md-bottom-grid { grid-template-columns: 1fr; } .md-detail-stats { grid-template-columns: 1fr; } .md-user-row { grid-template-columns: minmax(0, 1fr) 120px 120px 110px; } }
-        @media (max-width: 640px) { .md-stats-row { grid-template-columns: 1fr; } .md-workspaces-grid { grid-template-columns: 1fr; } .md-ws-insights { grid-template-columns: 1fr; } .md-container { padding: 16px; } .md-detail-head { flex-direction:column; } .md-user-row { grid-template-columns: 1fr; } .md-user-cell-label { display:block; } }
+        @media (max-width: 640px) { .md-stats-row { grid-template-columns: 1fr; } .md-workspaces-grid { grid-template-columns: 1fr; } .md-request-grid { grid-template-columns:1fr; } .md-ws-insights { grid-template-columns: 1fr; } .md-container { padding: 16px; } .md-detail-head { flex-direction:column; } .md-user-row { grid-template-columns: 1fr; } .md-user-cell-label { display:block; } }
     </style>
 </head>
 <body>
@@ -653,6 +714,13 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
 </nav>
 
 <div class="md-container">
+
+    <?php if (isset($_GET['success'])) { ?>
+        <div class="md-flash success"><?= htmlspecialchars((string)$_GET['success']) ?></div>
+    <?php } ?>
+    <?php if (isset($_GET['error'])) { ?>
+        <div class="md-flash error"><?= htmlspecialchars((string)$_GET['error']) ?></div>
+    <?php } ?>
 
     <!-- STAT CARDS -->
     <div class="md-stats-row">
@@ -687,6 +755,68 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
             <div class="md-stat-trend"><i class="fa-solid fa-wave-square" style="color:#a3aab8;"></i></div>
         </div>
     </div>
+
+    <section class="md-request-panel" id="enterpriseCapacityRequests">
+        <div class="md-section-header" style="margin-bottom:0;">
+            <div>
+                <div class="md-section-title">Enterprise Capacity Requests</div>
+                <div class="md-section-sub">Approve or decline paid Enterprise workspace capacity requests</div>
+            </div>
+        </div>
+
+        <?php if ($enterpriseCapacityRequestError !== null) { ?>
+            <div class="md-empty-users" style="margin-top:14px;"><?= htmlspecialchars($enterpriseCapacityRequestError) ?></div>
+        <?php } elseif (empty($enterpriseCapacityRequests)) { ?>
+            <div class="md-empty-users" style="margin-top:14px;">No pending Enterprise capacity requests.</div>
+        <?php } else { ?>
+            <div class="md-request-grid">
+                <?php foreach ($enterpriseCapacityRequests as $capacityRequest) {
+                    $requestWorkspace = trim((string)($capacityRequest['workspace_name'] ?? 'Workspace'));
+                    $requestOwnerName = trim((string)($capacityRequest['owner_name'] ?? 'Workspace Owner'));
+                    $requestOwnerEmail = trim((string)($capacityRequest['owner_email'] ?? ''));
+                    $requestedSeats = max(40, (int)($capacityRequest['requested_seat_limit'] ?? 40));
+                    $currentSeats = tenant_format_seat_limit($capacityRequest['current_seat_limit'] ?? null, 'N/A');
+                ?>
+                    <article class="md-request-card">
+                        <div class="md-request-top">
+                            <div>
+                                <div class="md-request-title"><?= htmlspecialchars($requestWorkspace) ?></div>
+                                <div class="md-request-meta">
+                                    Owner: <?= htmlspecialchars($requestOwnerName !== '' ? $requestOwnerName : 'Workspace Owner') ?>
+                                    <?php if ($requestOwnerEmail !== '') { ?>
+                                        &middot; <?= htmlspecialchars($requestOwnerEmail) ?>
+                                    <?php } ?>
+                                    <br>
+                                    Current capacity: <?= htmlspecialchars($currentSeats) ?> members
+                                    &middot; Requested <?= htmlspecialchars(maintenance_format_datetime($capacityRequest['created_at'] ?? null)) ?>
+                                </div>
+                            </div>
+                            <div class="md-request-capacity">
+                                Requested
+                                <strong><?= (int)$requestedSeats ?></strong>
+                                members
+                            </div>
+                        </div>
+                        <form class="md-request-form" action="app/review-enterprise-capacity.php" method="POST">
+                            <?php $capacityReviewCsrfKey = 'enterprise_capacity_review_form_' . (int)$capacityRequest['id']; ?>
+                            <?= csrf_field($capacityReviewCsrfKey, 'csrf_token') ?>
+                            <input type="hidden" name="csrf_key" value="<?= htmlspecialchars($capacityReviewCsrfKey) ?>">
+                            <input type="hidden" name="request_id" value="<?= (int)$capacityRequest['id'] ?>">
+                            <textarea name="reviewer_note" placeholder="Optional note included in the email"></textarea>
+                            <div class="md-request-actions">
+                                <button class="md-request-btn approve" type="submit" name="decision" value="approved">
+                                    <i class="fa-solid fa-check"></i> Accept
+                                </button>
+                                <button class="md-request-btn decline" type="submit" name="decision" value="declined">
+                                    <i class="fa-solid fa-xmark"></i> Decline
+                                </button>
+                            </div>
+                        </form>
+                    </article>
+                <?php } ?>
+            </div>
+        <?php } ?>
+    </section>
 
     <!-- WORKSPACES SECTION -->
     <div class="md-section-header">
@@ -839,7 +969,7 @@ $restrictedPage = $restrictedPageRaw !== '' ? basename($restrictedPageRaw) : 'wo
                 <strong>Subscription</strong>
                 &middot; <?= htmlspecialchars($subscriptionStatusLabel) ?>
                 <?php if (($org['seat_limit'] ?? null) !== null) { ?>
-                    &middot; <?= (int)$org['seat_limit'] ?> total seats
+                    &middot; <?= htmlspecialchars(tenant_format_seat_limit($org['seat_limit'], 'N/A')) ?> total seats
                 <?php } ?>
                 <?php if (($timeMeta['reference_at'] ?? 'N/A') !== 'N/A') { ?>
                     &middot; <?= htmlspecialchars((string)$timeMeta['reference_label']) ?> <?= htmlspecialchars((string)$timeMeta['reference_at']) ?>
