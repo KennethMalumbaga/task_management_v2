@@ -91,12 +91,7 @@
         }
 
         if ($currentOrgId && !$isCurrentUserSuperAdmin) {
-            $reminderSessionKey = 'subscription_reminder_checked_org_' . (int)$currentOrgId;
-            $lastReminderCheck = isset($_SESSION[$reminderSessionKey]) ? (int)$_SESSION[$reminderSessionKey] : 0;
-            if ($lastReminderCheck <= 0 || (time() - $lastReminderCheck) >= 3600) {
-                tm_dispatch_workspace_subscription_reminder($pdo, (int)$currentOrgId, $currentAdminId, 15);
-                $_SESSION[$reminderSessionKey] = time();
-            }
+            tm_dispatch_workspace_subscription_reminder($pdo, (int)$currentOrgId, $currentAdminId, 15);
         }
     }
 
@@ -114,7 +109,7 @@
     $notificationReadCsrfToken = csrf_token('notification_read_action');
     $notificationReadAllCsrfToken = csrf_token('notification_read_all_action');
     $presenceHeartbeatCsrfToken = csrf_token('presence_heartbeat');
-    $notifRows = get_all_my_notifications($pdo, $_SESSION['id'], 8);
+    $notifRows = get_all_my_notifications($pdo, $_SESSION['id']);
     if (!is_array($notifRows)) {
         $notifRows = [];
     }
@@ -848,8 +843,8 @@
         var INPUT_STATE_FRESH_MS = 45000;
         var NO_ATTENDANCE_IDLE_THRESHOLD_MS = 15 * 60 * 1000;
         var DISMISS_SNOOZE_MS = 15000;
-        var ATTENDANCE_POLL_MS = 30000;
-        var EVALUATE_INTERVAL_MS = 5000;
+        var ATTENDANCE_POLL_MS = 3000;
+        var EVALUATE_INTERVAL_MS = 1000;
         var INPUT_STATE_KEY = 'taskflow_capture_input_state';
         var FORCE_STOP_KEY = 'taskflow_force_stop_capture';
         var CAPTURE_BEFORE_IDLE_REQUEST_KEY = 'taskflow_capture_before_idle_logout_req';
@@ -1049,7 +1044,7 @@
 
         function pollAttendanceState() {
             var xhr = new XMLHttpRequest();
-            xhr.open('GET', 'check_attendance.php?light=1', true);
+            xhr.open('GET', 'check_attendance.php', true);
             xhr.onreadystatechange = function () {
                 if (xhr.readyState !== 4) return;
                 if (xhr.status < 200 || xhr.status >= 300) return;
@@ -1103,7 +1098,7 @@
         if (!csrfToken) return;
 
         var heartbeatUrl = 'app/ajax/presence_heartbeat.php';
-        var heartbeatIntervalMs = 60000;
+        var heartbeatIntervalMs = 25000;
         var inFlight = false;
         var lastSentAt = 0;
 
@@ -1204,16 +1199,8 @@
             xhr.send();
         }
 
-        setTimeout(function () {
-            if (!document.hidden) {
-                poll();
-            }
-        }, 15000);
-        setInterval(function () {
-            if (!document.hidden) {
-                poll();
-            }
-        }, 60000);
+        poll();
+        setInterval(poll, 5000);
     })();
 </script>
 

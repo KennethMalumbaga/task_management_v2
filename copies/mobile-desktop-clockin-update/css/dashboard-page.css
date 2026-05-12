@@ -4097,4 +4097,542 @@ body.dashboard-page .dashboard-view-all-link:hover {
     }
 }
 
+@media (max-width: 768px) {
+    body.dashboard-page.role-employee {
+        background: #f3f4f8 !important;
+    }
+
+    body.dashboard-page.role-employee .dash-main {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    body.dashboard-page.role-employee .dashboard-shell {
+        gap: 18px;
+    }
+
+    body.dashboard-page.role-employee .dash-top-grid {
+        display: grid;
+        grid-template-columns: minmax(116px, 0.56fr) minmax(0, 1fr) !important;
+        gap: 14px !important;
+        align-items: start;
+        margin-bottom: 20px;
+    }
+
+    body.dashboard-page.role-employee .employee-left-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-width: 0;
+    }
+
+    body.dashboard-page.role-employee .dash-card,
+    body.dashboard-page.role-employee .stat-card,
+    body.dashboard-page.role-employee .employee-time-tracker-card,
+    body.dashboard-page.role-employee .employee-tabbed-leaderboard,
+    body.dashboard-page.role-employee .bulletin-card {
+        background: #fff !important;
+        border: 1px solid #eef0f6 !important;
+        border-radius: 18px !important;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07) !important;
+        color: #0f172a;
+    }
+
+    body.dashboard-page.role-employee .dash-card::before,
+    body.dashboard-page.role-employee .dash-card::after {
+        display: none !important;
+    }
+
+    body.dashboard-page.role-employee .employee-time-tracker-card {
+        order: 1;
+        overflow: visible;
+        z-index: 5;
+    }
+
+    body.dashboard-page.role-employee .employee-time-tracker-card .ctt-shell {
+        padding: 18px 14px 14px;
+    }
+
+    body.dashboard-page.role-employee .ctt-header {
+        position: relative;
+        display: block;
+        margin-bottom: 18px;
+    }
+
+    body.dashboard-page.role-employee .ctt-title {
+        align-items: flex-start;
+        gap: 8px;
+        color: #10132f;
+        font-size: clamp(15px, 4vw, 20px);
+        line-height: 1.1;
+    }
+
+    body.dashboard-page.role-employee .ctt-title-text {
+        max-width: 78px;
+        white-space: normal;
+    }
+
+    body.dashboard-page.role-employee .ctt-status-indicator {
+        margin-top: 6px;
+    }
+
+    body.dashboard-page.role-employee .ctt-camera {
+        position: absolute;
+        top: 1px;
+        left: calc(100% - 28px);
+        z-index: 8;
+        max-width: 150px;
+        padding: 3px 8px;
+        border-color: #e5e7eb;
+        background: #fff;
+        color: #6b7280;
+        font-size: 10px;
+        line-height: 1.1;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    }
+
+    body.dashboard-page.role-employee .ctt-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    body.dashboard-page.role-employee .ctt-stat {
+        min-height: 70px;
+        padding: 11px 8px;
+        border: 2px solid #e6eaf0;
+        border-radius: 14px;
+        background: #fbfcfe;
+    }
+
+    body.dashboard-page.role-employee .ctt-stat-alltime {
+        border-color: #ddd4ff;
+        background: #f4efff;
+    }
+
+    body.dashboard-page.role-employee .ctt-label {
+        color: #9aa3b2;
+        font-size: 10px;
+        letter-spacing: 0.14em;
+    }
+
+    body.dashboard-page.role-employee .ctt-value {
+        color: #0f1538;
+        font-size: clamp(22px, 6vw, 30px);
+        line-height: 0.95;
+    }
+
+    body.dashboard-page.role-employee .ctt-stat-alltime .ctt-label,
+    body.dashboard-page.role-employee .ctt-stat-alltime .ctt-value {
+        color: var(--primary);
+    }
+
+    body.dashboard-page.role-employee .ctt-stage {
+        margin-top: 14px;
+        gap: 12px;
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner {
+        flex-direction: column;
+        align-items: stretch;
+        min-height: 148px;
+        padding: 18px 12px;
+        border: 2px solid #f6d95d;
+        border-radius: 16px;
+        background: #fff9dc;
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner .clockin-setup-banner-copy {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        text-align: left;
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner .clockin-setup-banner-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        font-size: 20px;
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner .clockin-setup-banner-title {
+        font-size: 14px;
+        line-height: 1.12;
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner .clockin-setup-banner-text {
+        font-size: 12px;
+        line-height: 1.34;
+    }
+
+    body.dashboard-page.role-employee .employee-attendance-note {
+        padding: 12px 10px;
+        border: 2px solid #e6eaf0;
+        border-radius: 14px;
+        background: #fbfcfe;
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.35;
+    }
+
+    body.dashboard-page.role-employee .employee-attendance-note-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        font-size: 16px;
+    }
+
+    body.dashboard-page.role-employee .employee-time-tracker-card .btn-clock-in,
+    body.dashboard-page.role-employee .employee-time-tracker-card .btn-clock-out,
+    body.dashboard-page.role-employee .clock-session-btn {
+        min-width: 0;
+        width: 100% !important;
+        min-height: 38px;
+        border-radius: 10px;
+        padding: 9px 8px !important;
+        font-size: 12px !important;
+    }
+
+    body.dashboard-page.role-employee .ctt-box {
+        margin-top: 12px;
+        padding: 12px 10px;
+        border: 2px solid #e6eaf0;
+        border-radius: 14px;
+        background: #fbfcfe;
+    }
+
+    body.dashboard-page.role-employee .ctt-box-row {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    body.dashboard-page.role-employee .employee-time-title {
+        font-size: 12px;
+    }
+
+    body.dashboard-page.role-employee .ctt-time-label {
+        font-size: 11px;
+        letter-spacing: 0;
+    }
+
+    body.dashboard-page.role-employee .employee-tabbed-leaderboard {
+        order: 2;
+        overflow: hidden;
+        padding: 0 !important;
+    }
+
+    body.dashboard-page.role-employee .employee-tabbed-leaderboard .admin-tab-bar {
+        background: #fff;
+        padding: 0;
+    }
+
+    body.dashboard-page.role-employee .employee-tabbed-leaderboard .admin-tab-btn {
+        color: #4b5563;
+        font-size: 13px;
+        padding: 16px 6px 12px;
+    }
+
+    body.dashboard-page.role-employee .employee-tabbed-leaderboard .admin-tab-btn.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+    }
+
+    body.dashboard-page.role-employee .employee-tabbed-leaderboard .admin-tab-panel {
+        padding: 14px 12px 18px !important;
+        background: #fff;
+    }
+
+    body.dashboard-page.role-employee .employee-tabbed-leaderboard .leaderboard-empty {
+        min-height: 92px;
+        border-radius: 14px;
+        background: #f8fafc;
+        color: #6b7280;
+        text-align: center;
+    }
+
+    body.dashboard-page.role-employee .bulletin-card {
+        order: 2;
+        min-width: 0;
+        min-height: 540px;
+        padding: 0 !important;
+        overflow: hidden;
+    }
+
+    body.dashboard-page.role-employee .bulletin-head {
+        padding: 56px 26px 20px;
+        border-bottom: 1px solid #eef0f6;
+    }
+
+    body.dashboard-page.role-employee .bulletin-icon-box {
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        font-size: 20px;
+    }
+
+    body.dashboard-page.role-employee .bulletin-title {
+        color: #0f172a;
+        font-size: clamp(17px, 4.4vw, 24px);
+        font-weight: 800;
+    }
+
+    body.dashboard-page.role-employee .bulletin-list {
+        min-height: 410px !important;
+        max-height: none;
+        padding: 22px 26px;
+        background: #fff;
+    }
+
+    body.dashboard-page.role-employee .bulletin-empty {
+        min-height: 360px;
+        color: #9ca3af;
+        font-size: clamp(15px, 4vw, 22px);
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+        padding: 18px 20px 22px !important;
+        border-top: 1px solid #eef0f6;
+        background: #fff;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-card {
+        display: flex;
+        flex-direction: column !important;
+        align-items: center;
+        justify-content: center !important;
+        min-height: 128px !important;
+        padding: 16px 8px !important;
+        border: 1px solid #f0f2f7 !important;
+        border-radius: 16px !important;
+        background: #fff !important;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06) !important;
+        text-align: center;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-icon {
+        order: -1 !important;
+        width: 44px !important;
+        height: 44px !important;
+        margin: 0 0 12px !important;
+        border-radius: 14px !important;
+        font-size: 20px !important;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-info {
+        order: 0;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-info h4 {
+        color: #6b7280;
+        font-size: clamp(9px, 2.5vw, 12px) !important;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        line-height: 1.2;
+        white-space: normal !important;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-info span {
+        color: #0f172a;
+        display: block !important;
+        justify-content: center;
+        font-size: clamp(28px, 7vw, 38px) !important;
+        font-weight: 900;
+        line-height: 1.05;
+    }
+
+    body.dashboard-page.role-employee .dashboard-recent-board {
+        margin-top: 0;
+    }
+}
+
+@media (max-width: 420px) {
+    body.dashboard-page.role-employee .dash-main {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    body.dashboard-page.role-employee .dash-top-grid {
+        grid-template-columns: minmax(108px, 0.54fr) minmax(0, 1fr) !important;
+        gap: 10px !important;
+    }
+
+    body.dashboard-page.role-employee .employee-time-tracker-card .ctt-shell {
+        padding: 14px 10px 12px;
+    }
+
+    body.dashboard-page.role-employee .ctt-camera {
+        max-width: 122px;
+        font-size: 9px;
+    }
+
+    body.dashboard-page.role-employee .bulletin-head {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    body.dashboard-page.role-employee .bulletin-list {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats {
+        gap: 10px !important;
+        padding: 14px 12px 18px !important;
+    }
+}
+
+@media (max-width: 560px) {
+    body.dashboard-page.role-employee .dash-main {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    body.dashboard-page.role-employee .dash-top-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 14px !important;
+    }
+
+    body.dashboard-page.role-employee .employee-left-stack,
+    body.dashboard-page.role-employee .bulletin-card {
+        width: 100%;
+    }
+
+    body.dashboard-page.role-employee .employee-time-tracker-card {
+        overflow: hidden;
+    }
+
+    body.dashboard-page.role-employee .employee-time-tracker-card .ctt-shell {
+        padding: 16px;
+    }
+
+    body.dashboard-page.role-employee .ctt-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    body.dashboard-page.role-employee .ctt-title {
+        font-size: 16px;
+    }
+
+    body.dashboard-page.role-employee .ctt-title-text {
+        max-width: none;
+    }
+
+    body.dashboard-page.role-employee .ctt-camera {
+        position: static;
+        max-width: 46%;
+        white-space: normal;
+        text-align: right;
+        justify-content: flex-end;
+        font-size: 9px;
+        box-shadow: none;
+    }
+
+    body.dashboard-page.role-employee .ctt-stat {
+        min-height: 78px;
+    }
+
+    body.dashboard-page.role-employee .ctt-value {
+        font-size: clamp(22px, 8vw, 30px);
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner {
+        min-height: 0;
+        padding: 12px;
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner .clockin-setup-banner-copy {
+        flex-direction: row;
+        align-items: center;
+        text-align: left;
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner .clockin-setup-banner-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 17px;
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner .clockin-setup-banner-title {
+        font-size: 13px;
+    }
+
+    body.dashboard-page.role-employee #clockInMobileModeBanner .clockin-setup-banner-text {
+        font-size: 11px;
+    }
+
+    body.dashboard-page.role-employee .employee-attendance-note {
+        font-size: 11px;
+    }
+
+    body.dashboard-page.role-employee .ctt-box-row {
+        flex-wrap: nowrap;
+    }
+
+    body.dashboard-page.role-employee .employee-tabbed-leaderboard .admin-tab-btn {
+        font-size: 12px;
+    }
+
+    body.dashboard-page.role-employee .bulletin-card {
+        min-height: 0;
+    }
+
+    body.dashboard-page.role-employee .bulletin-head {
+        padding: 16px;
+    }
+
+    body.dashboard-page.role-employee .bulletin-icon-box {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        font-size: 15px;
+    }
+
+    body.dashboard-page.role-employee .bulletin-title {
+        font-size: 16px;
+    }
+
+    body.dashboard-page.role-employee .bulletin-list {
+        min-height: 220px !important;
+        padding: 16px;
+    }
+
+    body.dashboard-page.role-employee .bulletin-empty {
+        min-height: 190px;
+        font-size: 14px;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats {
+        gap: 10px !important;
+        padding: 12px !important;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-card {
+        min-height: 104px !important;
+        padding: 12px 8px !important;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-icon {
+        width: 36px !important;
+        height: 36px !important;
+        margin-bottom: 8px !important;
+        font-size: 16px !important;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-info h4 {
+        font-size: 9px !important;
+        letter-spacing: 0.04em;
+    }
+
+    body.dashboard-page.role-employee .employee-inline-stats .stat-info span {
+        font-size: 26px !important;
+    }
+}
 
