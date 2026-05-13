@@ -29,6 +29,7 @@ session_write_close();
 include "../../DB_connection.php";
 include "../model/Typing.php";
 include "../model/Group.php";
+include "../model/user.php";
 
 if (isset($_POST['group_id'])) {
     $groupId = (int)$_POST['group_id'];
@@ -50,8 +51,13 @@ if (isset($_POST['group_id'])) {
 
 if (isset($_POST['user_id'])) {
     $otherUserId = (int)$_POST['user_id'];
-    if ($otherUserId <= 0) {
-        http_response_code(400);
+    if (
+        $otherUserId <= 0
+        || $otherUserId === $userId
+        || !user_is_workspace_member($pdo, $userId)
+        || !user_is_workspace_member($pdo, $otherUserId)
+    ) {
+        http_response_code($otherUserId <= 0 ? 400 : 403);
         echo json_encode(['ok' => false]);
         exit;
     }

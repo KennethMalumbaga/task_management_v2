@@ -843,6 +843,8 @@ Maintenance files:
 - `run_cleanup_legacy_duplicate_group_chats.php`
 - `run_cleanup_screenshot_retention.php`
 - `run_migration_workspace_invites.php`
+- `run_migration_dashboard_performance_indexes.php`
+- `verify_phase1_hardening.php`
 - debug scripts such as `debug_schema.php` and `debug_group_type_constraint.php`
 
 Maintenance behavior:
@@ -851,6 +853,7 @@ Maintenance behavior:
 - Maintenance scripts are guarded by `maintenance_guard.php`.
 - Tenant-safe maintenance requires `org_id` or CLI `--org-id`.
 - Global maintenance requires `ALLOW_GLOBAL_MAINTENANCE=1` and an explicit global request.
+- `verify_phase1_hardening.php` is read-only and reports missing tables, indexes, asset-cache rules, OPcache state, and log directory readiness.
 - `reset_database.php` can clear tenant activity data while preserving users/settings, or perform a global reset if explicitly allowed.
 - Screenshot retention cleanup can remove old screenshot files and rows.
 - Subscription reminders and meeting reminders can be sent through maintenance/job scripts.
@@ -872,6 +875,21 @@ Docker setup:
 2. Provide database and app environment variables.
 3. Mount or persist `uploads/`, `screenshots/`, and other runtime data as needed.
 4. Expose Apache from the container.
+
+Phase 1 production hardening checklist:
+
+1. Deploy the latest code to the production document root.
+2. Confirm PHP OPcache is enabled in hosting controls or `phpinfo()`; `.user.ini` and `docker/php.ini` include recommended settings, but some hosts ignore OPcache directives outside server-level config.
+3. Confirm Apache honors `.htaccess` and that `mod_headers`/`mod_expires` rules do not produce a `500` response. The rules are guarded with `<IfModule>` to keep unsupported modules safe.
+4. Run `php run_migration_dashboard_performance_indexes.php` once against the production database. If running through the browser, set `ALLOW_MAINTENANCE_SCRIPTS=1` temporarily and remove it after.
+5. Run `php verify_phase1_hardening.php` and review any `FAIL` or `WARN` lines. `FAIL` means a critical table or index is missing; `WARN` usually means an optional/runtime feature table is not installed yet or OPcache cannot be confirmed from the current PHP context.
+6. Clear any hosting/CDN/browser cache after deployment. `.htaccess` now gives CSS/JavaScript a conservative one-day cache because some legacy pages still use unversioned stylesheet URLs, while images, fonts, videos, archives, and similar static files receive long-lived cache headers.
+7. Open DevTools Network on `index.php` and `messages.php`; verify CSS/JS/images return `200` quickly and dynamic PHP/AJAX requests are not repeatedly firing while the tab is hidden.
+8. Watch `tmp/performance.log` after real usage. Entries appear only for slow monitored requests, defaulting to requests over `1500ms`. You can override with `PERFORMANCE_LOG_THRESHOLD_MS`.
+
+SaaS scaling note:
+
+- Laravel migration is intentionally deferred. The current priority is production hardening, query/index correctness, asset caching, and measurement. Revisit Laravel later as a maintainability migration, ideally feature by feature, after Phase 1 metrics show the remaining bottlenecks.
 
 Docker details:
 

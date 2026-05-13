@@ -2,6 +2,8 @@
 
 session_start();
 require_once "../../inc/csrf.php";
+require_once "../../inc/performance.php";
+performance_monitor_request('messages.group_fetch');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

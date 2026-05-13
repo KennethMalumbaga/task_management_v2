@@ -675,6 +675,9 @@
                         }
                     }
                 } catch (e) {}
+                if (typeof window.__tmShowLoadingScreen === 'function') {
+                    window.__tmShowLoadingScreen();
+                }
                 window.location.href = pendingHref;
             });
         }
@@ -1014,6 +1017,9 @@
                 // no-op
             }
             setTimeout(function () {
+                if (typeof window.__tmShowLoadingScreen === 'function') {
+                    window.__tmShowLoadingScreen();
+                }
                 window.location.href = 'logout.php';
             }, 700);
         }

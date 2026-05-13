@@ -1,5 +1,7 @@
 <?php 
 session_start();
+require_once "../../inc/performance.php";
+performance_monitor_request('messages.search');
 
 if (isset($_SESSION['id'])) {
     
@@ -18,12 +20,22 @@ if (isset($_SESSION['id'])) {
 
        $key = "%{$_POST['key']}%";
      
-       $sql = "SELECT * FROM users
-               WHERE (LOWER(full_name) LIKE LOWER(?) OR LOWER(username) LIKE LOWER(?))";
-       $params = [$key, $key];
-       $scope = tenant_get_scope($pdo, 'users');
-       $sql .= $scope['sql'];
-       $params = array_merge($params, $scope['params']);
+       $orgId = tenant_get_current_org_id();
+       if ($orgId && tenant_table_exists($pdo, 'organization_members')) {
+           $sql = "SELECT u.*
+                   FROM users u
+                   INNER JOIN organization_members om ON om.user_id = u.id
+                   WHERE om.organization_id = ?
+                     AND (LOWER(u.full_name) LIKE LOWER(?) OR LOWER(u.username) LIKE LOWER(?))";
+           $params = [(int)$orgId, $key, $key];
+       } else {
+           $sql = "SELECT * FROM users
+                   WHERE (LOWER(full_name) LIKE LOWER(?) OR LOWER(username) LIKE LOWER(?))";
+           $params = [$key, $key];
+           $scope = tenant_get_scope($pdo, 'users');
+           $sql .= $scope['sql'];
+           $params = array_merge($params, $scope['params']);
+       }
        $stmt = $pdo->prepare($sql);
        $stmt->execute($params);
        $matchedUsers = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -35,6 +47,9 @@ if (isset($_SESSION['id'])) {
                        AND LOWER(g.name) LIKE LOWER(?)";
        $groupParams = [$currentUserId, $key];
        $scope = tenant_get_scope($pdo, 'groups', 'g');
+       $groupSql .= $scope['sql'];
+       $groupParams = array_merge($groupParams, $scope['params']);
+       $scope = tenant_get_scope($pdo, 'group_members', 'gm');
        $groupSql .= $scope['sql'] . "
                      ORDER BY g.id DESC";
        $groupParams = array_merge($groupParams, $scope['params']);

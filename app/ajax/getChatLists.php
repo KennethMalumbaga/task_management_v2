@@ -1,5 +1,7 @@
 <?php 
 session_start();
+require_once "../../inc/performance.php";
+performance_monitor_request('messages.chat_lists');
 
 if (isset($_SESSION['id'])) {
     $currentUserId = (int)$_SESSION['id'];

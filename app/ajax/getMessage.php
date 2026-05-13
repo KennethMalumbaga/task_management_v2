@@ -2,6 +2,8 @@
 
 session_start();
 require_once "../../inc/csrf.php";
+require_once "../../inc/performance.php";
+performance_monitor_request('messages.direct_fetch');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -23,6 +25,16 @@ if (isset($_SESSION['id'])) {
 	include "../../DB_connection.php";
     include "../model/Message.php";
     include "../model/user.php";
+
+    if (
+        $id_2 <= 0
+        || $id_2 === $id_1
+        || !user_is_workspace_member($pdo, $id_1)
+        || !user_is_workspace_member($pdo, $id_2)
+    ) {
+        http_response_code(403);
+        exit;
+    }
 
 	$opend = 0;
 

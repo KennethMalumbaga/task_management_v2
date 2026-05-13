@@ -93,7 +93,6 @@ $memberCount = 0;
 $flashSuccess = isset($_GET['success']) ? trim((string)$_GET['success']) : null;
 $flashError = isset($_GET['error']) ? trim((string)$_GET['error']) : null;
 $paymongoConfigured = paymongo_is_configured();
-$paymongoMethodOptions = paymongo_checkout_method_options();
 
 if (!$tenantEnabled) {
     $error = "Workspace billing is unavailable until tenant migration is enabled.";
@@ -206,13 +205,8 @@ if ($isFreeTrialExpired) {
 }
 $planPanelTitle = $isSubscriptionBlocked ? 'Renew Your Subscription' : 'Plan & Seat Capacity';
 $planPanelSub = $isSubscriptionBlocked
-    ? 'Choose a plan below to reactivate your workspace and restore full member access.'
-    : 'Seat capacity is fixed by plan. Switch plans to change workspace limits.';
-$checkoutTitle = $isSubscriptionBlocked ? 'PayMongo Reactivation Checkout' : 'PayMongo Test Checkout';
-$checkoutSub = $isSubscriptionBlocked
-    ? 'Continue to PayMongo Checkout to restore workspace access.'
-    : 'Redirects to PayMongo Checkout using your test key. No live charge is made while test mode is enabled.';
-$checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Continue to PayMongo Test Checkout';
+    ? 'Choose and pay for a plan to reactivate your workspace and restore full member access.'
+    : 'Choose a plan to continue to PayMongo. Workspace limits update only after successful payment.';
 ?>
 <!DOCTYPE html>
 <html>
@@ -460,6 +454,13 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Contin
                         <?php } ?>
                     </div>
 
+                    <?php if ($canManageSeats && !$paymongoConfigured) { ?>
+                        <div class="workspace-alert warn" style="margin-bottom:16px;">
+                            <i class="fa fa-plug"></i>
+                            <div>PayMongo test mode is not configured yet. Add <code>PAYMONGO_SECRET_KEY=sk_test_...</code> to your local env before using checkout.</div>
+                        </div>
+                    <?php } ?>
+
                     <div class="billing-v2-plan-grid">
                         <?php foreach ($availablePlans as $plan) {
                             $planCode = (string)($plan['code'] ?? '');
@@ -488,75 +489,24 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Contin
                                 <p class="billing-v2-plan-desc"><?= htmlspecialchars($planSummary) ?></p>
                                 <p class="billing-v2-plan-price">PHP <?= number_format($planPrice) ?><span>/mo</span></p>
 
-                                <?php if ($canManageSeats) { ?>
-                                    <form action="app/select-workspace-plan.php" method="POST" class="workspace-inline-form">
-                                        <?= csrf_field('workspace_plan_select_form') ?>
+                                <?php if ($canManageSeats) {
+                                    $disablePlanCheckout = (!$isSubscriptionBlocked && $isCurrentPlan) || !$paymongoConfigured;
+                                ?>
+                                    <form action="app/process-dummy-payment.php" method="POST" class="workspace-inline-form">
+                                        <?= csrf_field('workspace_dummy_payment_form') ?>
                                         <input type="hidden" name="plan_code" value="<?= htmlspecialchars($planCode) ?>">
-                                        <button class="workspace-btn mini billing-v2-plan-btn <?= $isCurrentPlan ? 'is-current' : '' ?>" type="submit" <?= $isCurrentPlan ? 'disabled' : '' ?>>
-                                            <?php if ($isCurrentPlan) { ?>
-                                                <?= $isSubscriptionBlocked ? 'Was Plan' : 'Current Plan' ?>
+                                        <button class="workspace-btn mini billing-v2-plan-btn <?= $isCurrentPlan ? 'is-current' : '' ?>" type="submit" <?= $disablePlanCheckout ? 'disabled' : '' ?>>
+                                            <?php if ($isCurrentPlan && !$isSubscriptionBlocked) { ?>
+                                                Current Plan
+                                            <?php } elseif ($isSubscriptionBlocked) { ?>
+                                                Renew <?= htmlspecialchars($planName) ?>
                                             <?php } else { ?>
-                                                Choose <?= htmlspecialchars($planName) ?>
+                                                Continue with <?= htmlspecialchars($planName) ?>
                                             <?php } ?>
                                         </button>
                                     </form>
                                 <?php } ?>
                             </article>
-                        <?php } ?>
-                    </div>
-
-                    <div class="billing-v2-checkout-box <?= $isSubscriptionBlocked ? 'is-urgent' : '' ?>">
-                        <div class="billing-v2-checkout-head">
-                            <div>
-                                <h4 class="billing-v2-checkout-title"><?= htmlspecialchars($checkoutTitle) ?></h4>
-                                <p class="billing-v2-checkout-sub"><?= htmlspecialchars($checkoutSub) ?></p>
-                            </div>
-                            <span class="billing-v2-checkout-badge <?= $isSubscriptionBlocked ? 'is-urgent' : '' ?>">PAYMONGO</span>
-                        </div>
-
-                        <div class="billing-v2-checkout-summary">
-                            <span class="billing-v2-checkout-summary-label">Selected Plan</span>
-                            <?php if ($isFreeTrialActive) { ?>
-                                <strong>Free Trial</strong>
-                                <small>&middot; 2-day access (no charge)</small>
-                            <?php } else { ?>
-                                <strong><?= htmlspecialchars($currentWorkspacePlanName) ?></strong>
-                                <small>&middot; PHP <?= number_format($currentPlanPrice) ?> / month</small>
-                            <?php } ?>
-                        </div>
-
-                        <?php if ($canManageSeats) { ?>
-                            <form action="app/process-dummy-payment.php" method="POST" class="workspace-form-grid billing-v2-checkout-form">
-                                <?= csrf_field('workspace_dummy_payment_form') ?>
-
-                                <?php if (!$paymongoConfigured) { ?>
-                                    <div class="workspace-alert warn" style="grid-column: 1 / -1;">
-                                        <i class="fa fa-plug"></i>
-                                        <div>PayMongo test mode is not configured yet. Add <code>PAYMONGO_SECRET_KEY=sk_test_...</code> to your local env before using this checkout.</div>
-                                    </div>
-                                <?php } ?>
-
-                                <div class="workspace-field">
-                                    <label for="dummy_payment_method">Payment Method</label>
-                                    <select id="dummy_payment_method" name="payment_method" class="workspace-input" required>
-                                        <?php foreach ($paymongoMethodOptions as $methodKey => $methodLabel) { ?>
-                                            <option value="<?= htmlspecialchars((string)$methodKey) ?>"><?= htmlspecialchars((string)$methodLabel) ?></option>
-                                        <?php } ?>
-                                    </select>
-                                </div>
-                                
-                                <div class="workspace-action-row">
-                                    <button class="workspace-btn primary billing-v2-sim-btn <?= $isSubscriptionBlocked ? 'is-urgent' : '' ?>" type="submit" <?= !$paymongoConfigured ? 'disabled' : '' ?>>
-                                        <i class="fa fa-shield"></i>
-                                        <?= htmlspecialchars($checkoutButtonLabel) ?>
-                                    </button>
-                                </div>
-                            </form>
-                        <?php } else { ?>
-                            <div class="workspace-alert info">
-                                <i class="fa fa-lock"></i>
-                                <div>You currently have read-only access and cannot launch PayMongo checkout.</div>
-                            </div>
                         <?php } ?>
                     </div>
                 </section>
@@ -571,7 +521,7 @@ $checkoutButtonLabel = $isSubscriptionBlocked ? 'Continue to PayMongo' : 'Contin
                     <ol class="billing-v2-how-list">
                         <li><span class="billing-v2-how-step">1</span><span>Your workspace always has a subscription state and a plan-defined seat limit.</span></li>
                         <li><span class="billing-v2-how-step">2</span><span>Each active member consumes exactly one seat.</span></li>
-                        <li><span class="billing-v2-how-step">3</span><span>Changing plan automatically updates seat capacity for the workspace.</span></li>
+                        <li><span class="billing-v2-how-step">3</span><span>A selected plan updates seat capacity only after PayMongo confirms payment.</span></li>
                         <li><span class="billing-v2-how-step">4</span><span>If seats are full or billing is blocked, new joins are prevented automatically.</span></li>
                     </ol>
                     <div class="billing-v2-how-divider"></div>

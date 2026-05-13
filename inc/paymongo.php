@@ -679,10 +679,14 @@ if (!function_exists('paymongo_checkout_payment_summary')) {
 }
 
 if (!function_exists('paymongo_activate_workspace_subscription')) {
-    function paymongo_activate_workspace_subscription($pdo, $orgId, $checkoutSessionId)
+    function paymongo_activate_workspace_subscription($pdo, $orgId, $checkoutSessionId, $planCode = null)
     {
         $orgId = (int)$orgId;
         $checkoutSessionId = trim((string)$checkoutSessionId);
+        $requestedPlanCode = strtolower(trim((string)$planCode));
+        $plan = null;
+        $planSeatLimit = null;
+        $activeMembers = null;
 
         if ($orgId <= 0 || $checkoutSessionId === '') {
             return [
@@ -690,7 +694,34 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
                 'reason' => 'Workspace checkout details are incomplete.',
                 'current_period_end' => null,
                 'already_processed' => false,
+                'plan' => null,
             ];
+        }
+
+        if ($requestedPlanCode !== '') {
+            $catalog = tenant_workspace_plan_catalog();
+            if (!isset($catalog[$requestedPlanCode])) {
+                return [
+                    'ok' => false,
+                    'reason' => 'The paid workspace plan is invalid. Please start a new checkout.',
+                    'current_period_end' => null,
+                    'already_processed' => false,
+                    'plan' => null,
+                ];
+            }
+
+            $plan = $catalog[$requestedPlanCode];
+            $planSeatLimit = max(1, (int)($plan['seat_limit'] ?? 0));
+            $activeMembers = tenant_count_workspace_members($pdo, $orgId);
+            if ($planSeatLimit < $activeMembers) {
+                return [
+                    'ok' => false,
+                    'reason' => "The paid plan only includes {$planSeatLimit} seats, but this workspace now has {$activeMembers} active members.",
+                    'current_period_end' => null,
+                    'already_processed' => false,
+                    'plan' => $plan,
+                ];
+            }
         }
 
         $subscription = tenant_ensure_subscription($pdo, $orgId);
@@ -700,6 +731,7 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
                 'reason' => 'Unable to initialize workspace subscription.',
                 'current_period_end' => null,
                 'already_processed' => false,
+                'plan' => $plan,
             ];
         }
 
@@ -749,6 +781,7 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
                 'reason' => null,
                 'current_period_end' => $subscription['current_period_end'] ?? null,
                 'already_processed' => true,
+                'plan' => $plan,
             ];
         }
 
@@ -765,6 +798,11 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
             "current_period_end = ?",
         ];
         $params = [$newPeriodEnd];
+
+        if ($plan !== null) {
+            $setParts[] = "seat_limit = ?";
+            $params[] = $planSeatLimit;
+        }
 
         if ($providerColumnExists) {
             $setParts[] = "provider = ?";
@@ -786,6 +824,11 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
             $stmt = $pdo->prepare("UPDATE subscriptions SET " . implode(', ', $setParts) . " WHERE organization_id = ?");
             $stmt->execute($params);
 
+            if ($plan !== null) {
+                $stmtOrgPlan = $pdo->prepare("UPDATE organizations SET plan_code = ? WHERE id = ?");
+                $stmtOrgPlan->execute([(string)($plan['code'] ?? $requestedPlanCode), $orgId]);
+            }
+
             if (
                 tenant_table_exists($pdo, 'organizations')
                 && in_array($currentOrgStatus, ['inactive', 'suspended'], true)
@@ -804,6 +847,7 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
                 'reason' => null,
                 'current_period_end' => $newPeriodEnd,
                 'already_processed' => false,
+                'plan' => $plan,
             ];
         } catch (Throwable $e) {
             if (!empty($startedTransaction) && $pdo->inTransaction()) {
@@ -815,6 +859,7 @@ if (!function_exists('paymongo_activate_workspace_subscription')) {
                 'reason' => 'Unable to activate the workspace subscription right now.',
                 'current_period_end' => null,
                 'already_processed' => false,
+                'plan' => $plan,
             ];
         }
     }

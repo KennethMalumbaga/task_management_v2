@@ -117,6 +117,9 @@ function get_groups_for_user($pdo, $user_id)
             WHERE gm.user_id = ?";
     $params = [$user_id];
     $scope = tenant_get_scope($pdo, 'groups', 'g');
+    $sql .= $scope['sql'];
+    $params = array_merge($params, $scope['params']);
+    $scope = tenant_get_scope($pdo, 'group_members', 'gm');
     $sql .= $scope['sql'] . " ORDER BY g.name ASC";
     $params = array_merge($params, $scope['params']);
 

@@ -50,10 +50,45 @@ if (!paymongo_is_configured()) {
     workspace_payment_redirect_error("PayMongo test mode is not configured. Add PAYMONGO_SECRET_KEY with your sk_test_ key.");
 }
 
+$requestedPlanCode = strtolower(trim((string)($_POST['plan_code'] ?? '')));
+$planCatalog = tenant_workspace_plan_catalog();
+if ($requestedPlanCode === '' || !isset($planCatalog[$requestedPlanCode])) {
+    workspace_payment_redirect_error("Please choose a valid workspace plan.");
+}
+
+$selectedPlan = $planCatalog[$requestedPlanCode];
+$planCode = (string)($selectedPlan['code'] ?? $requestedPlanCode);
+$planName = (string)($selectedPlan['name'] ?? 'Workspace Plan');
+$planSeatLimit = max(1, (int)($selectedPlan['seat_limit'] ?? 0));
+$activeMembers = tenant_count_workspace_members($pdo, (int)$orgId);
+if ($planSeatLimit < $activeMembers) {
+    workspace_payment_redirect_error("The selected plan only includes {$planSeatLimit} seats, but this workspace already has {$activeMembers} active members.");
+}
+
 $method = strtolower(trim((string)($_POST['payment_method'] ?? '')));
-$methodConfig = paymongo_resolve_checkout_method($method);
-if ($methodConfig === null) {
-    workspace_payment_redirect_error("Please choose a valid PayMongo payment method.");
+$paymentMethodKey = 'paymongo_checkout';
+$paymentMethodTypes = [];
+if ($method !== '') {
+    $methodConfig = paymongo_resolve_checkout_method($method);
+    if ($methodConfig === null) {
+        workspace_payment_redirect_error("Please choose a valid PayMongo payment method.");
+    }
+    $paymentMethodKey = (string)($methodConfig['key'] ?? $method);
+    $paymentMethodTypes = (array)($methodConfig['types'] ?? []);
+} else {
+    foreach (paymongo_checkout_method_catalog() as $methodConfig) {
+        foreach ((array)($methodConfig['types'] ?? []) as $type) {
+            $type = strtolower(trim((string)$type));
+            if ($type !== '') {
+                $paymentMethodTypes[] = $type;
+            }
+        }
+    }
+    $paymentMethodTypes = array_values(array_unique($paymentMethodTypes));
+}
+
+if (empty($paymentMethodTypes)) {
+    workspace_payment_redirect_error("No PayMongo payment methods are available right now.");
 }
 
 try {
@@ -75,9 +110,6 @@ try {
         workspace_payment_redirect_error("Unable to initialize workspace subscription.");
     }
 
-    $resolvedPlan = tenant_resolve_workspace_plan((string)($org['plan_code'] ?? 'starter'), 'starter');
-    $planCode = (string)($resolvedPlan['code'] ?? 'starter');
-    $planName = (string)($resolvedPlan['name'] ?? 'Starter');
     $workspaceName = trim((string)($org['name'] ?? ($_SESSION['organization_name'] ?? 'Workspace')));
     $amountCentavos = paymongo_plan_price_centavos($planCode, 'workspace');
     $state = paymongo_create_state_token();
@@ -101,10 +133,10 @@ try {
             'flow' => 'workspace',
             'organization_id' => (string)$orgId,
             'plan_code' => $planCode,
-            'payment_method' => (string)$methodConfig['key'],
+            'payment_method' => $paymentMethodKey,
             'workspace_name' => $workspaceName,
         ],
-        'payment_method_types' => (array)($methodConfig['types'] ?? []),
+        'payment_method_types' => $paymentMethodTypes,
         'reference_number' => $referenceNumber,
         'success_url' => paymongo_build_app_url('/app/paymongo-return.php', [
             'flow' => 'workspace',
@@ -122,7 +154,7 @@ try {
         'checkout_session_id' => (string)($checkoutResult['checkout_session_id'] ?? ''),
         'created_at' => time(),
         'organization_id' => (int)$orgId,
-        'payment_method' => (string)($methodConfig['key'] ?? ''),
+        'payment_method' => $paymentMethodKey,
         'plan_code' => $planCode,
         'plan_name' => $planName,
         'reference_number' => $referenceNumber,

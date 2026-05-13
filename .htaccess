@@ -1,3 +1,37 @@
 # PHP limits are configured in `.user.ini` for Hostinger/shared hosting.
 # Keep this file minimal to avoid `500 Internal Server Error` from unsupported
 # `php_value` directives under FastCGI/PHP-FPM.
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(?:php|phtml)$">
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+    </FilesMatch>
+
+    <FilesMatch "\.(?:css|js|mjs|map|json|txt)$">
+        Header set Cache-Control "public, max-age=86400, must-revalidate"
+    </FilesMatch>
+
+    <FilesMatch "\.(?:png|jpe?g|gif|webp|svg|ico|avif|woff2?|ttf|eot|mp4|webm|pdf|zip)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 month"
+    ExpiresByType text/css "access plus 1 day"
+    ExpiresByType application/javascript "access plus 1 day"
+    ExpiresByType text/javascript "access plus 1 day"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType video/mp4 "access plus 1 year"
+    ExpiresByType video/webm "access plus 1 year"
+    ExpiresByType application/pdf "access plus 1 month"
+</IfModule>

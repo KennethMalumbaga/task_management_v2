@@ -79,7 +79,11 @@ function get_recent_chats($sender_id, $receiver_id, $conn, $limit = 200)
 function insertChat($sender_id, $receiver_id, $message, $conn)
 {
     $orgId = tenant_get_current_org_id();
-    if (tenant_column_exists($conn, 'chats', 'organization_id') && $orgId) {
+    if (tenant_column_exists($conn, 'chats', 'organization_id')) {
+        if (!$orgId) {
+            return 0;
+        }
+
         $sql = "INSERT INTO chats (sender_id, receiver_id, message, organization_id)
                 VALUES (?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);

@@ -1,6 +1,9 @@
 <?php 
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
+    require_once "inc/performance.php";
+    performance_monitor_request('messages.page');
+
     include "DB_connection.php";
     require_once "inc/csrf.php";
     include "app/model/user.php";

@@ -2,6 +2,9 @@
 session_start();
 if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
+    require_once "inc/performance.php";
+    performance_monitor_request('dashboard.index');
+
     include "DB_connection.php";
     include "app/model/Task.php";
     include "app/model/user.php";
@@ -2798,6 +2801,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
         await requestCaptureBeforeIdleLogout();
         signalCaptureStop('idle_logout');
         setTimeout(function () {
+            if (typeof window.__tmShowLoadingScreen === 'function') {
+                window.__tmShowLoadingScreen();
+            }
             window.location.href = 'logout.php';
         }, 700);
     }

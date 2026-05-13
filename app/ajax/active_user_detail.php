@@ -1,5 +1,7 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../inc/performance.php';
+performance_monitor_request('dashboard.active_user_detail');
 
 header('Content-Type: application/json');
 

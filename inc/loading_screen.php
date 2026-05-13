@@ -199,7 +199,6 @@ if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['tm_show_login_l
         var hidden = loader.classList.contains('is-hidden');
         var hideTimer = null;
         var lensTrackerId = 0;
-        var prefetchedUrls = {};
         var stage = loader.querySelector('.tm-loading-stage');
         var lens = loader.querySelector('.tm-loading-lens');
         var lensScene = loader.querySelector('.tm-loading-lens-scene');
@@ -337,74 +336,6 @@ if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['tm_show_login_l
             return true;
         }
 
-        function shouldPrefetchLink(anchor) {
-            if (!anchor || anchor.hasAttribute('download')) {
-                return false;
-            }
-
-            if (anchor.classList.contains('js-logout-link') || anchor.classList.contains('danger')) {
-                return false;
-            }
-
-            var rawHref = (anchor.getAttribute('href') || '').trim();
-            if (!rawHref || rawHref === '#' || rawHref.indexOf('javascript:') === 0) {
-                return false;
-            }
-
-            var target = (anchor.getAttribute('target') || '').trim().toLowerCase();
-            if (target && target !== '_self') {
-                return false;
-            }
-
-            var url;
-            try {
-                url = new URL(anchor.href, window.location.href);
-            } catch (error) {
-                return false;
-            }
-
-            if (url.origin !== window.location.origin || url.protocol !== window.location.protocol) {
-                return false;
-            }
-
-            if (url.pathname === window.location.pathname && url.search === window.location.search) {
-                return false;
-            }
-
-            return /\.(?:pdf|zip|jpg|jpeg|png|gif|webp|mp4|docx?|xlsx?)$/i.test(url.pathname) === false;
-        }
-
-        function prefetchLink(anchor) {
-            if (!shouldPrefetchLink(anchor)) {
-                return;
-            }
-
-            var url = new URL(anchor.href, window.location.href);
-            var key = url.href;
-            if (prefetchedUrls[key]) {
-                return;
-            }
-
-            prefetchedUrls[key] = true;
-            var link = document.createElement('link');
-            link.rel = 'prefetch';
-            link.href = key;
-            link.as = 'document';
-            document.head.appendChild(link);
-        }
-
-        function isNavigationPrefetchAnchor(anchor) {
-            if (!anchor) {
-                return false;
-            }
-
-            return !!(
-                anchor.classList.contains('dash-nav-item')
-                || anchor.classList.contains('dash-top-profile-link')
-                || anchor.classList.contains('mobile-msg-icon')
-            );
-        }
-
         if (!hidden && (document.readyState === 'interactive' || document.readyState === 'complete')) {
             hideWhenReady();
         }
@@ -415,11 +346,7 @@ if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['tm_show_login_l
         document.addEventListener('click', function (event) {
             var target = event.target;
             var anchor = target && target.closest ? target.closest('a[href]') : null;
-            if (!anchor || (!anchor.hasAttribute('data-tm-show-loading') && !anchor.closest('.dash-nav, .dash-top-profile-dropdown, .mobile-top-profile-dropdown'))) {
-                return;
-            }
-
-            if (anchor.classList.contains('js-logout-link') || anchor.classList.contains('danger')) {
+            if (!anchor || !anchor.hasAttribute('data-tm-show-loading')) {
                 return;
             }
 
@@ -428,30 +355,6 @@ if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['tm_show_login_l
             }
 
             showLoader();
-        });
-
-        document.addEventListener('pointerenter', function (event) {
-            var target = event.target;
-            var anchor = target && target.closest ? target.closest('a[href]') : null;
-            if (isNavigationPrefetchAnchor(anchor)) {
-                prefetchLink(anchor);
-            }
-        }, true);
-
-        document.addEventListener('touchstart', function (event) {
-            var target = event.target;
-            var anchor = target && target.closest ? target.closest('a[href]') : null;
-            if (isNavigationPrefetchAnchor(anchor)) {
-                prefetchLink(anchor);
-            }
-        }, { passive: true, capture: true });
-
-        document.addEventListener('focusin', function (event) {
-            var target = event.target;
-            var anchor = target && target.closest ? target.closest('a[href]') : null;
-            if (isNavigationPrefetchAnchor(anchor)) {
-                prefetchLink(anchor);
-            }
         });
 
         document.addEventListener('submit', function (event) {

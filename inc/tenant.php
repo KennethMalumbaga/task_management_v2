@@ -47,7 +47,7 @@ if (!function_exists('tenant_table_exists')) {
 if (!function_exists('tenant_get_current_org_id')) {
     function tenant_get_current_org_id()
     {
-        if (session_status() === PHP_SESSION_ACTIVE && isset($_SESSION['organization_id'])) {
+        if (isset($_SESSION) && is_array($_SESSION) && isset($_SESSION['organization_id'])) {
             $orgId = (int)$_SESSION['organization_id'];
             return $orgId > 0 ? $orgId : null;
         }

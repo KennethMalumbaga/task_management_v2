@@ -40,7 +40,11 @@ function group_message_delete_ensure_schema($pdo)
 function insert_group_message($pdo, $group_id, $sender_id, $message)
 {
     $orgId = tenant_get_current_org_id();
-    if (tenant_column_exists($pdo, 'group_messages', 'organization_id') && $orgId) {
+    if (tenant_column_exists($pdo, 'group_messages', 'organization_id')) {
+        if (!$orgId) {
+            return 0;
+        }
+
         $stmt = $pdo->prepare(
             "INSERT INTO group_messages (group_id, sender_id, message, organization_id) VALUES (?, ?, ?, ?)"
         );

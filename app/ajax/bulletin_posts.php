@@ -1,5 +1,7 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../inc/performance.php';
+performance_monitor_request('dashboard.bulletin_posts');
 
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');

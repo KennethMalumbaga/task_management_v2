@@ -146,6 +146,26 @@ if (!function_exists('user_link_google_account_unscoped')) {
 
 function get_all_users($pdo, $role = 'all')
 {
+    $orgId = tenant_get_current_org_id();
+    if ($orgId && tenant_table_exists($pdo, 'organization_members')) {
+        $sql = "SELECT u.*
+                FROM users u
+                INNER JOIN organization_members om ON om.user_id = u.id
+                WHERE om.organization_id = ?";
+        $params = [(int)$orgId];
+
+        if ($role !== 'all') {
+            $sql .= " AND u.role = ?";
+            $params[] = $role;
+        }
+
+        $sql .= " ORDER BY u.full_name ASC, u.id ASC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $users = $stmt->fetchAll();
+        return $users ?: [];
+    }
+
     if ($role === 'all') {
         [$sql, $params] = user_model_append_scope($pdo, "SELECT * FROM users WHERE 1=1", [], 'users');
         $stmt = $pdo->prepare($sql);
@@ -568,6 +588,19 @@ function delete_user($pdo, $data)
 
 function get_user_by_id($pdo, $id)
 {
+    $orgId = tenant_get_current_org_id();
+    if ($orgId && tenant_table_exists($pdo, 'organization_members')) {
+        $sql = "SELECT u.*
+                FROM users u
+                INNER JOIN organization_members om ON om.user_id = u.id
+                WHERE u.id = ? AND om.organization_id = ?
+                LIMIT 1";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([(int)$id, (int)$orgId]);
+        $user = $stmt->fetch();
+        return $user ?: 0;
+    }
+
     $sql = "SELECT * FROM users WHERE id = ?";
     [$sql, $params] = user_model_append_scope($pdo, $sql, [$id], 'users');
     $stmt = $pdo->prepare($sql);
@@ -593,6 +626,43 @@ if (!function_exists('user_get_workspace_member_role')) {
         $role = $stmt->fetchColumn();
 
         return $role !== false ? (string)$role : null;
+    }
+}
+
+if (!function_exists('user_is_workspace_member')) {
+    function user_is_workspace_member($pdo, $userId, $orgId = null)
+    {
+        $userId = (int)$userId;
+        $orgId = $orgId !== null ? (int)$orgId : tenant_get_current_org_id();
+
+        if ($userId <= 0) {
+            return false;
+        }
+
+        if ($orgId > 0 && tenant_table_exists($pdo, 'organization_members')) {
+            $stmt = $pdo->prepare(
+                "SELECT 1
+                 FROM organization_members
+                 WHERE organization_id = ? AND user_id = ?
+                 LIMIT 1"
+            );
+            $stmt->execute([$orgId, $userId]);
+            return (bool)$stmt->fetchColumn();
+        }
+
+        if ($orgId > 0 && tenant_column_exists($pdo, 'users', 'organization_id')) {
+            $stmt = $pdo->prepare("SELECT 1 FROM users WHERE id = ? AND organization_id = ? LIMIT 1");
+            $stmt->execute([$userId, $orgId]);
+            return (bool)$stmt->fetchColumn();
+        }
+
+        if (tenant_table_exists($pdo, 'organization_members') || tenant_column_exists($pdo, 'users', 'organization_id')) {
+            return false;
+        }
+
+        $stmt = $pdo->prepare("SELECT 1 FROM users WHERE id = ? LIMIT 1");
+        $stmt->execute([$userId]);
+        return (bool)$stmt->fetchColumn();
     }
 }
 

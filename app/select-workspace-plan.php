@@ -52,14 +52,13 @@ if ($planCode === '') {
     plan_redirect_error("Plan selection is required.");
 }
 
-$result = tenant_apply_workspace_plan($pdo, (int)$orgId, $planCode);
-if (empty($result['ok'])) {
-    plan_redirect_error((string)($result['reason'] ?? 'Failed to update workspace plan right now.'));
+$normalizedPlanCode = strtolower($planCode);
+$planCatalog = tenant_workspace_plan_catalog();
+if (!isset($planCatalog[$normalizedPlanCode])) {
+    plan_redirect_error("Please choose a valid workspace plan.");
 }
 
-$selectedPlan = $result['plan'] ?? tenant_resolve_workspace_plan($planCode, 'starter');
+$selectedPlan = $planCatalog[$normalizedPlanCode];
 $selectedPlanName = (string)($selectedPlan['name'] ?? 'Plan');
-$selectedSeatLimit = (int)($selectedPlan['seat_limit'] ?? 0);
-$selectedSeatDisplay = (string)($selectedPlan['seat_display'] ?? tenant_format_seat_limit($selectedSeatLimit, 'N/A'));
 
-plan_redirect_success("Workspace plan updated to {$selectedPlanName} ({$selectedSeatDisplay} seats).");
+plan_redirect_error("{$selectedPlanName} was not applied yet. Plans now activate only after successful PayMongo payment.");

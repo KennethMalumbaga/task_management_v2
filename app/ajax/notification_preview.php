@@ -1,5 +1,7 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../inc/performance.php';
+performance_monitor_request('dashboard.notification_preview');
 
 header('Content-Type: application/json');
 

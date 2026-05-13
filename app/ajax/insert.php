@@ -22,11 +22,26 @@ if (isset($_SESSION['id'])) {
     session_write_close();
 	
 	include "../../DB_connection.php";
+    include "../model/user.php";
     include "../model/Message.php";
     include "../model/Typing.php";
 
+    if (
+        $to_id <= 0
+        || $to_id === $from_id
+        || !user_is_workspace_member($pdo, $from_id)
+        || !user_is_workspace_member($pdo, $to_id)
+    ) {
+        http_response_code(403);
+        exit;
+    }
+
     // Insert chat first
 	$chat_id = insertChat($from_id, $to_id, $message, $pdo);
+    if ((int)$chat_id <= 0) {
+        http_response_code(403);
+        exit;
+    }
 
     // Check for file uploads (multiple)
     if (isset($_FILES['files']) && !empty($_FILES['files']['name'][0])) {

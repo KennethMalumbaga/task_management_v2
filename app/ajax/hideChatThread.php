@@ -23,6 +23,7 @@ if (!csrf_verify('chat_ajax_actions', $_POST['csrf_token'] ?? null, false)) {
 }
 
 include "../../DB_connection.php";
+include "../model/user.php";
 include "../model/Message.php";
 include "../model/GroupMessage.php";
 include "../model/Group.php";
@@ -47,8 +48,13 @@ if ($chatType === 'group') {
 
 if ($chatType === 'user') {
     $otherUserId = (int)($_POST['user_id'] ?? 0);
-    if ($otherUserId <= 0 || $otherUserId === $currentUserId) {
-        http_response_code(400);
+    if (
+        $otherUserId <= 0
+        || $otherUserId === $currentUserId
+        || !user_is_workspace_member($pdo, $currentUserId)
+        || !user_is_workspace_member($pdo, $otherUserId)
+    ) {
+        http_response_code($otherUserId <= 0 ? 400 : 403);
         echo json_encode(['ok' => false]);
         exit;
     }

@@ -85,7 +85,15 @@ if ($flow === 'workspace') {
         ]);
     }
 
-    $activation = paymongo_activate_workspace_subscription($pdo, (int)($pending['organization_id'] ?? 0), $checkoutSessionId);
+    $paidPlanCode = strtolower(trim((string)($pending['plan_code'] ?? '')));
+    if ($paidPlanCode === '') {
+        unset($_SESSION['paymongo_workspace_checkout']);
+        paymongo_return_redirect("../workspace-billing.php", [
+            'error' => 'Paid plan details are missing. Please start a new checkout.',
+        ]);
+    }
+
+    $activation = paymongo_activate_workspace_subscription($pdo, (int)($pending['organization_id'] ?? 0), $checkoutSessionId, $paidPlanCode);
     if (empty($activation['ok'])) {
         paymongo_return_redirect("../workspace-billing.php", [
             'error' => (string)($activation['reason'] ?? 'Unable to activate the workspace subscription right now.'),
@@ -95,7 +103,15 @@ if ($flow === 'workspace') {
     $summary = paymongo_checkout_payment_summary($checkout);
     unset($_SESSION['paymongo_workspace_checkout']);
 
+    $paidPlanName = trim((string)($pending['plan_name'] ?? ''));
+    if ($paidPlanName === '' && is_array($activation['plan'] ?? null)) {
+        $paidPlanName = trim((string)($activation['plan']['name'] ?? ''));
+    }
+
     $message = "PayMongo test payment successful via " . (string)($summary['method_label'] ?? 'PayMongo') . ".";
+    if ($paidPlanName !== '') {
+        $message .= " {$paidPlanName} plan is now active.";
+    }
     $message .= " Subscription active until " . paymongo_return_period_display($activation['current_period_end'] ?? null) . ".";
 
     paymongo_return_redirect("../workspace-billing.php", [

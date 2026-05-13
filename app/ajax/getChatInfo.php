@@ -2,6 +2,8 @@
 
 session_start();
 require_once "../../inc/csrf.php";
+require_once "../../inc/performance.php";
+performance_monitor_request('messages.chat_info');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -91,6 +93,11 @@ if ($chatType === 'group') {
 }
 
 if ($otherUserId <= 0 || $otherUserId === $currentUserId) {
+    exit;
+}
+
+if (!user_is_workspace_member($pdo, $currentUserId) || !user_is_workspace_member($pdo, $otherUserId)) {
+    http_response_code(403);
     exit;
 }
 

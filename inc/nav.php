@@ -228,6 +228,9 @@ if (isset($_SESSION['role'], $_SESSION['id']) && isset($pdo)) {
                 try {
                     localStorage.setItem('taskflow_force_stop_capture', String(Date.now()));
                 } catch (e) {}
+                if (typeof window.__tmShowLoadingScreen === 'function') {
+                    window.__tmShowLoadingScreen();
+                }
                 window.location.href = pendingHref;
             });
         }
