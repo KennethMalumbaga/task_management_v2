@@ -54,6 +54,28 @@ function getChats($sender_id, $receiver_id, $conn)
     return [];
 }
 
+function get_recent_chats($sender_id, $receiver_id, $conn, $limit = 200)
+{
+    $limit = max(1, (int)$limit);
+
+    $sql = "SELECT * FROM chats
+            WHERE ((sender_id = ? AND receiver_id = ?)
+               OR (receiver_id = ? AND sender_id = ?))";
+    $sql = message_apply_not_deleted_filter($conn, $sql);
+    [$sql, $params] = message_scope($conn, $sql, [$sender_id, $receiver_id, $sender_id, $receiver_id], 'AND');
+    $sql .= " ORDER BY chat_id DESC LIMIT ?";
+
+    $stmt = $conn->prepare($sql);
+    foreach ($params as $idx => $value) {
+        $stmt->bindValue($idx + 1, $value);
+    }
+    $stmt->bindValue(count($params) + 1, $limit, PDO::PARAM_INT);
+    $stmt->execute();
+
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    return array_reverse($rows);
+}
+
 function insertChat($sender_id, $receiver_id, $message, $conn)
 {
     $orgId = tenant_get_current_org_id();
@@ -98,6 +120,44 @@ function getAttachments($chat_id, $conn)
     return [];
 }
 
+function get_attachments_map(array $chat_ids, $conn)
+{
+    if (!table_exists($conn, 'chat_attachments')) {
+        return [];
+    }
+
+    $chat_ids = array_values(array_unique(array_filter(array_map('intval', $chat_ids), function ($chatId) {
+        return $chatId > 0;
+    })));
+
+    if (!$chat_ids) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($chat_ids), '?'));
+    $sql = "SELECT chat_id, attachment_name
+            FROM chat_attachments
+            WHERE chat_id IN ({$placeholders})
+            ORDER BY attachment_id ASC";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($chat_ids);
+
+    $map = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $chatId = (int)($row['chat_id'] ?? 0);
+        if ($chatId <= 0) {
+            continue;
+        }
+        if (!isset($map[$chatId])) {
+            $map[$chatId] = [];
+        }
+        $map[$chatId][] = $row['attachment_name'];
+    }
+
+    return $map;
+}
+
 if (!function_exists('table_exists')) {
     function table_exists($conn, $table_name)
     {
@@ -130,6 +190,47 @@ function lastChat($id_1, $id_2, $conn)
     return [];
 }
 
+function get_last_chats_map($viewer_id, array $other_user_ids, $conn)
+{
+    $viewer_id = (int)$viewer_id;
+    $other_user_ids = array_values(array_unique(array_filter(array_map('intval', $other_user_ids), function ($userId) use ($viewer_id) {
+        return $userId > 0 && $userId !== $viewer_id;
+    })));
+
+    if ($viewer_id <= 0 || !$other_user_ids) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($other_user_ids), '?'));
+    $sql = "SELECT CASE WHEN c.sender_id = ? THEN c.receiver_id ELSE c.sender_id END AS other_user_id,
+                   MAX(c.chat_id) AS last_chat_id
+            FROM chats c
+            WHERE ((c.sender_id = ? AND c.receiver_id IN ({$placeholders}))
+               OR (c.receiver_id = ? AND c.sender_id IN ({$placeholders})))";
+
+    $params = array_merge([$viewer_id, $viewer_id], $other_user_ids, [$viewer_id], $other_user_ids);
+    $sql = message_apply_not_deleted_filter($conn, $sql, 'c');
+    [$sql, $params] = message_scope($conn, $sql, $params, 'AND', 'c');
+    $sql .= " GROUP BY other_user_id";
+
+    $outerSql = "SELECT latest.other_user_id, ch.*
+                 FROM ({$sql}) latest
+                 JOIN chats ch ON ch.chat_id = latest.last_chat_id";
+
+    $stmt = $conn->prepare($outerSql);
+    $stmt->execute($params);
+
+    $map = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $otherUserId = (int)($row['other_user_id'] ?? 0);
+        if ($otherUserId > 0) {
+            $map[$otherUserId] = $row;
+        }
+    }
+
+    return $map;
+}
+
 function countUnreadChat($sender_id, $receiver_id, $conn)
 {
     $sql = "SELECT COUNT(*) FROM chats
@@ -139,6 +240,42 @@ function countUnreadChat($sender_id, $receiver_id, $conn)
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
     return (int)$stmt->fetchColumn();
+}
+
+function count_unread_chats_map($receiver_id, array $sender_ids, $conn)
+{
+    $receiver_id = (int)$receiver_id;
+    $sender_ids = array_values(array_unique(array_filter(array_map('intval', $sender_ids), function ($senderId) use ($receiver_id) {
+        return $senderId > 0 && $senderId !== $receiver_id;
+    })));
+
+    if ($receiver_id <= 0 || !$sender_ids) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($sender_ids), '?'));
+    $sql = "SELECT sender_id, COUNT(*) AS unread_count
+            FROM chats c
+            WHERE c.receiver_id = ?
+              AND c.sender_id IN ({$placeholders})
+              AND c.opened = false";
+    $params = array_merge([$receiver_id], $sender_ids);
+    $sql = message_apply_not_deleted_filter($conn, $sql, 'c');
+    [$sql, $params] = message_scope($conn, $sql, $params, 'AND', 'c');
+    $sql .= " GROUP BY sender_id";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
+
+    $map = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $senderId = (int)($row['sender_id'] ?? 0);
+        if ($senderId > 0) {
+            $map[$senderId] = (int)($row['unread_count'] ?? 0);
+        }
+    }
+
+    return $map;
 }
 
 function countAllUnread($receiver_id, $conn)

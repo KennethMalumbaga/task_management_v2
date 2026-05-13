@@ -16,21 +16,25 @@ if (isset($_SESSION['id'])) {
 	}
 
 	if (isset($_POST['id_2'])) {
+    $id_1 = (int)$_SESSION['id'];
+	$id_2 = (int)$_POST['id_2'];
+    session_write_close();
 	
 	include "../../DB_connection.php";
     include "../model/Message.php";
     include "../model/user.php";
 
-	$id_1 = $_SESSION['id'];
-	$id_2 = $_POST['id_2'];
 	$opend = 0;
 
-	$chats = getChats($id_1, $id_2, $pdo); 
+	$chats = get_recent_chats($id_1, $id_2, $pdo, 200);
     
-    // Mark as read
-    opend($id_1, $pdo, $chats);   
+    // Mark all incoming messages in one update instead of one update per row.
+    mark_chat_conversation_as_read($id_1, $id_2, $pdo);
     
     if (!empty($chats)) {
+    $attachmentMap = get_attachments_map(array_map(function ($chat) {
+        return (int)($chat['chat_id'] ?? 0);
+    }, $chats), $pdo);
     $lastSeenAnchorId = find_last_seen_direct_chat_anchor_id($chats, $id_1, $id_2);
     $otherUser = get_user_by_id($pdo, $id_2);
     $seenAvatarHtml = '';
@@ -61,7 +65,8 @@ if (isset($_SESSION['id'])) {
             $lastDateKey = $currentDateKey;
         }
 
-        $attachments = getAttachments($chat['chat_id'], $pdo);
+        $chatId = (int)($chat['chat_id'] ?? 0);
+        $attachments = $attachmentMap[$chatId] ?? [];
         if ($chat['sender_id'] == $id_1) { // My message (Outgoing)
             $deletePreview = trim(strip_tags((string)($chat['message'] ?? '')));
             $deletePreview = preg_replace('/\s+/', ' ', $deletePreview ?? '');

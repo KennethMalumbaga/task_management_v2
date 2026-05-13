@@ -15,14 +15,15 @@ if (isset($_SESSION['id'])) {
     }
 
     if (isset($_POST['message']) && isset($_POST['group_id'])) {
+        $message = $_POST['message'];
+        $group_id = (int)$_POST['group_id'];
+        $from_id = (int)$_SESSION['id'];
+        session_write_close();
+
         include "../../DB_connection.php";
         include "../model/GroupMessage.php";
         include "../model/Group.php";
         include "../model/Typing.php";
-
-        $message = $_POST['message'];
-        $group_id = (int)$_POST['group_id'];
-        $from_id = $_SESSION['id'];
 
         if (!is_user_in_group($pdo, $group_id, $from_id)) {
             exit();

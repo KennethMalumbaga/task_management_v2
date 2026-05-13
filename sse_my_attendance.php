@@ -29,6 +29,7 @@ while (ob_get_level() > 0) {
 $user_id = (int)$_SESSION['id'];
 $last_hash = '';
 $last_heartbeat = time();
+$poll_interval_microseconds = 5000000;
 
 while (true) {
     if (connection_aborted()) {
@@ -67,5 +68,5 @@ while (true) {
     }
 
     @flush();
-    usleep(500000);
+    usleep($poll_interval_microseconds);
 }

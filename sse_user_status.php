@@ -43,6 +43,7 @@ if (empty($ids)) {
 
 $last_hash = '';
 $last_heartbeat = time();
+$poll_interval_microseconds = 5000000;
 
 while (true) {
     if (connection_aborted()) {
@@ -73,5 +74,5 @@ while (true) {
     }
 
     @flush();
-    usleep(500000);
+    usleep($poll_interval_microseconds);
 }

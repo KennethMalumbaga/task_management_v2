@@ -3230,22 +3230,12 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }, 'GET');
         }
 
-        var source = new EventSource('sse_my_attendance.php');
-        source.onmessage = function (event) {
-            try {
-                var data = JSON.parse(event.data || '{}');
-                if (data && data.status === 'success') {
-                    applyAttendanceState(data);
-                }
-            } catch (e) {
-                // ignore parse errors
+        fallbackPoll();
+        setInterval(function () {
+            if (!document.hidden) {
+                fallbackPoll();
             }
-        };
-        source.onerror = function () {
-            source.close();
-            fallbackPoll();
-            setInterval(fallbackPoll, 30000);
-        };
+        }, 30000);
     }
 
     function closeModal() {

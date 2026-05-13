@@ -9,11 +9,15 @@ if (!isset($_SESSION['role'], $_SESSION['id'])) {
     exit;
 }
 
+$userId = (int)$_SESSION['id'];
+$userRole = (string)$_SESSION['role'];
+session_write_close();
+
 require_once __DIR__ . '/../../DB_connection.php';
 require_once __DIR__ . '/../model/Bulletin.php';
 
 try {
-    $posts = get_recent_bulletin_posts($pdo, 30, (int)$_SESSION['id'], (string)$_SESSION['role']);
+    $posts = get_recent_bulletin_posts($pdo, 30, $userId, $userRole);
     echo json_encode([
         'status' => 'success',
         'posts' => is_array($posts) ? $posts : [],

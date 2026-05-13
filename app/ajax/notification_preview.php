@@ -8,12 +8,16 @@ if (!isset($_SESSION['role'], $_SESSION['id'])) {
     exit;
 }
 
+$userId = (int)$_SESSION['id'];
+
 require_once __DIR__ . '/../../DB_connection.php';
 require_once __DIR__ . '/../../inc/csrf.php';
 require_once __DIR__ . '/../helpers/notification.php';
 require_once __DIR__ . '/../model/Notification.php';
 
-$userId = (int)$_SESSION['id'];
+$notificationReadCsrfToken = csrf_token('notification_read_action');
+session_write_close();
+
 $unread = 0;
 try {
     $unread = (int)count_notification($pdo, $userId);
@@ -27,7 +31,6 @@ if (!is_array($notifRows)) {
 }
 $notifPreview = $notifRows;
 $notificationNowTs = tm_notification_reference_now($pdo);
-$notificationReadCsrfToken = csrf_token('notification_read_action');
 
 $html = '';
 if (empty($notifPreview)) {

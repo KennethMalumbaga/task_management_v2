@@ -28,10 +28,12 @@ if ($groupId <= 0) {
     exit;
 }
 
+$userId = (int)$_SESSION['id'];
+session_write_close();
+
 include "../../DB_connection.php";
 include "../model/Group.php";
 
-$userId = (int)$_SESSION['id'];
 if (!is_user_in_group($pdo, $groupId, $userId)) {
     echo json_encode(['ok' => false, 'members' => []]);
     exit;

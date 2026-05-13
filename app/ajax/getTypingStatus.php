@@ -22,12 +22,13 @@ if (!csrf_verify('chat_ajax_actions', $_POST['csrf_token'] ?? null, false)) {
     exit;
 }
 
+$userId = (int)$_SESSION['id'];
+session_write_close();
+
 include "../../DB_connection.php";
 include "../model/Typing.php";
 include "../model/Group.php";
 include "../model/user.php";
-
-$userId = (int)$_SESSION['id'];
 
 if (!function_exists('typing_avatar_payload_from_user')) {
     function typing_avatar_payload_from_user($user)

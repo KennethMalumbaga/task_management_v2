@@ -8,6 +8,8 @@ if (!isset($_SESSION['role'], $_SESSION['id']) || $_SESSION['role'] !== 'admin')
     exit;
 }
 
+session_write_close();
+
 require_once __DIR__ . '/../../DB_connection.php';
 require_once __DIR__ . '/../model/user.php';
 

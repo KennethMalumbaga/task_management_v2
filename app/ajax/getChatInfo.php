@@ -18,6 +18,12 @@ if (!csrf_verify('chat_ajax_actions', $_POST['csrf_token'] ?? null, false)) {
     exit;
 }
 
+$currentUserId = (int)$_SESSION['id'];
+$chatType = trim((string)($_POST['chat_type'] ?? ''));
+$groupId = (int)($_POST['group_id'] ?? 0);
+$otherUserId = (int)($_POST['user_id'] ?? 0);
+session_write_close();
+
 include "../../DB_connection.php";
 include "../model/user.php";
 include "../model/Group.php";
@@ -25,11 +31,7 @@ include "../model/Message.php";
 include "../model/GroupMessage.php";
 include "../model/ChatAssets.php";
 
-$currentUserId = (int)$_SESSION['id'];
-$chatType = trim((string)($_POST['chat_type'] ?? ''));
-
 if ($chatType === 'group') {
-    $groupId = (int)($_POST['group_id'] ?? 0);
     if ($groupId <= 0 || !is_user_in_group($pdo, $groupId, $currentUserId)) {
         exit;
     }
@@ -88,7 +90,6 @@ if ($chatType === 'group') {
     exit;
 }
 
-$otherUserId = (int)($_POST['user_id'] ?? 0);
 if ($otherUserId <= 0 || $otherUserId === $currentUserId) {
     exit;
 }

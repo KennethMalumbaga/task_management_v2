@@ -8,63 +8,16 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
     include "app/model/Group.php";
     include "app/model/GroupMessage.php";
     include "app/model/ChatVisibility.php";
+    require_once "app/helpers/chat_sidebar.php";
     require_once "app/model/GoogleWorkspace.php";
     require_once "app/helpers/google_gmail.php";
     $chatAjaxCsrfToken = csrf_token('chat_ajax_actions');
     $composeEmailCsrfToken = csrf_token('compose_email_action');
     
-    // Fetch users for the chat list
-    // Fetch users for the chat list
-    $all_users = get_all_users($pdo);
-    $users = [];
-    foreach ($all_users as $user) {
-        if ($user['id'] == $_SESSION['id']) continue;
-        
-        $lastMessage = lastChat($_SESSION['id'], $user['id'], $pdo);
-        $user['last_msg_time'] = !empty($lastMessage) ? $lastMessage['created_at'] : '0000-00-00 00:00:00';
-        $user['last_message_data'] = $lastMessage; // Cache it to avoid re-querying
-        $users[] = $user;
-    }
-    $hiddenThreadsMap = get_hidden_threads_map($pdo, (int)$_SESSION['id']);
-    $users = array_values(array_filter($users, function ($user) use ($hiddenThreadsMap) {
-        $userId = (int)($user['id'] ?? 0);
-        $lastMsgTime = (string)($user['last_msg_time'] ?? '');
-        return !chat_thread_should_be_hidden($hiddenThreadsMap['users'][$userId] ?? null, $lastMsgTime);
-    }));
-
-    // Sort users by last message time desc
-    usort($users, function($a, $b) {
-        return strtotime($b['last_msg_time']) - strtotime($a['last_msg_time']);
-    });
-    $userPresenceMap = get_users_clocked_in_map($pdo, array_column($users, 'id'));
-
-    // Fetch groups
-    $all_groups = get_groups_for_user($pdo, $_SESSION['id']);
-    $groups = [];
-    if (!empty($all_groups)) {
-        foreach ($all_groups as $group) {
-            $lastGroupMsg = get_last_group_message($pdo, $group['id']);
-            $group['last_message_data'] = $lastGroupMsg;
-            $group['last_msg_sort_time'] = (!empty($lastGroupMsg) && !empty($lastGroupMsg['created_at']))
-                ? $lastGroupMsg['created_at']
-                : null;
-            if (!empty($lastGroupMsg) && !empty($lastGroupMsg['created_at'])) {
-                $group['last_msg_time'] = $lastGroupMsg['created_at'];
-            } elseif (!empty($group['created_at'])) {
-                $group['last_msg_time'] = $group['created_at'];
-            } else {
-                $group['last_msg_time'] = null;
-            }
-            if (chat_thread_should_be_hidden($hiddenThreadsMap['groups'][(int)$group['id']] ?? null, (string)($group['last_msg_time'] ?? ''))) {
-                continue;
-            }
-            $groups[] = $group;
-        }
-        // Sort groups by last message time desc
-        usort($groups, function($a, $b) {
-            return strtotime($b['last_msg_time'] ?? '1970-01-01 00:00:00') - strtotime($a['last_msg_time'] ?? '1970-01-01 00:00:00');
-        });
-    }
+    $chatSidebarData = chat_sidebar_build_data($pdo, (int)$_SESSION['id']);
+    $all_users = $chatSidebarData['all_users'];
+    $users = $chatSidebarData['users'];
+    $groups = $chatSidebarData['groups'];
     $dashboardCssVersion = @filemtime(__DIR__ . "/css/dashboard.css") ?: time();
     $chatCssVersion = @filemtime(__DIR__ . "/css/chat.css") ?: time();
     $chatAttachmentsCssVersion = @filemtime(__DIR__ . "/css/chat_attachments.css") ?: time();
@@ -187,18 +140,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                 <div class="chat-list" id="allChatList"></div>
                 
                 <div class="chat-list" id="chatList">
-                    <?php 
-                    if ($users != 0) {
-                        foreach ($users as $user) {
-                            $lastMessage = $user['last_message_data'];
-                            $unreadCount = countUnreadChat($user['id'], $_SESSION['id'], $pdo);
-                            $user['is_online'] = !empty($userPresenceMap[(int)$user['id']]);
-                    ?>
-                    <?= render_chat_user_list_item($user, $lastMessage, $unreadCount, (int)$_SESSION['id']) ?>
-                    <?php 
-                        }
-                    } 
-                    ?>
+                    <?= chat_sidebar_render_users($users, (int)$_SESSION['id']) ?>
                 </div>
 
                 <!-- Group Chats -->
@@ -206,48 +148,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     <div class="chat-group-heading-label">Groups</div>
                 </div>
                 <div class="chat-list" id="groupList">
-                    <?php if (!empty($groups)) { foreach ($groups as $group) { ?>
-                        <?php
-                            $lastGroupMsg = $group['last_message_data'] ?? [];
-                            $groupLastTimestamp = !empty($group['last_msg_sort_time']) ? strtotime($group['last_msg_sort_time']) : 0;
-                            if ($groupLastTimestamp === false) $groupLastTimestamp = 0;
-                            $groupPreview = format_group_list_preview($pdo, $lastGroupMsg, (int)$_SESSION['id']);
-                        ?>
-                        <div class="chat-item group-item" data-group-id="<?=$group['id']?>" data-group-name="<?=htmlspecialchars($group['name'])?>" data-last-ts="<?=$groupLastTimestamp?>">
-                            <div class="avatar-md" style="background:var(--primary-soft-3); color:var(--primary);">
-                                <i class="fa fa-users"></i>
-                            </div>
-                            <div class="chat-item-content">
-                                <div class="chat-item-header">
-                                    <span class="chat-user-name"><?=htmlspecialchars($group['name'])?></span>
-                                </div>
-                                <div class="chat-item-sub-row">
-                                    <div class="chat-item-last-msg"><?=$groupPreview?></div>
-                                    <?php 
-                                        $grpUnread = get_group_unread_count($pdo, $group['id'], $_SESSION['id']);
-                                        if($grpUnread > 0){
-                                    ?>
-                                        <span class="message-badge"><?=$grpUnread?></span>
-                                    <?php } ?>
-                                </div>
-                                <?php if(!empty($group['last_msg_time'])) { ?>
-                                     <div class="chat-time"><?=formatChatTime($group['last_msg_time'])?></div>
-                                <?php } ?>
-                            </div>
-                            <button
-                                type="button"
-                                class="chat-item-delete-btn"
-                                aria-label="Delete chat <?= htmlspecialchars($group['name']) ?>"
-                                title="Delete chat"
-                                data-delete-type="group"
-                                data-delete-id="<?=$group['id']?>"
-                                data-delete-name="<?=htmlspecialchars($group['name'])?>">
-                                <i class="fa fa-trash-o"></i>
-                            </button>
-                        </div>
-                    <?php } } else { ?>
-                        <div style="padding: 12px; color:#9CA3AF; font-size:13px;">No groups yet.</div>
-                    <?php } ?>
+                    <?= chat_sidebar_render_groups($pdo, $groups, (int)$_SESSION['id']) ?>
                 </div>
             </div>
 
@@ -450,6 +351,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             var currentGroupId = 0;
             var currentChatType = "user"; // user | group
             var loadInterval;
+            var messageRequestInFlight = false;
+            var chatListRequestInFlight = false;
             var selectedFiles = []; // Array to store multiple files
             var chatAjaxCsrfToken = <?= json_encode($chatAjaxCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
             var formalEmailCsrfToken = <?= json_encode($composeEmailCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
@@ -1539,6 +1442,7 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             }
 
             function refreshTypingStatus() {
+                if (document.hidden) return;
                 var context = getActiveTypingContext();
                 if (!context || !context.id || typingStatusRequestInFlight) {
                     if (!context) {
@@ -2299,12 +2203,22 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             function loadMessages(forceScroll = false) {
                 if(currentChatType === "user" && currentChatUserId == 0) return;
                 if(currentChatType === "group" && currentGroupId == 0) return;
+                if(document.hidden && !forceScroll) return;
+                if(messageRequestInFlight) return;
 
                  var endpoint = currentChatType === "group" ? "app/ajax/getGroupMessage.php" : "app/ajax/getMessage.php";
                  var payload = currentChatType === "group" ? { group_id: currentGroupId } : { id_2: currentChatUserId };
                  payload.csrf_token = chatAjaxCsrfToken;
+                 var requestChatType = currentChatType;
+                 var requestChatId = requestChatType === "group" ? currentGroupId : currentChatUserId;
+                 messageRequestInFlight = true;
 
                  $.post(endpoint, payload, function(data, status){
+                    var activeChatId = requestChatType === "group" ? currentGroupId : currentChatUserId;
+                    if (requestChatType !== currentChatType || String(activeChatId) !== String(requestChatId)) {
+                        return;
+                    }
+
                     var chatBox = $("#chatBox");
                     var isScrolledToBottom = chatBox[0].scrollHeight - chatBox[0].scrollTop <= chatBox[0].clientHeight + 50;
                     
@@ -2315,6 +2229,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     if(isScrolledToBottom || forceScroll) {
                         scrollDown();
                     }
+                }).always(function(){
+                    messageRequestInFlight = false;
                 });
             }
 
@@ -2325,9 +2241,11 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
 
             // Real-time polling
             setInterval(function(){
-                loadMessages();
-                refreshChatLists();
-            }, 3000); // Check every 3 seconds
+                if (!document.hidden) {
+                    loadMessages();
+                    refreshChatLists();
+                }
+            }, 8000);
 
             setInterval(function(){
                 maintainOwnTypingState();
@@ -2337,7 +2255,9 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
             function refreshChatLists(){
                 // Only refresh if search is empty to avoid interrupting typing
                 if($("#searchText").val() != "") return;
+                if(document.hidden || chatListRequestInFlight) return;
 
+                chatListRequestInFlight = true;
                 $.get('app/ajax/getChatLists.php', function(data){
                     var res = JSON.parse(data);
                     
@@ -2379,6 +2299,8 @@ if (isset($_SESSION['role']) && isset($_SESSION['id'])) {
                     }
 
                     applyChatFilter(currentListFilter);
+                }).always(function(){
+                    chatListRequestInFlight = false;
                 });
             }
 

@@ -52,7 +52,7 @@ function insert_group_message($pdo, $group_id, $sender_id, $message)
     return $pdo->lastInsertId();
 }
 
-function get_group_messages($pdo, $group_id)
+function get_group_messages($pdo, $group_id, $limit = null)
 {
     $sql = "SELECT gm.*, u.full_name, u.profile_image, u.role AS user_role
             FROM group_messages gm
@@ -60,11 +60,25 @@ function get_group_messages($pdo, $group_id)
             WHERE gm.group_id = ?";
     $sql = group_message_apply_not_deleted_filter($pdo, $sql, 'gm');
     [$sql, $params] = group_message_scope($pdo, $sql, [$group_id], 'group_messages', 'gm');
-    $sql .= " ORDER BY gm.id ASC";
+
+    if ($limit !== null) {
+        $limit = max(1, (int)$limit);
+        $sql .= " ORDER BY gm.id DESC LIMIT ?";
+    } else {
+        $sql .= " ORDER BY gm.id ASC";
+    }
 
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($params as $idx => $value) {
+        $stmt->bindValue($idx + 1, $value);
+    }
+    if ($limit !== null) {
+        $stmt->bindValue(count($params) + 1, $limit, PDO::PARAM_INT);
+    }
+    $stmt->execute();
+
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    return $limit !== null ? array_reverse($rows) : $rows;
 }
 
 function get_last_group_message($pdo, $group_id)
@@ -82,6 +96,44 @@ function get_last_group_message($pdo, $group_id)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+function get_last_group_messages_map($pdo, array $group_ids)
+{
+    $group_ids = array_values(array_unique(array_filter(array_map('intval', $group_ids), function ($groupId) {
+        return $groupId > 0;
+    })));
+
+    if (!$group_ids) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($group_ids), '?'));
+    $sql = "SELECT gm_lookup.group_id, MAX(gm_lookup.id) AS last_message_id
+            FROM group_messages gm_lookup
+            WHERE gm_lookup.group_id IN ({$placeholders})";
+    $params = $group_ids;
+    $sql = group_message_apply_not_deleted_filter($pdo, $sql, 'gm_lookup');
+    [$sql, $params] = group_message_scope($pdo, $sql, $params, 'group_messages', 'gm_lookup');
+    $sql .= " GROUP BY gm_lookup.group_id";
+
+    $outerSql = "SELECT latest.group_id, gm.*, u.full_name
+                 FROM ({$sql}) latest
+                 JOIN group_messages gm ON gm.id = latest.last_message_id
+                 JOIN users u ON u.id = gm.sender_id";
+
+    $stmt = $pdo->prepare($outerSql);
+    $stmt->execute($params);
+
+    $map = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $groupId = (int)($row['group_id'] ?? 0);
+        if ($groupId > 0) {
+            $map[$groupId] = $row;
+        }
+    }
+
+    return $map;
+}
+
 function get_group_unread_count($pdo, $group_id, $user_id)
 {
     $sql = "SELECT last_message_id FROM group_message_reads WHERE group_id = ? AND user_id = ?";
@@ -96,6 +148,54 @@ function get_group_unread_count($pdo, $group_id, $user_id)
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchColumn();
+}
+
+function get_group_unread_counts_map($pdo, array $group_ids, $user_id)
+{
+    $user_id = (int)$user_id;
+    $group_ids = array_values(array_unique(array_filter(array_map('intval', $group_ids), function ($groupId) {
+        return $groupId > 0;
+    })));
+
+    if ($user_id <= 0 || !$group_ids) {
+        return [];
+    }
+
+    $readParams = [$user_id];
+    $readSql = "SELECT group_id, MAX(last_message_id) AS last_message_id
+                FROM group_message_reads
+                WHERE user_id = ?";
+
+    $orgId = tenant_get_current_org_id();
+    if ($orgId && tenant_column_exists($pdo, 'group_message_reads', 'organization_id')) {
+        $readSql .= " AND organization_id = ?";
+        $readParams[] = (int)$orgId;
+    }
+    $readSql .= " GROUP BY group_id";
+
+    $placeholders = implode(',', array_fill(0, count($group_ids), '?'));
+    $sql = "SELECT gmsg.group_id, COUNT(gmsg.id) AS unread_count
+            FROM group_messages gmsg
+            LEFT JOIN ({$readSql}) gmr ON gmr.group_id = gmsg.group_id
+            WHERE gmsg.group_id IN ({$placeholders})
+              AND gmsg.id > COALESCE(gmr.last_message_id, 0)";
+    $params = array_merge($readParams, $group_ids);
+    $sql = group_message_apply_not_deleted_filter($pdo, $sql, 'gmsg');
+    [$sql, $params] = group_message_scope($pdo, $sql, $params, 'group_messages', 'gmsg');
+    $sql .= " GROUP BY gmsg.group_id";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    $map = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $groupId = (int)($row['group_id'] ?? 0);
+        if ($groupId > 0) {
+            $map[$groupId] = (int)($row['unread_count'] ?? 0);
+        }
+    }
+
+    return $map;
 }
 
 function count_all_group_unread($pdo, $user_id)
@@ -221,6 +321,44 @@ function get_group_attachments($pdo, $message_id)
     $stmt = $pdo->prepare("SELECT attachment_name FROM group_message_attachments WHERE message_id = ?");
     $stmt->execute([$message_id]);
     return $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+}
+
+function get_group_attachments_map($pdo, array $message_ids)
+{
+    if (!table_exists($pdo, 'group_message_attachments')) {
+        return [];
+    }
+
+    $message_ids = array_values(array_unique(array_filter(array_map('intval', $message_ids), function ($messageId) {
+        return $messageId > 0;
+    })));
+
+    if (!$message_ids) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($message_ids), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT message_id, attachment_name
+         FROM group_message_attachments
+         WHERE message_id IN ({$placeholders})
+         ORDER BY id ASC"
+    );
+    $stmt->execute($message_ids);
+
+    $map = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $messageId = (int)($row['message_id'] ?? 0);
+        if ($messageId <= 0) {
+            continue;
+        }
+        if (!isset($map[$messageId])) {
+            $map[$messageId] = [];
+        }
+        $map[$messageId][] = $row['attachment_name'];
+    }
+
+    return $map;
 }
 
 if (!function_exists('format_group_list_preview')) {

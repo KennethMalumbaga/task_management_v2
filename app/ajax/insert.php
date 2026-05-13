@@ -16,15 +16,15 @@ if (isset($_SESSION['id'])) {
     }
 
 	if (isset($_POST['message']) && isset($_POST['to_id'])) {
+	$message = $_POST['message'];
+	$to_id = (int)$_POST['to_id'];
+	$from_id = (int)$_SESSION['id'];
+    session_write_close();
 	
 	include "../../DB_connection.php";
     include "../model/Message.php";
     include "../model/Typing.php";
 
-	$message = $_POST['message'];
-	$to_id = $_POST['to_id'];
-	$from_id = $_SESSION['id'];
-    
     // Insert chat first
 	$chat_id = insertChat($from_id, $to_id, $message, $pdo);
 

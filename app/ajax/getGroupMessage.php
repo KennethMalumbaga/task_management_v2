@@ -15,13 +15,14 @@ if (isset($_SESSION['id'])) {
     }
 
     if (isset($_POST['group_id'])) {
+        $user_id = (int)$_SESSION['id'];
+        $group_id = (int)$_POST['group_id'];
+        session_write_close();
+
         include "../../DB_connection.php";
         include "../model/GroupMessage.php";
         include "../model/Message.php";
         include "../model/Group.php";
-
-        $user_id = $_SESSION['id'];
-        $group_id = (int)$_POST['group_id'];
 
         if (!is_user_in_group($pdo, $group_id, $user_id)) {
             exit();
@@ -32,7 +33,10 @@ if (isset($_SESSION['id'])) {
         $groupMembers = get_group_members($pdo, $group_id);
         $mentionNames = build_group_member_mention_names($groupMembers);
 
-        $messages = get_group_messages($pdo, $group_id);
+        $messages = get_group_messages($pdo, $group_id, 200);
+        $attachmentMap = get_group_attachments_map($pdo, array_map(function ($message) {
+            return (int)($message['id'] ?? 0);
+        }, $messages));
         $readStates = get_group_message_read_states($pdo, $group_id, $user_id);
         $seenReceiptMap = build_group_seen_receipt_map($messages, $readStates, $user_id);
 
@@ -45,7 +49,8 @@ if (isset($_SESSION['id'])) {
                     $lastDateKey = $currentDateKey;
                 }
 
-                $attachments = get_group_attachments($pdo, $msg['id']);
+                $messageId = (int)($msg['id'] ?? 0);
+                $attachments = $attachmentMap[$messageId] ?? [];
                 $isMine = ((int)$msg['sender_id'] === (int)$user_id);
                 $formattedMessage = format_group_message_mentions($msg['message'], $mentionNames);
                 $seenReaders = $seenReceiptMap[(int)$msg['id']] ?? [];

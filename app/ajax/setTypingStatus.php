@@ -22,12 +22,13 @@ if (!csrf_verify('chat_ajax_actions', $_POST['csrf_token'] ?? null, false)) {
     exit;
 }
 
+$userId = (int)$_SESSION['id'];
+$isTyping = !empty($_POST['is_typing']);
+session_write_close();
+
 include "../../DB_connection.php";
 include "../model/Typing.php";
 include "../model/Group.php";
-
-$userId = (int)$_SESSION['id'];
-$isTyping = !empty($_POST['is_typing']);
 
 if (isset($_POST['group_id'])) {
     $groupId = (int)$_POST['group_id'];
