@@ -39,7 +39,7 @@ if (!function_exists('google_gmail_build_auth_url')) {
     function google_gmail_build_auth_url($state, $forceConsent = false)
     {
         $params = [
-            'client_id' => google_auth_client_id(),
+            'client_id' => google_workspace_client_id(),
             'redirect_uri' => google_gmail_redirect_uri(),
             'response_type' => 'code',
             'scope' => implode(' ', google_gmail_scopes()),
@@ -86,7 +86,7 @@ if (!function_exists('google_gmail_exchange_code_for_tokens')) {
     {
         $payload = http_build_query([
             'code' => trim((string)$code),
-            'client_id' => google_auth_client_id(),
+            'client_id' => google_workspace_client_id(),
             'client_secret' => google_workspace_client_secret(),
             'redirect_uri' => google_gmail_redirect_uri(),
             'grant_type' => 'authorization_code',

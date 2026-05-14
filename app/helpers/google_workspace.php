@@ -3,17 +3,24 @@
 require_once dirname(__DIR__) . '/mail_config.php';
 require_once __DIR__ . '/google_auth.php';
 
+if (!function_exists('google_workspace_client_id')) {
+    function google_workspace_client_id()
+    {
+        return trim((string)(getenv('GOOGLE_WORKSPACE_CLIENT_ID') ?: ''));
+    }
+}
+
 if (!function_exists('google_workspace_client_secret')) {
     function google_workspace_client_secret()
     {
-        return trim((string)(getenv('GOOGLE_CLIENT_SECRET') ?: ''));
+        return trim((string)(getenv('GOOGLE_WORKSPACE_CLIENT_SECRET') ?: ''));
     }
 }
 
 if (!function_exists('google_workspace_is_enabled')) {
     function google_workspace_is_enabled()
     {
-        return google_auth_client_id() !== '' && google_workspace_client_secret() !== '';
+        return google_workspace_client_id() !== '' && google_workspace_client_secret() !== '';
     }
 }
 
@@ -134,7 +141,7 @@ if (!function_exists('google_workspace_build_auth_url')) {
     function google_workspace_build_auth_url($state, $forceConsent = false)
     {
         $params = [
-            'client_id' => google_auth_client_id(),
+            'client_id' => google_workspace_client_id(),
             'redirect_uri' => google_workspace_redirect_uri(),
             'response_type' => 'code',
             'scope' => implode(' ', google_workspace_scopes()),
@@ -254,7 +261,7 @@ if (!function_exists('google_workspace_exchange_code_for_tokens')) {
     {
         $payload = http_build_query([
             'code' => trim((string)$code),
-            'client_id' => google_auth_client_id(),
+            'client_id' => google_workspace_client_id(),
             'client_secret' => google_workspace_client_secret(),
             'redirect_uri' => google_workspace_redirect_uri(),
             'grant_type' => 'authorization_code',
@@ -290,7 +297,7 @@ if (!function_exists('google_workspace_refresh_access_token')) {
     {
         $payload = http_build_query([
             'refresh_token' => trim((string)$refreshToken),
-            'client_id' => google_auth_client_id(),
+            'client_id' => google_workspace_client_id(),
             'client_secret' => google_workspace_client_secret(),
             'grant_type' => 'refresh_token',
         ], '', '&', PHP_QUERY_RFC3986);

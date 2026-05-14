@@ -7,7 +7,7 @@
  */
 
 if (!function_exists('tm_load_env_file')) {
-    function tm_load_env_file($path)
+    function tm_load_env_file($path, $overwrite = false)
     {
         if (!is_readable($path)) {
             return;
@@ -32,7 +32,7 @@ if (!function_exists('tm_load_env_file')) {
                 $value = substr($value, 1, -1);
             }
 
-            if (getenv($name) === false) {
+            if ($overwrite || getenv($name) === false) {
                 putenv("$name=$value");
                 $_ENV[$name] = $value;
             }
@@ -40,8 +40,27 @@ if (!function_exists('tm_load_env_file')) {
     }
 }
 
-tm_load_env_file(dirname(__DIR__) . '/.env.local');
-tm_load_env_file(dirname(__DIR__) . '/.env');
+if (!function_exists('tm_env_request_host_is_local')) {
+    function tm_env_request_host_is_local(): bool
+    {
+        if (PHP_SAPI === 'cli') {
+            return true;
+        }
+
+        $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? '')));
+        return $host === ''
+            || $host === 'localhost'
+            || str_starts_with($host, '127.')
+            || str_starts_with($host, '[::1');
+    }
+}
+
+$tmEnvRoot = dirname(__DIR__);
+tm_load_env_file($tmEnvRoot . '/.env');
+$tmConfiguredAppEnv = strtolower(trim((string)(getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? ''))));
+if ($tmConfiguredAppEnv !== 'production' || tm_env_request_host_is_local()) {
+    tm_load_env_file($tmEnvRoot . '/.env.local', true);
+}
 
 if (!function_exists('tm_app_url_read_configured')) {
     function tm_app_url_read_configured(): string

@@ -55,7 +55,7 @@ if ($credential === '') {
     google_invite_redirect($token, "Google did not return an invite credential.");
 }
 
-$verification = google_auth_verify_id_token($credential, google_auth_client_id());
+$verification = google_auth_verify_id_token($credential, google_login_client_id());
 if (!$verification['ok']) {
     google_invite_redirect($token, (string)($verification['error'] ?? 'Google invite could not be verified.'));
 }

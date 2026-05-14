@@ -28,7 +28,7 @@ $selectedPlanSeatLimit = (int)($selectedPlan['seat_limit'] ?? 10);
 $selectedPlanSeatDisplay = (string)($selectedPlan['seat_display'] ?? tenant_format_seat_limit($selectedPlanSeatLimit, 'N/A'));
 $isEnterpriseSignup = $selectedPlanCode === 'enterprise';
 $isTrialSignup = $incomingMode === 'trial';
-$googleClientId = trim((string)(getenv('GOOGLE_CLIENT_ID') ?: ''));
+$googleClientId = trim((string)(getenv('GOOGLE_LOGIN_CLIENT_ID') ?: ''));
 $googleSignupEnabled = $googleClientId !== '';
 $pendingGoogleSignup = isset($_SESSION['pending_google_signup']) && is_array($_SESSION['pending_google_signup'])
     ? $_SESSION['pending_google_signup']

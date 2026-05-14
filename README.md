@@ -66,7 +66,8 @@ Other important environment variables include:
 - `APP_ENV`: environment label such as `local`, `production`, or platform-specific values.
 - `APP_URL`: canonical application URL.
 - `MAIL_*`: SMTP configuration used by PHPMailer.
-- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: Google OAuth configuration.
+- `GOOGLE_LOGIN_CLIENT_ID` and `GOOGLE_LOGIN_CLIENT_SECRET`: Google Sign-In client for login, signup, and invite acceptance.
+- `GOOGLE_WORKSPACE_CLIENT_ID` and `GOOGLE_WORKSPACE_CLIENT_SECRET`: Google OAuth client for Drive/Workspace, Calendar/Meet, and Gmail integrations.
 - `PAYMONGO_SECRET_KEY`: PayMongo billing integration key.
 - `ALLOW_MAINTENANCE_SCRIPTS`: allows web maintenance scripts outside CLI when explicitly enabled.
 - `ALLOW_GLOBAL_MAINTENANCE`: allows global maintenance actions instead of tenant-scoped actions.

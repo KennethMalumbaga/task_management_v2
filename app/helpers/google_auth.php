@@ -2,17 +2,31 @@
 
 require_once dirname(__DIR__) . '/mail_config.php';
 
+if (!function_exists('google_login_client_id')) {
+    function google_login_client_id()
+    {
+        return trim((string)(getenv('GOOGLE_LOGIN_CLIENT_ID') ?: ''));
+    }
+}
+
+if (!function_exists('google_login_client_secret')) {
+    function google_login_client_secret()
+    {
+        return trim((string)(getenv('GOOGLE_LOGIN_CLIENT_SECRET') ?: ''));
+    }
+}
+
 if (!function_exists('google_auth_client_id')) {
     function google_auth_client_id()
     {
-        return trim((string)(getenv('GOOGLE_CLIENT_ID') ?: ''));
+        return google_login_client_id();
     }
 }
 
 if (!function_exists('google_auth_is_enabled')) {
     function google_auth_is_enabled()
     {
-        return google_auth_client_id() !== '';
+        return google_login_client_id() !== '';
     }
 }
 
@@ -204,7 +218,7 @@ if (!function_exists('google_auth_fetch_certificates')) {
 if (!function_exists('google_auth_verify_id_token')) {
     function google_auth_verify_id_token($idToken, $expectedClientId = null)
     {
-        $expectedClientId = trim((string)($expectedClientId ?: google_auth_client_id()));
+        $expectedClientId = trim((string)($expectedClientId ?: google_login_client_id()));
         if ($expectedClientId === '') {
             return ['ok' => false, 'claims' => null, 'error' => 'Google login is not configured.'];
         }

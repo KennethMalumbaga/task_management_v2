@@ -28,7 +28,7 @@ $pendingVerification = $hasPendingVerification ? $_SESSION['pending_login_verifi
 $verificationEmailMasked = $hasPendingVerification ? (string)($pendingVerification['email_masked'] ?? '') : '';
 $verificationError = isset($_GET['verify_error']) ? trim((string)$_GET['verify_error']) : '';
 $verificationSuccess = isset($_GET['verify_success']) ? trim((string)$_GET['verify_success']) : '';
-$googleClientId = trim((string)(getenv('GOOGLE_CLIENT_ID') ?: ''));
+$googleClientId = trim((string)(getenv('GOOGLE_LOGIN_CLIENT_ID') ?: ''));
 $googleLoginEnabled = $googleClientId !== '';
 ?>
 <!DOCTYPE html>

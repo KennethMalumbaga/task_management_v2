@@ -4,7 +4,7 @@ if (isset($pdo) && $pdo instanceof PDO) {
     return;
 }
 
-$loadEnvFile = static function (string $envFile): void {
+$loadEnvFile = static function (string $envFile, bool $overwrite = false): void {
     if (!is_readable($envFile)) {
         return;
     }
@@ -32,11 +32,23 @@ $loadEnvFile = static function (string $envFile): void {
             $value = substr($value, 1, -1);
         }
 
-        if (getenv($name) === false) {
+        if ($overwrite || getenv($name) === false) {
             putenv("$name=$value");
             $_ENV[$name] = $value;
         }
     }
+};
+
+$requestHostIsLocal = static function (): bool {
+    if (PHP_SAPI === 'cli') {
+        return true;
+    }
+
+    $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? '')));
+    return $host === ''
+        || $host === 'localhost'
+        || str_starts_with($host, '127.')
+        || str_starts_with($host, '[::1');
 };
 
 $env = static function (array $names, ?string $default = null): ?string {
@@ -70,8 +82,10 @@ $parseDatabaseUrl = static function (string $databaseUrl): array {
 };
 
 try {
-    foreach ([__DIR__ . '/.env.local', __DIR__ . '/.env'] as $envFile) {
-        $loadEnvFile($envFile);
+    $loadEnvFile(__DIR__ . '/.env');
+    $configuredAppEnv = strtolower(trim((string)(getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? ''))));
+    if ($configuredAppEnv !== 'production' || $requestHostIsLocal()) {
+        $loadEnvFile(__DIR__ . '/.env.local', true);
     }
 
     $databaseUrl = $env(['DATABASE_URL', 'MYSQL_URL']);

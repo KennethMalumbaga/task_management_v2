@@ -12,7 +12,7 @@ $token = trim((string)($_GET['token'] ?? ''));
 $invite = null;
 $inviteError = null;
 $prefillEmail = trim((string)($_GET['email'] ?? ''));
-$googleClientId = trim((string)(getenv('GOOGLE_CLIENT_ID') ?: ''));
+$googleClientId = trim((string)(getenv('GOOGLE_LOGIN_CLIENT_ID') ?: ''));
 $googleInviteEnabled = $googleClientId !== '';
 $pendingGoogleInvite = isset($_SESSION['pending_google_invite_accept']) && is_array($_SESSION['pending_google_invite_accept'])
     ? $_SESSION['pending_google_invite_accept']
