@@ -279,8 +279,17 @@ $prefillEmail = $googleSignupActive
                         Your Google account will be used as the owner identity. You can add a regular password later if you want.
                     </div>
                     <?php } ?>
-                     
-                    <button type="submit" class="btn-primary">Create Workspace</button>
+                    <div class="terms-consent">
+                        <label class="terms-consent-label" for="accept_terms">
+                            <input type="checkbox" id="accept_terms" name="accept_terms" value="1" required>
+                            <span>
+                                I have read and agree to the
+                                <a href="#" id="open-terms-modal" class="terms-modal-link">Terms and Conditions</a>.
+                            </span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn-primary" id="create-workspace-btn" disabled>Create Workspace</button>
                 </form>
 
                 <div class="auth-footer">
@@ -363,5 +372,388 @@ $prefillEmail = $googleSignupActive
       <?php if ($googleSignupEnabled) { ?>
       <script src="https://accounts.google.com/gsi/client" async defer></script>
       <?php } ?>
+
+      <!-- Terms and Conditions Modal -->
+      <div id="terms-modal" class="tc-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-modal-title" hidden>
+          <div class="tc-modal-box">
+              <div class="tc-modal-header">
+                  <div>
+                      <span class="tc-brand">TaskFlow</span>
+                      <h2 id="tc-modal-title">Terms and Conditions</h2>
+                  </div>
+                  <div class="tc-modal-header-actions">
+                      <a href="docs/NSC-TaskFlow-Terms__Conditions.pdf" target="_blank" rel="noopener" class="tc-btn-outline">
+                          <i class="fa fa-file-pdf-o"></i> Open PDF
+                      </a>
+                      <button type="button" id="close-terms-modal" class="tc-close-btn" aria-label="Close">
+                          <i class="fa fa-times"></i>
+                      </button>
+                  </div>
+              </div>
+              <div class="tc-modal-body">
+                  <div class="tc-content">
+                      <div class="tc-org-header">
+                          <div class="tc-org-info">
+                              <strong>Nehemiah Solutions</strong><br>
+                              2<sup>nd</sup> Floor DDTC Building, Juan Luna Street, Davao City<br>
+                              Website: www.nehemiahsolutions.com<br>
+                              Email: nehemiah.solutions.corp@gmail.com &nbsp;|&nbsp; 0916-264-6505
+                          </div>
+                      </div>
+
+                      <h3 class="tc-doc-title">TASKFLOW: TERMS AND CONDITIONS OF REGISTRATION</h3>
+
+                      <p>Welcome to TaskFlow! TaskFlow is a task and workflow management platform designed to help organizations, teams, and individuals manage projects, assignments, collaboration, productivity, and operational workflows.</p>
+                      <p>By accessing, registering, or using the platform, you acknowledge that you have read, understood, and agreed to comply with the following Terms and Conditions:</p>
+
+                      <div class="tc-section">
+                          <h4>1. Compliance with the Data Privacy Act of 2012</h4>
+                          <p>TaskFlow values and protects the privacy and confidentiality of user and organizational information. All personal data collected, stored, processed, and transmitted through the platform shall be handled in accordance with the Data Privacy Act of 2012 and other applicable laws and regulations.</p>
+                          <p>By using the platform, users consent to the collection, storage, processing, and use of their information for legitimate operational, communication, collaboration, reporting, security, and administrative purposes.</p>
+                      </div>
+
+                      <div class="tc-section">
+                          <h4>2. Authorized Use of the Platform</h4>
+                          <p>TaskFlow is intended for lawful and authorized project management, workflow coordination, team collaboration, and productivity-related activities. Users agree not to use the platform for illegal, harmful, fraudulent, abusive, or unauthorized purposes.</p>
+                          <p>Any attempt to disrupt, manipulate, reverse-engineer, or gain unauthorized access to the platform or other users' accounts is strictly prohibited and may result in immediate account suspension and legal action.</p>
+                      </div>
+
+                      <div class="tc-section">
+                          <h4>3. User Account and Workspace Responsibilities</h4>
+                          <p>Workspace owners are responsible for maintaining the security of their account credentials. You must not share your login credentials with unauthorized individuals. You are responsible for all activities that occur under your account.</p>
+                          <p>Workspace owners are responsible for managing their team members, assigning roles and permissions appropriately, and ensuring that all users under their workspace comply with these Terms and Conditions.</p>
+                          <p>TaskFlow reserves the right to suspend or terminate accounts found to be in violation of these terms, without prior notice.</p>
+                      </div>
+
+                      <div class="tc-section">
+                          <h4>4. Data Ownership and Confidentiality</h4>
+                          <p>All data, tasks, files, and content created within a workspace remain the property of the respective workspace owner and organization. TaskFlow does not claim ownership over user-generated content.</p>
+                          <p>Users agree to maintain the confidentiality of organizational data accessed through the platform and not to disclose, copy, or distribute such information to unauthorized parties.</p>
+                      </div>
+
+                      <div class="tc-section">
+                          <h4>5. Intellectual Property</h4>
+                          <p>All platform features, designs, interfaces, trademarks, and software components of TaskFlow are the intellectual property of Nehemiah Solutions. Users are granted a limited, non-exclusive, non-transferable license to use the platform solely for its intended purpose.</p>
+                          <p>Reproduction, distribution, modification, or creation of derivative works from any part of the TaskFlow platform without explicit written consent is strictly prohibited.</p>
+                      </div>
+
+                      <div class="tc-section">
+                          <h4>6. Service Availability and Modifications</h4>
+                          <p>TaskFlow strives to maintain high availability and performance. However, Nehemiah Solutions does not guarantee uninterrupted access and shall not be liable for downtime caused by maintenance, technical issues, or circumstances beyond its control.</p>
+                          <p>Nehemiah Solutions reserves the right to modify, update, or discontinue any features of TaskFlow at any time. Users will be notified of significant changes where reasonably practicable.</p>
+                      </div>
+
+                      <div class="tc-section">
+                          <h4>7. Limitation of Liability</h4>
+                          <p>To the fullest extent permitted by applicable law, Nehemiah Solutions shall not be liable for any indirect, incidental, special, or consequential damages arising from the use or inability to use the platform, including but not limited to loss of data, revenue, or business opportunities.</p>
+                          <p>Users acknowledge that they use the platform at their own risk and that Nehemiah Solutions' total liability, if any, shall not exceed the amount paid by the user for the applicable subscription period.</p>
+                      </div>
+
+                      <div class="tc-section">
+                          <h4>8. Termination</h4>
+                          <p>Either party may terminate the account or subscription at any time in accordance with the chosen plan terms. Upon termination, access to the workspace and its data will be revoked. Workspace owners are advised to export their data prior to account closure.</p>
+                          <p>Nehemiah Solutions reserves the right to terminate or suspend access immediately if there is evidence of a violation of these Terms and Conditions or applicable law.</p>
+                      </div>
+
+                      <div class="tc-section">
+                          <h4>9. Governing Law</h4>
+                          <p>These Terms and Conditions shall be governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes arising from the use of the platform shall be subject to the exclusive jurisdiction of the courts in Davao City, Philippines.</p>
+                      </div>
+
+                      <div class="tc-section">
+                          <h4>10. Contact Information</h4>
+                          <p>For questions, concerns, or data privacy requests related to these Terms and Conditions, please contact:</p>
+                          <ul>
+                              <li><strong>Nehemiah Solutions</strong></li>
+                              <li>2<sup>nd</sup> Floor DDTC Building, Juan Luna Street, Davao City</li>
+                              <li>Email: nehemiah.solutions.corp@gmail.com</li>
+                              <li>Phone: 0916-264-6505</li>
+                              <li>Website: www.nehemiahsolutions.com</li>
+                          </ul>
+                      </div>
+
+                      <p class="tc-effective">By registering and using TaskFlow, you confirm that you have read, understood, and agreed to these Terms and Conditions.</p>
+                  </div>
+              </div>
+              <div class="tc-modal-footer">
+                  <a href="docs/NSC-TaskFlow-Terms__Conditions.pdf" target="_blank" rel="noopener" class="tc-btn-outline">
+                      <i class="fa fa-download"></i> Download PDF
+                  </a>
+                  <button type="button" id="agree-terms-btn" class="tc-btn-agree">
+                      <i class="fa fa-check"></i> I Agree &amp; Close
+                  </button>
+              </div>
+          </div>
+      </div>
+
+      <style>
+      .terms-modal-link {
+          color: #6C3CE1;
+          font-weight: 600;
+          text-decoration: underline;
+      }
+      .tc-modal-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          background: rgba(17, 24, 39, 0.6);
+          backdrop-filter: blur(2px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          animation: tcFadeIn 0.18s ease;
+      }
+      .tc-modal-overlay[hidden] {
+          display: none;
+      }
+      @keyframes tcFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+      }
+      .tc-modal-box {
+          background: #fff;
+          border-radius: 16px;
+          width: 100%;
+          max-width: 760px;
+          max-height: 90vh;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+          animation: tcSlideUp 0.2s ease;
+          overflow: hidden;
+      }
+      @keyframes tcSlideUp {
+          from { transform: translateY(24px); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+      }
+      .tc-modal-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 20px 24px 16px;
+          border-bottom: 1px solid #E5E7EB;
+          flex-shrink: 0;
+      }
+      .tc-brand {
+          display: block;
+          color: #6C3CE1;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+          margin-bottom: 2px;
+      }
+      .tc-modal-header h2 {
+          margin: 0;
+          font-size: 20px;
+          font-weight: 700;
+          color: #111827;
+      }
+      .tc-modal-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+      }
+      .tc-btn-outline {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 7px 12px;
+          border: 1px solid #D1D5DB;
+          border-radius: 8px;
+          background: #fff;
+          color: #374151;
+          font-size: 13px;
+          font-weight: 500;
+          text-decoration: none;
+          cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
+          white-space: nowrap;
+      }
+      .tc-btn-outline:hover {
+          background: #F9FAFB;
+          border-color: #9CA3AF;
+          color: #111827;
+      }
+      .tc-close-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          border: none;
+          border-radius: 8px;
+          background: #F3F4F6;
+          color: #6B7280;
+          cursor: pointer;
+          font-size: 14px;
+          transition: background 0.15s;
+      }
+      .tc-close-btn:hover {
+          background: #E5E7EB;
+          color: #374151;
+      }
+      .tc-modal-body {
+          overflow-y: auto;
+          flex: 1;
+          padding: 0;
+      }
+      .tc-content {
+          padding: 24px;
+          font-family: 'Inter', Arial, sans-serif;
+          font-size: 13.5px;
+          color: #374151;
+          line-height: 1.7;
+      }
+      .tc-org-header {
+          border: 1px solid #E5E7EB;
+          border-radius: 10px;
+          padding: 14px 18px;
+          background: #F9FAFB;
+          margin-bottom: 20px;
+          font-size: 13px;
+          color: #4B5563;
+          line-height: 1.6;
+      }
+      .tc-org-header strong {
+          color: #111827;
+          font-size: 14px;
+      }
+      .tc-doc-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+          text-align: center;
+          margin: 0 0 18px;
+          text-transform: uppercase;
+          letter-spacing: 0.02em;
+      }
+      .tc-content > p {
+          margin: 0 0 12px;
+          color: #4B5563;
+      }
+      .tc-section {
+          margin-bottom: 18px;
+      }
+      .tc-section h4 {
+          margin: 0 0 6px;
+          font-size: 14px;
+          font-weight: 700;
+          color: #111827;
+      }
+      .tc-section p {
+          margin: 0 0 8px;
+          color: #4B5563;
+      }
+      .tc-section ul {
+          margin: 6px 0 0 18px;
+          padding: 0;
+          color: #4B5563;
+      }
+      .tc-section ul li {
+          margin-bottom: 4px;
+      }
+      .tc-effective {
+          margin-top: 20px !important;
+          padding: 14px 16px;
+          background: #EDE9FE;
+          border-left: 3px solid #6C3CE1;
+          border-radius: 6px;
+          color: #4C1D95 !important;
+          font-weight: 500;
+          font-size: 13px;
+      }
+      .tc-modal-footer {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+          padding: 14px 24px;
+          border-top: 1px solid #E5E7EB;
+          background: #F9FAFB;
+          flex-shrink: 0;
+      }
+      .tc-btn-agree {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          padding: 10px 20px;
+          border: none;
+          border-radius: 8px;
+          background: #6C3CE1;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.15s;
+      }
+      .tc-btn-agree:hover {
+          background: #5a30c5;
+      }
+      @media (max-width: 640px) {
+          .tc-modal-box { border-radius: 12px; max-height: 95vh; }
+          .tc-modal-header { padding: 16px 16px 12px; }
+          .tc-content { padding: 16px; }
+          .tc-modal-footer { padding: 12px 16px; flex-wrap: wrap; }
+          .tc-btn-outline span { display: none; }
+      }
+      </style>
+
+      <script>
+      (function () {
+          var overlay = document.getElementById('terms-modal');
+          var openBtn = document.getElementById('open-terms-modal');
+          var closeBtn = document.getElementById('close-terms-modal');
+          var agreeBtn = document.getElementById('agree-terms-btn');
+          var checkbox = document.getElementById('accept_terms');
+          var submitBtn = document.getElementById('create-workspace-btn');
+
+          function updateSubmitState() {
+              if (!submitBtn || !checkbox) {
+                  return;
+              }
+              submitBtn.disabled = !checkbox.checked;
+          }
+
+          function openModal(e) {
+              if (e) e.preventDefault();
+              overlay.removeAttribute('hidden');
+              document.body.style.overflow = 'hidden';
+              closeBtn.focus();
+          }
+
+          function closeModal() {
+              overlay.setAttribute('hidden', '');
+              document.body.style.overflow = '';
+              if (openBtn) openBtn.focus();
+          }
+
+          if (openBtn)  openBtn.addEventListener('click', openModal);
+          if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+          if (agreeBtn) {
+              agreeBtn.addEventListener('click', function () {
+                  if (checkbox) checkbox.checked = true;
+                  updateSubmitState();
+                  closeModal();
+              });
+          }
+
+          if (checkbox) {
+              checkbox.addEventListener('change', updateSubmitState);
+              updateSubmitState();
+          }
+
+          overlay.addEventListener('click', function (e) {
+              if (e.target === overlay) closeModal();
+          });
+
+          document.addEventListener('keydown', function (e) {
+              if (e.key === 'Escape' && !overlay.hasAttribute('hidden')) closeModal();
+          });
+      })();
+      </script>
 </body>
 </html>

@@ -65,6 +65,10 @@ if (!csrf_verify('signup_form', $_POST['csrf_token'] ?? null, true)) {
     signup_redirect_error("Invalid or expired request. Please refresh and try again.", $incomingPlanCode, $signupMode);
 }
 
+if (($_POST['accept_terms'] ?? '') !== '1') {
+    signup_redirect_error("Please read and accept the Terms and Conditions before creating an account.", $incomingPlanCode, $signupMode);
+}
+
 if (!isset($_POST['user_name']) || !isset($_POST['full_name'])) {
     signup_redirect_error("Invalid signup request.", $incomingPlanCode, $signupMode);
 }

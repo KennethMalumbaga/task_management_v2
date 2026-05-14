@@ -1,2 +1,4 @@
 {"ts":"2026-05-13T18:36:57+08:00","label":"messages.chat_lists","duration_ms":1558,"threshold_ms":1500,"method":"GET","script":"getChatLists.php","status":200,"user_id":4,"organization_id":2}
 {"ts":"2026-05-13T19:14:53+08:00","label":"dashboard.index","duration_ms":2217,"threshold_ms":1500,"method":"GET","script":"index.php","status":200,"user_id":5,"organization_id":1}
+{"ts":"2026-05-13T16:46:12+02:00","label":"dashboard.index","duration_ms":2777,"threshold_ms":1500,"method":"GET","script":"index.php","status":200,"user_id":2,"organization_id":1}
+{"ts":"2026-05-14T15:46:16+02:00","label":"dashboard.index","duration_ms":2092,"threshold_ms":1500,"method":"GET","script":"index.php","status":200,"user_id":2,"organization_id":1}
